@@ -754,3 +754,5 @@ function renderClientHistorico() {
       </div>`;
   }).join('');
 }
+
+Router.register('cliente-area', renderClienteArea, 'Área do Cliente');

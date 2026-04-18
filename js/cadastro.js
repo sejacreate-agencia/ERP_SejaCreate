@@ -378,3 +378,5 @@ function filterClientPlan(v) {
   const rows = document.querySelectorAll('#clients-table tbody tr');
   rows.forEach(r => { r.style.display = !v || r.textContent.includes(v) ? '' : 'none'; });
 }
+
+Router.register('cadastro', renderCadastro, 'Cadastro');

@@ -601,3 +601,5 @@ async function showCRMList() {
 }
 
 // formatDateBR é definida globalmente em app.js
+
+Router.register('crm', renderCRM, 'CRM');

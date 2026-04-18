@@ -173,3 +173,5 @@ function applyCalFilters() {
   document.getElementById('cal-grid-area').innerHTML = renderCalGrid();
   document.getElementById('upcoming-list').innerHTML = renderUpcomingList();
 }
+
+Router.register('calendario', renderCalendario, 'Calendário');

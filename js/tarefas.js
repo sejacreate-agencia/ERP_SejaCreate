@@ -916,3 +916,5 @@ async function handleArtUpload(taskId, input) {
     openTaskModal(taskId);
   }, 800);
 }
+
+Router.register('tarefas', renderTarefas, 'Gestão de Tarefas');

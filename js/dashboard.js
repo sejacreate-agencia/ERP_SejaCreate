@@ -333,3 +333,5 @@ function saveNewTask() {
     renderDashboard();
   }, 400);
 }
+
+Router.register('dashboard', renderDashboard, 'Dashboard');

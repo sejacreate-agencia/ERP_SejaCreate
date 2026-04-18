@@ -147,3 +147,5 @@ function resolveAviso(id) {
 function snoozeAviso(id) {
   showToast('Aviso adiado para amanhã.', 'info');
 }
+
+Router.register('avisos', renderAvisos, 'Avisos Importantes');

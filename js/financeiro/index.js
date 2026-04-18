@@ -102,3 +102,5 @@ function _renderFinContent() {
     document.querySelectorAll('[data-perm="financial"]').forEach(el => el.style.display = 'none');
   }
 }
+
+Router.register('financeiro', renderFinanceiro, 'Financeiro');

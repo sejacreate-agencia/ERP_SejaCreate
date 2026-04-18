@@ -775,3 +775,5 @@ function _taskTable(tasks, emptyMsg) {
 function exportReport() {
   showToast('📥 Exportação PDF/Excel disponível com backend configurado', 'info');
 }
+
+Router.register('relatorios', renderRelatorios, 'Relatórios');

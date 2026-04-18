@@ -45,7 +45,7 @@ function switchConfigSection(section) {
   if (el) {
     el.innerHTML = renderConfigSection();
     document.querySelectorAll('.config-nav-item').forEach(n => {
-      n.classList.toggle('active', n.getAttribute('onclick')?.includes(`'${section}'`));
+      n.classList.toggle('active', n.dataset.section === section);
     });
   }
 }
@@ -798,3 +798,5 @@ function toggleModeloAprovacao(id) {
   showToast(isActivating ? `✅ Modelo "${m.name}" ativado!` : 'Modelo desativado.', isActivating ? 'success' : 'info');
   switchConfigSection('aprovacao');
 }
+
+Router.register('configuracoes', renderConfiguracoes, 'Configurações');
