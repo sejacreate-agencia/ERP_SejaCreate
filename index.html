@@ -169,9 +169,28 @@
   </main>
 </div>
 
+<!-- ── Camada 1: Configuração ──────────────────────── -->
+<script src="js/config.js"></script>
+
+<!-- ── Camada 2: Dados e cliente Supabase ────────── -->
 <script src="js/data.js"></script>
 <script src="js/supabase.js"></script>
+
+<!-- ── Camada 3: Utils (sem dependências externas) ── -->
+<script src="js/utils/formatters.js"></script>
+<script src="js/utils/validators.js"></script>
+<script src="js/utils/domHelpers.js"></script>
+<script src="js/utils/storageHelpers.js"></script>
+
+<!-- ── Camada 4: Components ──────────────────────── -->
+<script src="js/components/toast.js"></script>
+<script src="js/components/modal.js"></script>
+<script src="js/components/statusTag.js"></script>
+
+<!-- ── Camada 5: Core (auth, navegação) ─────────── -->
 <script src="js/app.js"></script>
+
+<!-- ── Camada 6: Páginas ─────────────────────────── -->
 <script src="js/dashboard.js"></script>
 <script src="js/avisos.js"></script>
 <script src="js/crm.js"></script>

@@ -226,96 +226,13 @@ function toggleSidebar() {
   document.getElementById('main-content').classList.toggle('expanded');
 }
 
-// ─── MODAL ────────────────────────────────────
-
-function openModal(html, size = '') {
-  closeModal(); // Fecha modal existente, se houver
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay fade-in';
-  overlay.id = 'modal-overlay';
-  overlay.innerHTML = `<div class="modal ${size}">${html}</div>`;
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
-  document.body.appendChild(overlay);
-}
-
-function closeModal() {
-  const m = document.getElementById('modal-overlay');
-  if (m) m.remove();
-}
-
-// ─── TOAST ────────────────────────────────────
-
-function showToast(msg, type = 'success') {
-  const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#7c3aed' };
-  const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
-
-  // Remove toast anterior do mesmo tipo
-  document.querySelectorAll('.sc-toast').forEach(t => t.remove());
-
-  const toast = document.createElement('div');
-  toast.className = 'sc-toast';
-  toast.style.cssText = `
-    position:fixed; bottom:24px; right:24px; z-index:9999;
-    background:var(--bg-card); border:1px solid ${colors[type]};
-    border-left: 4px solid ${colors[type]};
-    padding:12px 18px; border-radius:8px; font-size:13px;
-    color:var(--text-primary); animation:slideUp 0.3s ease;
-    max-width:340px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    display:flex; align-items:center; gap:10px;
-  `;
-  toast.innerHTML = `<i class="fas ${icons[type]}" style="color:${colors[type]};font-size:15px;flex-shrink:0"></i><span>${msg}</span>`;
-  document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 3200);
-}
-
-function showToastLogin(msg, type = 'error') {
-  const existing = document.querySelector('.login-toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.className = 'login-toast';
-  toast.style.cssText = `
-    background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4);
-    border-radius: 8px; padding: 10px 14px; font-size: 13px;
-    color: #ef4444; margin-top: 12px; text-align: center;
-    animation: slideUp 0.3s ease;
-  `;
-  toast.textContent = msg;
-  const loginForm = document.querySelector('.login-form');
-  if (loginForm) loginForm.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
-}
-
 // ─── HELPERS ─────────────────────────────────
-
-function getStatusTag(s) {
-  const c = SC.statusColor(s);
-  return `<span class="tag tag-${c}">${s}</span>`;
-}
-
-function getPriorityTag(p) {
-  const map = { alta: 'red', media: 'yellow', baixa: 'green' };
-  const label = { alta: '🔴 Alta', media: '🟡 Média', baixa: '🟢 Baixa' };
-  return `<span class="tag tag-${map[p]||'gray'}">${label[p]||p}</span>`;
-}
-
-function getClientTag(id) {
-  return `<span style="font-size:12px;color:var(--text-purple)"><i class="fas fa-building" style="font-size:10px;margin-right:4px"></i>${SC.getClientName(id)}</span>`;
-}
-
-// ─── GLOBAL DATE HELPER ─────────────────────
-function formatDateBR(d) {
-  if (!d) return null;
-  try {
-    const str = String(d).split('T')[0];
-    const p = str.split('-');
-    if (p.length < 3) return d;
-    return `${p[2]}/${p[1]}/${p[0]}`;
-  } catch { return String(d); }
-}
+// Modal, Toast, StatusTag e formatDateBR foram movidos para:
+//   js/components/modal.js
+//   js/components/toast.js
+//   js/components/statusTag.js
+//   js/utils/formatters.js
+// Os aliases de compatibilidade estão nos arquivos acima.
 
 // ─── PROTEÇÃO DE ROTAS ───────────────────────
 
