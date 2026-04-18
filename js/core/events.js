@@ -61,6 +61,7 @@ const Actions = {
   'switch-fin-tab':       el  => renderFinanceiro(el.dataset.tab),
   'mark-paid':            el  => markAsPaid(el.dataset.type, parseInt(el.dataset.id)),
   'open-edit-lanc':       el  => openEditLancModal(el.dataset.type, parseInt(el.dataset.id)),
+  'toggle-lanc-type':     ()  => toggleLancType(),
   'save-new-lanc':        ()  => saveNewLanc(),
   'save-edit-lanc':       el  => saveEditLanc(el.dataset.type, parseInt(el.dataset.id)),
   'whatsapp-cobrar':      el  => Toast.info(`📱 WhatsApp aberto para ${el.dataset.client}`),
@@ -121,9 +122,9 @@ const Actions = {
 document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('click', e => {
     const el = e.target.closest('[data-action]');
-    if (!el) return;
+    if (!el || el.tagName === 'SELECT') return;
 
-    const action = el.dataset.action;
+    const action  = el.dataset.action;
     const handler = Actions[action];
 
     if (!handler) {
@@ -131,13 +132,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Para propagação se o elemento pede isolamento
     if (el.dataset.stopPropagation) e.stopPropagation();
 
     try {
       handler(el, e);
     } catch (err) {
       console.error(`Events: erro ao executar "${action}":`, err);
+    }
+  });
+
+  // Listener separado para <select data-action="...">
+  document.body.addEventListener('change', e => {
+    const el = e.target.closest('select[data-action]');
+    if (!el) return;
+    const handler = Actions[el.dataset.action];
+    if (handler) {
+      try { handler(el, e); } catch (err) { console.error(`Events (change): erro "${el.dataset.action}":`, err); }
     }
   });
 });
