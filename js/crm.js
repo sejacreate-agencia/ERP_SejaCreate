@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // SEJA CREATE — CRM (Pipeline + Drag-and-Drop)
 // =============================================
 
@@ -30,8 +30,8 @@ async function renderCRM() {
           <p class="page-subtitle">Arraste leads entre colunas para atualizar o estágio</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="showCRMList()"><i class="fas fa-list"></i> Lista</button>
-          <button class="btn btn-primary" onclick="openLeadModal()"><i class="fas fa-plus"></i> Novo Lead</button>
+          <button class="btn btn-secondary" data-action="show-crm-list"><i class="fas fa-list"></i> Lista</button>
+          <button class="btn btn-primary" data-action="open-lead-modal"><i class="fas fa-plus"></i> Novo Lead</button>
         </div>
       </div>
     </div>
@@ -115,7 +115,7 @@ function renderCRMColumn(stage) {
             <div class="pipeline-col-count">${leads.length} lead${leads.length !== 1 ? 's' : ''} · ${SC.formatCurrency(totalVal)}</div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-icon" onclick="openLeadModal('${stage}')" title="Adicionar lead">
+        <button class="btn btn-ghost btn-icon" data-action="open-lead-modal" data-stage="${stage}" title="Adicionar lead">
           <i class="fas fa-plus" style="font-size:12px"></i>
         </button>
       </div>
@@ -152,7 +152,7 @@ function renderLeadCard(l) {
          data-id="${l.id}"
          ondragstart="crmDragStart(event,${JSON.stringify(l.id)})"
          ondragend="crmDragEnd(event)"
-         onclick="openLeadDetail(${JSON.stringify(l.id)})">
+         data-action="open-lead-detail" data-id="${l.id}">
       <div class="lead-name">${l.name}</div>
       <div class="lead-company"><i class="fas fa-building" style="font-size:10px;margin-right:4px"></i>${l.company}</div>
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
@@ -267,7 +267,7 @@ async function openLeadDetail(id) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-user" style="color:var(--purple-light);margin-right:8px"></i>${l.name} — ${l.company}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -344,12 +344,12 @@ async function openLeadDetail(id) {
       ` : ''}
     </div>
     <div class="modal-footer">
-      <button class="btn btn-sm btn-danger" onclick="deleteLead(${JSON.stringify(id)})">
+      <button class="btn btn-sm btn-danger" data-action="delete-lead" data-id="${id}">
         <i class="fas fa-trash"></i> Excluir
       </button>
       ${l.stage !== 'Fechado' && l.stage !== 'Perdido' ?
-        `<button class="btn btn-success" onclick="convertLead(${JSON.stringify(id)})"><i class="fas fa-user-plus"></i> Converter em Cliente</button>` : ''}
-      <button class="btn btn-primary" id="btn-save-lead-${id}" onclick="updateLeadStage(${JSON.stringify(id)})">
+        `<button class="btn btn-success" data-action="convert-lead" data-id="${id}"><i class="fas fa-user-plus"></i> Converter em Cliente</button>` : ''}
+      <button class="btn btn-primary" id="btn-save-lead-${id}" data-action="update-lead-stage" data-id="${id}">
         <i class="fas fa-save"></i> Salvar Alterações
       </button>
     </div>
@@ -461,7 +461,7 @@ async function openLeadModal(stage = 'Lead Novo') {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-user-plus" style="color:var(--purple-light);margin-right:8px"></i>Novo Lead</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -494,8 +494,8 @@ async function openLeadModal(stage = 'Lead Novo') {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-save-new-lead" onclick="saveNewLead()"><i class="fas fa-save"></i> Salvar Lead</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-new-lead" data-action="save-new-lead"><i class="fas fa-save"></i> Salvar Lead</button>
     </div>
   `);
 }
@@ -559,7 +559,7 @@ async function showCRMList() {
     const sc = { 'Lead Novo':'blue', 'Contato Iniciado':'purple', 'Proposta Enviada':'yellow', 'Negociação':'yellow', 'Fechado':'green', 'Perdido':'red' };
     const lastContact = l.last_contact || l.lastContact;
     return `
-      <tr onclick="openLeadDetail(${JSON.stringify(l.id)})" style="cursor:pointer">
+      <tr data-action="open-lead-detail" data-id="${l.id}" style="cursor:pointer">
         <td><strong>${l.name}</strong><br/><span style="font-size:11px;color:var(--text-muted)">${l.company}</span></td>
         <td style="font-size:12px">${l.service}</td>
         <td><span class="tag tag-purple">${l.origin}</span></td>
@@ -583,8 +583,8 @@ async function showCRMList() {
           <p class="page-subtitle">${_leadData.length} leads no sistema</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="renderCRM()"><i class="fas fa-columns"></i> Pipeline</button>
-          <button class="btn btn-primary" onclick="openLeadModal()"><i class="fas fa-plus"></i> Novo Lead</button>
+          <button class="btn btn-secondary" data-action="render-crm"><i class="fas fa-columns"></i> Pipeline</button>
+          <button class="btn btn-primary" data-action="open-lead-modal"><i class="fas fa-plus"></i> Novo Lead</button>
         </div>
       </div>
     </div>

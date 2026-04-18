@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // SEJA CREATE — CADASTRO
 // =============================================
 
@@ -21,13 +21,13 @@ function renderCadastro(tab) {
           <p class="page-subtitle">Gestão de clientes, funcionários e fornecedores</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-primary" onclick="openNewCadastroModal()"><i class="fas fa-plus"></i> Novo ${cadastroTab === 'clientes' ? 'Cliente' : cadastroTab === 'funcionarios' ? 'Funcionário' : 'Fornecedor'}</button>
+          <button class="btn btn-primary" data-action="open-new-cadastro-modal"><i class="fas fa-plus"></i> Novo ${cadastroTab === 'clientes' ? 'Cliente' : cadastroTab === 'funcionarios' ? 'Funcionário' : 'Fornecedor'}</button>
         </div>
       </div>
     </div>
     <div class="tabs">
       ${tabs.map(t => `
-        <button class="tab-btn ${cadastroTab === t.id ? 'active' : ''}" onclick="renderCadastro('${t.id}')">
+        <button class="tab-btn ${cadastroTab === t.id ? 'active' : ''}" data-action="switch-cadastro-tab" data-tab="${t.id}">
           <i class="fas ${t.icon}"></i> ${t.label} <span style="font-size:11px;opacity:0.7">(${t.count})</span>
         </button>`).join('')}
     </div>
@@ -39,7 +39,7 @@ function renderCadastro(tab) {
 
 function renderClientesTab() {
   const rows = SC.clients.map(c => `
-    <tr onclick="openClientDetail(${c.id})" style="cursor:pointer">
+    <tr data-action="open-client-detail" data-id="${c.id}" style="cursor:pointer">
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="avatar-sm">${c.name.charAt(0)}</div>
@@ -63,8 +63,8 @@ function renderClientesTab() {
         </span>
       </td>
       <td>
-        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();openClientDetail(${c.id})"><i class="fas fa-eye"></i></button>
-        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();toggleClientStatus(${c.id})"><i class="fas fa-power-off"></i></button>
+        <button class="btn btn-sm btn-ghost" data-action="open-client-detail" data-id="${c.id}" data-stop-propagation="1"><i class="fas fa-eye"></i></button>
+        <button class="btn btn-sm btn-ghost" data-action="toggle-client-status" data-id="${c.id}" data-stop-propagation="1"><i class="fas fa-power-off"></i></button>
       </td>
     </tr>
   `).join('');
@@ -108,7 +108,7 @@ function renderFuncionariosTab() {
       <td><span class="tag tag-purple">${SC.roleLabels[e.role]}</span></td>
       <td><span class="tag ${e.status === 'ativo' ? 'tag-green' : 'tag-gray'}">${e.status}</span></td>
       <td>
-        <button class="btn btn-sm btn-ghost" onclick="openFuncModal(${e.id})"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-sm btn-ghost" data-action="open-func-modal" data-id="${e.id}"><i class="fas fa-edit"></i></button>
       </td>
     </tr>
   `).join('');
@@ -159,14 +159,14 @@ function openClientDetail(id) {
         <div class="avatar-sm" style="display:inline-flex;margin-right:8px">${c.name.charAt(0)}</div>
         ${c.name}
       </span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="tabs" style="margin-bottom:16px">
-        <button class="tab-btn active" id="ct1" onclick="switchClientTab(1)">Geral</button>
-        <button class="tab-btn" id="ct2" onclick="switchClientTab(2)">Contrato</button>
-        <button class="tab-btn" id="ct3" onclick="switchClientTab(3)">Tarefas</button>
-        <button class="tab-btn" id="ct4" onclick="switchClientTab(4)">Financeiro</button>
+        <button class="tab-btn active" id="ct1" data-action="switch-client-tab" data-tab="1">Geral</button>
+        <button class="tab-btn" id="ct2" data-action="switch-client-tab" data-tab="2">Contrato</button>
+        <button class="tab-btn" id="ct3" data-action="switch-client-tab" data-tab="3">Tarefas</button>
+        <button class="tab-btn" id="ct4" data-action="switch-client-tab" data-tab="4">Financeiro</button>
       </div>
 
       <div id="client-tab-1">
@@ -215,8 +215,8 @@ function openClientDetail(id) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
-      <button class="btn btn-primary" onclick="showToast('Dados salvos!')"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
+      <button class="btn btn-primary" data-action="save-new-client"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `, 'modal-lg');
 }
@@ -245,7 +245,7 @@ function openNewClientModal() {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-building" style="color:var(--purple-light);margin-right:8px"></i>Novo Cliente</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -268,8 +268,8 @@ function openNewClientModal() {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveNewClient()"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-new-client"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }
@@ -297,7 +297,7 @@ function openFuncModal(id) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-user" style="color:var(--purple-light);margin-right:8px"></i>${e ? 'Editar Funcionário' : 'Novo Funcionário'}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -316,8 +316,8 @@ function openFuncModal(id) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveFuncionario(${id||0})"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-funcionario" data-id="${id||0}"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }
@@ -338,7 +338,7 @@ function openNewSupplierModal() {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-truck" style="color:var(--purple-light);margin-right:8px"></i>Novo Fornecedor</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -353,8 +353,8 @@ function openNewSupplierModal() {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveNewSupplier()"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-new-supplier"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }

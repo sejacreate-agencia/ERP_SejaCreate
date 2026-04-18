@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // SEJA CREATE — FINANCEIRO (com Supabase)
 // =============================================
 
@@ -19,7 +19,7 @@ async function renderFinanceiro(tab) {
           <p class="page-subtitle">Controle financeiro completo da agência</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-primary" onclick="openNewLancModal()"><i class="fas fa-plus"></i> Novo Lançamento</button>
+          <button class="btn btn-primary" data-action="open-new-lanc-modal"><i class="fas fa-plus"></i> Novo Lançamento</button>
         </div>
       </div>
     </div>
@@ -81,10 +81,10 @@ function _renderFinContent() {
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab-btn ${finTab==='visao-geral'?'active':''}" onclick="renderFinanceiro('visao-geral')"><i class="fas fa-chart-line"></i> Visão Geral</button>
-      <button class="tab-btn ${finTab==='receber'?'active':''}" onclick="renderFinanceiro('receber')"><i class="fas fa-arrow-down"></i> A Receber</button>
-      <button class="tab-btn ${finTab==='pagar'?'active':''}" onclick="renderFinanceiro('pagar')"><i class="fas fa-arrow-up"></i> A Pagar</button>
-      <button class="tab-btn ${finTab==='inadimplencia'?'active':''}" onclick="renderFinanceiro('inadimplencia')"><i class="fas fa-exclamation-circle"></i> Inadimplência</button>
+      <button class="tab-btn ${finTab==='visao-geral'?'active':''}" data-action="switch-fin-tab" data-tab="visao-geral"><i class="fas fa-chart-line"></i> Visão Geral</button>
+      <button class="tab-btn ${finTab==='receber'?'active':''}" data-action="switch-fin-tab" data-tab="receber"><i class="fas fa-arrow-down"></i> A Receber</button>
+      <button class="tab-btn ${finTab==='pagar'?'active':''}" data-action="switch-fin-tab" data-tab="pagar"><i class="fas fa-arrow-up"></i> A Pagar</button>
+      <button class="tab-btn ${finTab==='inadimplencia'?'active':''}" data-action="switch-fin-tab" data-tab="inadimplencia"><i class="fas fa-exclamation-circle"></i> Inadimplência</button>
     </div>
 
     <div id="fin-tab-content">
@@ -221,12 +221,12 @@ function renderFinReceber() {
       <td><span class="tag ${r.status==='pago'?'tag-green':isOverdue?'tag-red':'tag-yellow'}">${r.status}</span></td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          ${r.status !== 'pago' ? `<button class="btn btn-sm btn-success" onclick="markAsPaid('receivable',${JSON.stringify(r.id)})"><i class="fas fa-check"></i> Pago</button>` : ''}
+          ${r.status !== 'pago' ? `<button class="btn btn-sm btn-success" data-action="mark-paid" data-type="receivable" data-id="${r.id}"><i class="fas fa-check"></i> Pago</button>` : ''}
           ${r.status !== 'pago' && phone ? `
-            <a href="${waLink}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation();showToast('📱 Abrindo WhatsApp para cobrar ${clientName}','info')">
+            <a href="${waLink}" target="_blank" class="btn-whatsapp" data-action="whatsapp-cobrar" data-client="${clientName}" data-stop-propagation="1">
               <i class="fab fa-whatsapp"></i> Cobrar
             </a>` : ''}
-          <button class="btn btn-sm btn-ghost" onclick="openEditLancModal('receivable',${JSON.stringify(r.id)})" title="Editar">
+          <button class="btn btn-sm btn-ghost" data-action="open-edit-lanc" data-type="receivable" data-id="${r.id}" title="Editar">
             <i class="fas fa-edit"></i>
           </button>
         </div>
@@ -255,8 +255,8 @@ function renderFinPagar() {
       <td><span class="tag ${p.status==='pago'?'tag-green':'tag-yellow'}">${p.status}</span></td>
       <td>
         <div style="display:flex;gap:6px">
-          ${p.status !== 'pago' ? `<button class="btn btn-sm btn-success" onclick="markAsPaid('payable',${JSON.stringify(p.id)})"><i class="fas fa-check"></i> Pagar</button>` : ''}
-          <button class="btn btn-sm btn-ghost" onclick="openEditLancModal('payable',${JSON.stringify(p.id)})" title="Editar">
+          ${p.status !== 'pago' ? `<button class="btn btn-sm btn-success" data-action="mark-paid" data-type="payable" data-id="${p.id}"><i class="fas fa-check"></i> Pagar</button>` : ''}
+          <button class="btn btn-sm btn-ghost" data-action="open-edit-lanc" data-type="payable" data-id="${p.id}" title="Editar">
             <i class="fas fa-edit"></i>
           </button>
         </div>
@@ -334,10 +334,10 @@ function renderFinInadimplencia() {
                   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                     ${phone ? `
                     <a href="${waLink}" target="_blank" class="btn-whatsapp"
-                       onclick="event.stopPropagation();showToast('📱 WhatsApp aberto para ${clientName}','info')">
+                       data-action="whatsapp-cobrar" data-client="${clientName}" data-stop-propagation="1">
                       <i class="fab fa-whatsapp"></i> Cobrar
                     </a>` : `<span style="font-size:11px;color:var(--text-muted)">Sem telefone</span>`}
-                    <button class="btn btn-sm btn-success" onclick="markAsPaid('receivable',${JSON.stringify(r.id)})">
+                    <button class="btn btn-sm btn-success" data-action="mark-paid" data-type="receivable" data-id="${r.id}">
                       <i class="fas fa-check"></i> Pago
                     </button>
                   </div>
@@ -379,7 +379,7 @@ function openNewLancModal() {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-plus" style="color:var(--purple-light);margin-right:8px"></i>Novo Lançamento</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -423,8 +423,8 @@ function openNewLancModal() {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-save-lanc" onclick="saveNewLanc()"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-lanc" data-action="save-new-lanc"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }
@@ -490,7 +490,7 @@ function openEditLancModal(type, id) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-edit" style="color:var(--purple-light);margin-right:8px"></i>Editar Lançamento</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -511,8 +511,8 @@ function openEditLancModal(type, id) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-save-edit-lanc" onclick="saveEditLanc('${type}',${JSON.stringify(id)})"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-edit-lanc" data-action="save-edit-lanc" data-type="${type}" data-id="${id}"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }

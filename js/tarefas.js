@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // SEJA CREATE — GESTÃO DE TAREFAS (KANBAN)
 // =============================================
 
@@ -20,10 +20,10 @@ async function renderTarefas() {
         </div>
         <div class="page-actions">
           <div class="tabs" style="margin:0">
-            <button class="tab-btn ${taskView==='kanban'?'active':''}" onclick="setTaskView('kanban')"><i class="fas fa-columns"></i> Kanban</button>
-            <button class="tab-btn ${taskView==='lista'?'active':''}" onclick="setTaskView('lista')"><i class="fas fa-list"></i> Lista</button>
+            <button class="tab-btn ${taskView==='kanban'?'active':''}" data-action="set-task-view" data-view="kanban"><i class="fas fa-columns"></i> Kanban</button>
+            <button class="tab-btn ${taskView==='lista'?'active':''}" data-action="set-task-view" data-view="lista"><i class="fas fa-list"></i> Lista</button>
           </div>
-          <button class="btn btn-primary" onclick="openCardModal()"><i class="fas fa-plus"></i> Novo Card</button>
+          <button class="btn btn-primary" data-action="open-card-modal"><i class="fas fa-plus"></i> Novo Card</button>
         </div>
       </div>
     </div>
@@ -69,7 +69,7 @@ async function renderTarefas() {
         <option value="media">🟡 Média</option>
         <option value="baixa">🟢 Baixa</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="clearTaskFilters()"><i class="fas fa-times"></i> Limpar</button>
+      <button class="btn btn-ghost btn-sm" data-action="clear-task-filters"><i class="fas fa-times"></i> Limpar</button>
       <span style="font-size:11px;color:var(--text-muted);margin-left:auto">
         <i class="fas fa-hand-pointer"></i> Arraste os cards entre colunas
       </span>
@@ -167,7 +167,7 @@ function buildKanbanBoard() {
              ondragleave="taskDragLeave(event)"
              ondrop="taskDrop(event,'${col}')">
           ${cards.map(c => buildKanbanCard(c)).join('')}
-          <button class="add-card-btn" onclick="openCardModal('${col}')">
+          <button class="add-card-btn" data-action="open-card-modal" data-col="${col}">
             <i class="fas fa-plus"></i> Adicionar card
           </button>
         </div>
@@ -232,7 +232,7 @@ function buildKanbanCard(t) {
          data-id="${t.id}"
          ondragstart="taskDragStart(event,${JSON.stringify(t.id)})"
          ondragend="taskDragEnd(event)"
-         onclick="openTaskModal(${JSON.stringify(t.id)})">
+         data-action="open-task-modal">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:5px">
         <div class="priority-dot p-${t.priority}"></div>
         ${overdue ? `<span style="font-size:9px;background:var(--danger-subtle);color:var(--danger);padding:1px 6px;border-radius:8px;font-weight:700">VENCIDO</span>` : ''}
@@ -361,7 +361,7 @@ function buildListView() {
     }
 
     return `
-      <tr onclick="openTaskModal(${JSON.stringify(t.id)})" style="cursor:pointer${overdue?';background:rgba(239,68,68,0.04)':''}">
+      <tr data-action="open-task-modal" data-id="${t.id}" style="cursor:pointer${overdue?';background:rgba(239,68,68,0.04)':''}">
         <td>
           <div style="display:flex;align-items:center;gap:8px">
             <div class="priority-dot p-${t.priority}"></div>
@@ -380,7 +380,7 @@ function buildListView() {
           </div>
         </td>
         <td>
-          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openTaskModal(${JSON.stringify(t.id)})"><i class="fas fa-eye"></i></button>
+          <button class="btn btn-sm btn-primary" data-action="open-task-modal" data-stop-propagation="1" data-id="${t.id}"><i class="fas fa-eye"></i></button>
         </td>
       </tr>`;
   }).join('');
@@ -409,7 +409,7 @@ async function openCardModal(stage = 'Pauta') {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-plus-square" style="color:var(--purple-light);margin-right:8px"></i>Novo Card</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -443,8 +443,8 @@ async function openCardModal(stage = 'Pauta') {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-save-card" onclick="saveNewCard()"><i class="fas fa-save"></i> Criar Card</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-card" data-action="save-new-card"><i class="fas fa-save"></i> Criar Card</button>
     </div>
   `, 'modal-lg');
 }
@@ -581,7 +581,7 @@ async function openTaskModal(id) {
                </div>`
           }
         </div>`).join('')
-    : `<div style="background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer" onclick="uploadArtModal(${JSON.stringify(id)})">
+    : `<div style="background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer" data-action="upload-art-modal" data-id="${id}">
         <i class="fas fa-image" style="font-size:24px;color:var(--text-muted)"></i>
         <span style="font-size:12px;color:var(--text-muted)">Clique para fazer upload da arte</span>
       </div>`;
@@ -596,7 +596,7 @@ async function openTaskModal(id) {
         </div>
         <span class="modal-title">${t.title}</span>
       </div>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 260px;gap:20px">
@@ -610,7 +610,7 @@ async function openTaskModal(id) {
           <div style="margin-bottom:16px">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase">
               Arte / Anexos
-              ${isSupabaseReady() ? `<button class="btn btn-sm btn-ghost" onclick="uploadArtModal(${JSON.stringify(id)})" style="font-size:11px;margin-left:8px"><i class="fas fa-upload"></i> Upload</button>` : ''}
+              ${isSupabaseReady() ? `<button class="btn btn-sm btn-ghost" data-action="upload-art-modal" data-id="${id}" style="font-size:11px;margin-left:8px"><i class="fas fa-upload"></i> Upload</button>` : ''}
             </div>
             ${artHtml}
           </div>
@@ -624,7 +624,7 @@ async function openTaskModal(id) {
             </div>
             <div style="display:flex;gap:8px;margin-top:8px">
               <input class="input-field" id="new-check-${id}" placeholder="Novo item..." style="flex:1" onkeyup="if(event.key==='Enter')addCheckItem(${JSON.stringify(id)})" />
-              <button class="btn btn-secondary btn-sm" onclick="addCheckItem(${JSON.stringify(id)})"><i class="fas fa-plus"></i></button>
+              <button class="btn btn-secondary btn-sm" data-action="add-check-item" data-id="${id}"><i class="fas fa-plus"></i></button>
             </div>
           </div>
 
@@ -635,7 +635,7 @@ async function openTaskModal(id) {
             </div>
             <div style="display:flex;gap:8px;margin-top:10px">
               <textarea class="input-field" id="comment-input-${id}" rows="2" placeholder="Escreva um comentário..." style="flex:1;resize:vertical"></textarea>
-              <button class="btn btn-primary btn-sm" onclick="addComment(${JSON.stringify(id)})" style="align-self:flex-end;white-space:nowrap"><i class="fas fa-paper-plane"></i> Enviar</button>
+              <button class="btn btn-primary btn-sm" data-action="add-comment" data-id="${id}" style="align-self:flex-end;white-space:nowrap"><i class="fas fa-paper-plane"></i> Enviar</button>
             </div>
           </div>
         </div>
@@ -667,18 +667,18 @@ async function openTaskModal(id) {
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Mover para Etapa</div>
               <select class="select-field" id="task-stage-${id}" style="width:100%">${stageOpts}</select>
             </div>
-            <button class="btn btn-primary" style="width:100%" onclick="moveTask(${JSON.stringify(id)})">
+            <button class="btn btn-primary" style="width:100%" data-action="move-task" data-id="${id}">
               <i class="fas fa-arrow-right"></i> Mover Etapa
             </button>
             <div class="divider" style="margin:4px 0"></div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:700;text-transform:uppercase">Ações Rápidas</div>
-            <button class="btn btn-secondary btn-sm" style="width:100%" onclick="sendToClient(${JSON.stringify(id)})">
+            <button class="btn btn-secondary btn-sm" style="width:100%" data-action="send-to-client" data-id="${id}">
               <i class="fas fa-share"></i> Enviar ao Cliente
             </button>
-            <button class="btn btn-success btn-sm" style="width:100%" onclick="approveTask(${JSON.stringify(id)})">
+            <button class="btn btn-success btn-sm" style="width:100%" data-action="approve-task" data-id="${id}">
               <i class="fas fa-check"></i> Aprovar
             </button>
-            <button class="btn btn-warning btn-sm" style="width:100%" onclick="requestAdjust(${JSON.stringify(id)})">
+            <button class="btn btn-warning btn-sm" style="width:100%" data-action="request-adjust" data-id="${id}">
               <i class="fas fa-redo"></i> Solicitar Ajuste
             </button>
           </div>
@@ -686,8 +686,8 @@ async function openTaskModal(id) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-sm btn-danger" onclick="deleteTask(${JSON.stringify(id)})"><i class="fas fa-trash"></i> Excluir</button>
-      <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-sm btn-danger" data-action="delete-task" data-id="${id}"><i class="fas fa-trash"></i> Excluir</button>
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
     </div>
   `, 'modal-lg');
 }
@@ -857,13 +857,13 @@ function uploadArtModal(taskId) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-upload" style="color:var(--purple-light);margin-right:8px"></i>Upload de Arte</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div style="border:2px dashed var(--border);border-radius:8px;padding:30px;text-align:center">
         <i class="fas fa-cloud-upload-alt" style="font-size:36px;color:var(--text-muted);margin-bottom:12px;display:block"></i>
         <input type="file" id="art-file-input" accept="image/*,video/*,.pdf" style="display:none" onchange="handleArtUpload(${JSON.stringify(taskId)},this)">
-        <button class="btn btn-primary" onclick="document.getElementById('art-file-input').click()">
+        <button class="btn btn-primary" data-action="trigger-art-upload">
           <i class="fas fa-folder-open"></i> Selecionar Arquivo
         </button>
         <p style="font-size:12px;color:var(--text-muted);margin-top:10px">PNG, JPG, GIF, MP4, PDF (máx. 20MB)</p>
@@ -874,7 +874,7 @@ function uploadArtModal(taskId) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
     </div>
   `);
 }
