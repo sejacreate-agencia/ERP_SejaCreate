@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seja Create — Plataforma de Gestão</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Supabase SDK — carregado antes dos módulos JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff" opacity="0.9"/>
+          <path d="M2 17l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+          <path d="M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="logo-text">Seja <strong>Create</strong></span>
+    </div>
+    <p class="login-subtitle">Plataforma de Gestão para Agências</p>
+    <div class="login-form">
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" value="admin@sejacreate.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-pass" placeholder="••••••••" value="123456" />
+      </div>
+      <div class="login-roles">
+        <label>Perfil de demonstração:</label>
+        <select id="login-role">
+          <option value="admin">Administrador</option>
+          <option value="gestor">Gestor</option>
+          <option value="social">Social Media</option>
+          <option value="designer">Designer</option>
+          <option value="comercial">Comercial</option>
+          <option value="financeiro">Financeiro</option>
+          <option value="cliente">Cliente</option>
+        </select>
+      </div>
+      <button class="btn-login" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i> Entrar na plataforma</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff" opacity="0.9"/>
+            <path d="M2 17l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+            <path d="M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="logo-text">Seja <strong>Create</strong></span>
+      </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+    </div>
+
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div class="user-details">
+        <span class="user-name" id="user-name">Admin Geral</span>
+        <span class="user-role" id="user-role-label">Administrador</span>
+      </div>
+    </div>
+
+    <nav class="nav-menu">
+      <div class="nav-section">
+        <span class="nav-section-title">Principal</span>
+        <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+          <i class="fas fa-home"></i><span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-page="avisos" onclick="navigate('avisos')">
+          <i class="fas fa-bell"></i><span>Avisos Importantes</span>
+          <span class="badge" id="badge-avisos">7</span>
+        </a>
+      </div>
+      <div class="nav-section" id="nav-comercial">
+        <span class="nav-section-title">Comercial</span>
+        <a class="nav-item" data-page="crm" onclick="navigate('crm')">
+          <i class="fas fa-funnel-dollar"></i><span>CRM</span>
+        </a>
+        <a class="nav-item" data-page="cadastro" onclick="navigate('cadastro')">
+          <i class="fas fa-address-book"></i><span>Cadastro</span>
+        </a>
+      </div>
+      <div class="nav-section" id="nav-operacional">
+        <span class="nav-section-title">Operacional</span>
+        <a class="nav-item" data-page="tarefas" onclick="navigate('tarefas')">
+          <i class="fas fa-columns"></i><span>Gestão de Tarefas</span>
+        </a>
+        <a class="nav-item" data-page="calendario" onclick="navigate('calendario')">
+          <i class="fas fa-calendar-alt"></i><span>Calendário</span>
+        </a>
+      </div>
+      <div class="nav-section" id="nav-financeiro">
+        <span class="nav-section-title">Financeiro</span>
+        <a class="nav-item" data-page="financeiro" onclick="navigate('financeiro')">
+          <i class="fas fa-dollar-sign"></i><span>Financeiro</span>
+        </a>
+      </div>
+      <div class="nav-section" id="nav-relatorios">
+        <span class="nav-section-title">Análise</span>
+        <a class="nav-item" data-page="relatorios" onclick="navigate('relatorios')">
+          <i class="fas fa-chart-bar"></i><span>Relatórios</span>
+        </a>
+      </div>
+      <div class="nav-section" id="nav-config">
+        <span class="nav-section-title">Sistema</span>
+        <a class="nav-item" data-page="configuracoes" onclick="navigate('configuracoes')">
+          <i class="fas fa-cog"></i><span>Configurações</span>
+        </a>
+        <a class="nav-item" data-page="cliente-area" onclick="navigate('cliente-area')">
+          <i class="fas fa-user-check"></i><span>Área do Cliente</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> <span>Sair</span></button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content" id="main-content">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="page-breadcrumb" id="page-breadcrumb">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Buscar clientes, tarefas..." />
+        </div>
+        <button class="topbar-btn" onclick="navigate('avisos')">
+          <i class="fas fa-bell"></i>
+          <span class="notif-dot"></span>
+        </button>
+        <div class="topbar-user" onclick="doLogout()">
+          <div class="topbar-avatar" id="topbar-avatar">A</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-wrapper" id="page-content">
+      <!-- dinâmico via JS -->
+    </div>
+  </main>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/avisos.js"></script>
+<script src="js/crm.js"></script>
+<script src="js/cadastro.js"></script>
+<script src="js/tarefas.js"></script>
+<script src="js/calendario.js"></script>
+<script src="js/financeiro.js"></script>
+<script src="js/relatorios.js"></script>
+<script src="js/configuracoes.js"></script>
+<script src="js/cliente-area.js"></script>
+</body>
+</html>
