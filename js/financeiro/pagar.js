@@ -2,17 +2,42 @@
 // FINANCEIRO — Contas a Pagar + Inadimplência
 // =============================================
 
+function _payStatusTag(status) {
+  const map = {
+    pago:          'tag-green',
+    pendente:      'tag-yellow',
+    atrasado:      'tag-red',
+    cancelado:     'tag-gray',
+    provisionado:  'tag-purple',
+  };
+  const labels = {
+    pago: 'Pago', pendente: 'Pendente', atrasado: 'Atrasado',
+    cancelado: 'Cancelado', provisionado: 'Provisionado',
+  };
+  return `<span class="tag ${map[status] || 'tag-gray'}">${labels[status] || status}</span>`;
+}
+
 function renderFinPagar() {
-  const rows = _payData.map(p => `
-    <tr>
+  const provisionados = _payData.filter(p => p.status === 'provisionado');
+  const demais        = _payData.filter(p => p.status !== 'provisionado');
+  const sorted        = [...provisionados, ...demais];
+
+  const provTotal = provisionados.reduce((s, p) => s + (p.value || 0), 0);
+
+  const rows = sorted.map(p => `
+    <tr style="${p.status==='provisionado'?'opacity:.75':''}">
       <td>${p.supplier_name || p.supplier}</td>
-      <td style="font-size:13px">${p.description || p.desc}</td>
+      <td style="font-size:13px">
+        ${p.description || p.desc}
+        ${p.provisao_grupo ? `<span style="font-size:10px;color:var(--text-muted);display:block">Provisão ${p.provisao_mes}/${p.provisao_total} meses</span>` : ''}
+      </td>
       <td style="font-weight:700;color:var(--danger)">- ${SC.formatCurrency(p.value || 0)}</td>
       <td style="font-size:12px">${formatDateBR(p.due_date || p.due) || '—'}</td>
-      <td><span class="tag ${p.status==='pago'?'tag-green':'tag-yellow'}">${p.status}</span></td>
+      <td>${_payStatusTag(p.status)}</td>
       <td>
         <div style="display:flex;gap:6px">
-          ${p.status !== 'pago' ? `<button class="btn btn-sm btn-success" data-action="mark-paid" data-type="payable" data-id="${p.id}"><i class="fas fa-check"></i> Pagar</button>` : ''}
+          ${p.status === 'provisionado' ? `<button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple-light)" data-action="confirm-provisao" data-id="${p.id}"><i class="fas fa-check-circle"></i> Confirmar</button>` : ''}
+          ${p.status === 'pendente' || p.status === 'atrasado' ? `<button class="btn btn-sm btn-success" data-action="mark-paid" data-type="payable" data-id="${p.id}"><i class="fas fa-check"></i> Pagar</button>` : ''}
           <button class="btn btn-sm btn-ghost" data-action="open-edit-lanc" data-type="payable" data-id="${p.id}" title="Editar">
             <i class="fas fa-edit"></i>
           </button>
@@ -20,8 +45,15 @@ function renderFinPagar() {
       </td>
     </tr>`).join('');
 
+  const provBanner = provisionados.length ? `
+    <div style="padding:10px 16px;background:rgba(139,92,246,.08);border-bottom:1px solid rgba(139,92,246,.15);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--purple-light)">
+      <i class="fas fa-layer-group"></i>
+      <span><strong>${provisionados.length}</strong> conta(s) provisionada(s) · ${SC.formatCurrency(provTotal)} previsto — clique em <strong>Confirmar</strong> para tornar pendente</span>
+    </div>` : '';
+
   return `
     <div class="card">
+      ${provBanner}
       <div class="table-wrap">
         <table>
           <thead><tr><th>Fornecedor</th><th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>

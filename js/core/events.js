@@ -64,6 +64,7 @@ const Actions = {
   'toggle-lanc-type':     ()  => toggleLancType(),
   'save-new-lanc':        ()  => saveNewLanc(),
   'save-edit-lanc':       el  => saveEditLanc(el.dataset.type, parseInt(el.dataset.id)),
+  'confirm-provisao':     el  => confirmProvisao(parseInt(el.dataset.id)),
   'whatsapp-cobrar':      el  => Toast.info(`📱 WhatsApp aberto para ${el.dataset.client}`),
   // ── PLANO DE CONTAS ───────────────────────
   'open-conta-modal':     el  => openContaModal(el.dataset.id),
