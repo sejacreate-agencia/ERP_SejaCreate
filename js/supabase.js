@@ -9,8 +9,10 @@
 // 5. Execute o SQL em supabase-schema.sql no SQL Editor
 // =============================================
 
-const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co';
-const SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI';
+// Lê credenciais do config.local.js (não versionado).
+// Se não existir, roda em modo demo sem Supabase.
+const SUPABASE_URL      = window.APP_CONFIG?.supabaseUrl      || 'https://SEU_PROJETO.supabase.co';
+const SUPABASE_ANON_KEY = window.APP_CONFIG?.supabaseAnonKey  || 'SUA_ANON_KEY_AQUI';
 
 // ─── CLIENTE SUPABASE ────────────────────────
 // Importado via CDN no index.html

@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // SEJA CREATE — ÁREA DO CLIENTE
 // =============================================
 
@@ -20,7 +20,7 @@ function renderClienteArea() {
         </div>
         ${!isCliente ? `
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="navigate('tarefas')">
+          <button class="btn btn-secondary" data-action="navigate" data-page="tarefas">
             <i class="fas fa-columns"></i> Ver Kanban
           </button>
         </div>` : ''}
@@ -29,13 +29,13 @@ function renderClienteArea() {
 
     <!-- ABAS -->
     <div class="tabs" style="margin-bottom:24px">
-      <button class="tab-btn ${clientTab==='aprovacao'?'active':''}" onclick="setClientTab('aprovacao')">
+      <button class="tab-btn ${clientTab==='aprovacao'?'active':''}" data-action="set-client-tab" data-tab="aprovacao">
         <i class="fas fa-check-circle"></i> Aprovação de Conteúdos
       </button>
-      <button class="tab-btn ${clientTab==='calendario'?'active':''}" onclick="setClientTab('calendario')">
+      <button class="tab-btn ${clientTab==='calendario'?'active':''}" data-action="set-client-tab" data-tab="calendario">
         <i class="fas fa-calendar-alt"></i> Calendário de Posts
       </button>
-      <button class="tab-btn ${clientTab==='historico'?'active':''}" onclick="setClientTab('historico')">
+      <button class="tab-btn ${clientTab==='historico'?'active':''}" data-action="set-client-tab" data-tab="historico">
         <i class="fas fa-history"></i> Histórico
       </button>
     </div>
@@ -143,7 +143,7 @@ function renderClientContentCard(t, isPending) {
 
   return `
     <div class="content-preview-card">
-      <div class="content-preview-img" onclick="openClientContentModal(${t.id})" title="Clique para ver detalhes">
+      <div class="content-preview-img" data-action="open-client-content-modal" data-id="${t.id}" title="Clique para ver detalhes">
         <div style="text-align:center">
           <div style="font-size:60px;margin-bottom:8px">${icon}</div>
           <div style="font-size:11px;color:var(--text-muted)">${SC.getClientName(t.client)}</div>
@@ -164,14 +164,14 @@ function renderClientContentCard(t, isPending) {
         </div>
         <div class="content-preview-actions">
           ${isPending ? `
-            <button class="btn btn-success btn-sm" style="flex:1;background:var(--success-subtle);color:var(--success);border:1px solid rgba(16,185,129,0.3)" onclick="clientApproveContent(${t.id})">
+            <button class="btn btn-success btn-sm" style="flex:1;background:var(--success-subtle);color:var(--success);border:1px solid rgba(16,185,129,0.3)" data-action="client-approve-content" data-id="${t.id}">
               <i class="fas fa-check"></i> Aprovar
             </button>
-            <button class="btn btn-sm" style="flex:1;background:var(--danger-subtle);color:var(--danger);border:1px solid rgba(239,68,68,0.3)" onclick="clientRequestAdjust(${t.id})">
+            <button class="btn btn-sm" style="flex:1;background:var(--danger-subtle);color:var(--danger);border:1px solid rgba(239,68,68,0.3)" data-action="client-request-adjust" data-id="${t.id}">
               <i class="fas fa-redo"></i> Ajuste
             </button>
           ` : `
-            <button class="btn btn-sm btn-secondary" style="flex:1" onclick="openClientContentModal(${t.id})">
+            <button class="btn btn-sm btn-secondary" style="flex:1" data-action="open-client-content-modal" data-id="${t.id}">
               <i class="fas fa-eye"></i> Ver Detalhes
             </button>
           `}
@@ -234,7 +234,7 @@ function clientRequestAdjust(tid) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-redo" style="color:var(--warning);margin-right:8px"></i>Solicitar Ajuste</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
@@ -254,8 +254,8 @@ function clientRequestAdjust(tid) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-warning" style="background:var(--warning-subtle);color:var(--warning);border:1px solid rgba(245,158,11,0.4)" onclick="confirmAdjust(${tid})">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-warning" style="background:var(--warning-subtle);color:var(--warning);border:1px solid rgba(245,158,11,0.4)" data-action="confirm-adjust" data-id="${tid}">
         <i class="fas fa-paper-plane"></i> Enviar Solicitação
       </button>
     </div>
@@ -315,7 +315,7 @@ function openClientContentModal(tid) {
         <span class="tag tag-${sc}" style="margin-bottom:6px;display:inline-block">${t.status}</span>
         <div class="modal-title">${t.title}</div>
       </div>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 240px;gap:20px">
@@ -365,7 +365,7 @@ function openClientContentModal(tid) {
             <div style="display:flex;gap:8px;margin-top:10px">
               <textarea class="input-field" id="modal-comment-input-${tid}" rows="2"
                         placeholder="Adicione um comentário..." style="flex:1;resize:vertical"></textarea>
-              <button class="btn btn-primary btn-sm" onclick="addClientComment(${tid})" style="align-self:flex-end">
+              <button class="btn btn-primary btn-sm" data-action="add-client-comment" data-id="${tid}" style="align-self:flex-end">
                 <i class="fas fa-paper-plane"></i>
               </button>
             </div>
@@ -412,18 +412,18 @@ function openClientContentModal(tid) {
             Sua Decisão
           </div>
           <button class="btn btn-success" style="width:100%;margin-bottom:8px;background:var(--success-subtle);color:var(--success);border:1px solid rgba(16,185,129,0.3)"
-                  onclick="clientApproveContent(${tid});closeModal()">
+                  data-action="approve-and-close" data-id="${tid}">
             <i class="fas fa-check"></i> Aprovar Conteúdo
           </button>
           <button class="btn" style="width:100%;background:var(--danger-subtle);color:var(--danger);border:1px solid rgba(239,68,68,0.3)"
-                  onclick="closeModal();clientRequestAdjust(${tid})">
+                  data-action="request-adjust-and-close" data-id="${tid}">
             <i class="fas fa-redo"></i> Solicitar Ajuste
           </button>` : ''}
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
     </div>
   `, 'modal-lg');
 }
@@ -472,20 +472,20 @@ function renderClientCalendario() {
   const header = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="display:flex;align-items:center;gap:12px">
-        <button class="btn btn-secondary btn-sm" onclick="clientCalPrev()"><i class="fas fa-chevron-left"></i></button>
+        <button class="btn btn-secondary btn-sm" data-action="client-cal-prev"><i class="fas fa-chevron-left"></i></button>
         <h3 style="font-size:16px;font-weight:700;min-width:160px;text-align:center">
           ${months[month]} ${year}
         </h3>
-        <button class="btn btn-secondary btn-sm" onclick="clientCalNext()"><i class="fas fa-chevron-right"></i></button>
+        <button class="btn btn-secondary btn-sm" data-action="client-cal-next"><i class="fas fa-chevron-right"></i></button>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-sm ${clientCalView==='mensal'?'btn-primary':'btn-secondary'}" onclick="setClientCalView('mensal')">
+        <button class="btn btn-sm ${clientCalView==='mensal'?'btn-primary':'btn-secondary'}" data-action="set-client-cal-view" data-view="mensal">
           <i class="fas fa-th-large"></i> Mensal
         </button>
-        <button class="btn btn-sm ${clientCalView==='semanal'?'btn-primary':'btn-secondary'}" onclick="setClientCalView('semanal')">
+        <button class="btn btn-sm ${clientCalView==='semanal'?'btn-primary':'btn-secondary'}" data-action="set-client-cal-view" data-view="semanal">
           <i class="fas fa-calendar-week"></i> Semanal
         </button>
-        <button class="btn btn-sm ${clientCalView==='lista'?'btn-primary':'btn-secondary'}" onclick="setClientCalView('lista')">
+        <button class="btn btn-sm ${clientCalView==='lista'?'btn-primary':'btn-secondary'}" data-action="set-client-cal-view" data-view="lista">
           <i class="fas fa-list"></i> Lista
         </button>
       </div>
@@ -549,7 +549,7 @@ function renderClientCalMensal(tasks, year, month) {
           else if (['Aprovado','Programado'].includes(t.status)) cls = 'pending';
           const icon = getContentIcon(t.title);
           return `
-            <div class="cal-event ${cls}" onclick="openClientContentModal(${t.id})" title="${t.title}">
+            <div class="cal-event ${cls}" data-action="open-client-content-modal" data-id="${t.id}" title="${t.title}">
               ${icon} ${t.title.slice(0,18)}${t.title.length>18?'…':''}
             </div>`;
         }).join('')}
@@ -608,7 +608,7 @@ function renderClientCalSemanal(tasks, year, month) {
               else if (['Aprovado','Programado'].includes(t.status)) bg = 'rgba(16,185,129,0.1)';
               else bg = 'var(--purple-subtle)';
               return `
-                <div onclick="openClientContentModal(${t.id})"
+                <div data-action="open-client-content-modal" data-id="${t.id}"
                      style="background:${bg};border-radius:6px;padding:5px 7px;margin-bottom:5px;
                             font-size:10px;cursor:pointer;line-height:1.4;
                             border:1px solid rgba(124,58,237,0.2)">
@@ -620,8 +620,8 @@ function renderClientCalSemanal(tasks, year, month) {
       }).join('')}
     </div>
     <div style="text-align:center;margin-top:12px">
-      <button class="btn btn-ghost btn-sm" onclick="clientCalPrev()"><i class="fas fa-chevron-left"></i> Semana anterior</button>
-      <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="clientCalNext()">Próxima semana <i class="fas fa-chevron-right"></i></button>
+      <button class="btn btn-ghost btn-sm" data-action="client-cal-prev"><i class="fas fa-chevron-left"></i> Semana anterior</button>
+      <button class="btn btn-ghost btn-sm" style="margin-left:8px" data-action="client-cal-next">Próxima semana <i class="fas fa-chevron-right"></i></button>
     </div>`;
 }
 
@@ -634,7 +634,7 @@ function renderClientCalLista(tasks) {
   const rows = sorted.map(t => {
     const sc = SC.statusColor(t.status);
     return `
-      <tr onclick="openClientContentModal(${t.id})" style="cursor:pointer">
+      <tr data-action="open-client-content-modal" data-id="${t.id}" style="cursor:pointer">
         <td>
           <div style="background:var(--bg-input);border-radius:6px;padding:4px 8px;text-align:center;min-width:52px;display:inline-block">
             <div style="font-size:16px;font-weight:800">${t.postDate?.split('-')[2]||'—'}</div>
@@ -652,7 +652,7 @@ function renderClientCalLista(tasks) {
         <td style="color:var(--text-purple);font-size:12px">${SC.getClientName(t.client)}</td>
         <td><span class="tag tag-${sc}">${t.status}</span></td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openClientContentModal(${t.id})">
+          <button class="btn btn-sm btn-secondary" data-action="open-client-content-modal" data-id="${t.id}" data-stop-propagation="1">
             <i class="fas fa-eye"></i> Ver
           </button>
         </td>
@@ -730,7 +730,7 @@ function renderClientHistorico() {
               ${items.map(t => {
                 const sc = SC.statusColor(t.status);
                 return `
-                  <tr onclick="openClientContentModal(${t.id})" style="cursor:pointer">
+                  <tr data-action="open-client-content-modal" data-id="${t.id}" style="cursor:pointer">
                     <td style="font-size:12px;white-space:nowrap">${SC.formatDate(t.postDate)||'—'}</td>
                     <td>
                       <div style="display:flex;align-items:center;gap:8px">
@@ -742,7 +742,7 @@ function renderClientHistorico() {
                     <td><span class="tag tag-${sc}">${t.status}</span></td>
                     <td style="font-size:12px;color:var(--text-muted)">${t.comments.length} comentário(s)</td>
                     <td>
-                      <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openClientContentModal(${t.id})">
+                      <button class="btn btn-sm btn-secondary" data-action="open-client-content-modal" data-id="${t.id}" data-stop-propagation="1">
                         <i class="fas fa-eye"></i>
                       </button>
                     </td>
@@ -754,3 +754,5 @@ function renderClientHistorico() {
       </div>`;
   }).join('');
 }
+
+Router.register('cliente-area', renderClienteArea, 'Área do Cliente');

@@ -24,7 +24,7 @@ function renderAvisos() {
           <p class="page-subtitle">Central de pendências operacionais da agência — ${SC.avisos.length} avisos ativos</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="renderAvisos()"><i class="fas fa-sync"></i> Atualizar</button>
+          <button class="btn btn-secondary" data-action="refresh-avisos"><i class="fas fa-sync"></i> Atualizar</button>
         </div>
       </div>
     </div>
@@ -102,13 +102,13 @@ function renderAvisosList(avisos) {
             <i class="fas fa-calendar" style="font-size:11px"></i> Prazo: ${deadline}
           </div>
           <div class="alert-actions">
-            <button class="btn btn-sm btn-primary" onclick="navigate('${a.action}')">
+            <button class="btn btn-sm btn-primary" data-action="navigate" data-page="${a.action}">
               ${actionLabels[a.action] || 'Ver detalhe'}
             </button>
-            <button class="btn btn-sm btn-secondary" onclick="resolveAviso(${a.id})">
+            <button class="btn btn-sm btn-secondary" data-action="resolve-aviso" data-id="${a.id}">
               <i class="fas fa-check"></i> Resolver
             </button>
-            <button class="btn btn-sm btn-ghost" onclick="snoozeAviso(${a.id})">
+            <button class="btn btn-sm btn-ghost" data-action="snooze-aviso" data-id="${a.id}">
               <i class="fas fa-clock"></i> Adiar
             </button>
           </div>
@@ -147,3 +147,5 @@ function resolveAviso(id) {
 function snoozeAviso(id) {
   showToast('Aviso adiado para amanhã.', 'info');
 }
+
+Router.register('avisos', renderAvisos, 'Avisos Importantes');

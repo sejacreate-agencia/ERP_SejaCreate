@@ -17,7 +17,7 @@ async function renderRelatorios() {
           <p class="page-subtitle">Análise completa de desempenho da agência</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="exportReport()"><i class="fas fa-download"></i> Exportar</button>
+          <button class="btn btn-secondary" data-action="export-report"><i class="fas fa-download"></i> Exportar</button>
         </div>
       </div>
     </div>
@@ -48,7 +48,7 @@ async function renderRelatorios() {
             <option value="">Toda a equipe</option>
           </select>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="clearRelFilters()"><i class="fas fa-times"></i> Limpar</button>
+        <button class="btn btn-ghost btn-sm" data-action="clear-rel-filters"><i class="fas fa-times"></i> Limpar</button>
         <div id="rel-loading" style="display:none;color:var(--text-muted);font-size:12px">
           <i class="fas fa-spinner fa-spin"></i> Carregando...
         </div>
@@ -221,7 +221,7 @@ function renderRelContent() {
         { id: 'clientes-ativos', icon: '🏢', name: 'Clientes Ativos', desc: 'Status e contratos' },
         { id: 'operacional', icon: '⚡', name: 'Performance Operacional', desc: 'Funnel e eficiência' },
       ].map(r => `
-        <div class="report-card" onclick="openReport('${r.id}')" ${r.perm && !SC.hasPermission('financeiro') ? 'style="opacity:0.5;pointer-events:none"' : ''}>
+        <div class="report-card" data-action="open-report" data-id="${r.id}" ${r.perm && !SC.hasPermission('financeiro') ? 'style="opacity:0.5;pointer-events:none"' : ''}>
           <div class="report-icon">${r.icon}</div>
           <div class="report-name">${r.name}</div>
           <div class="report-desc">${r.desc}</div>
@@ -494,14 +494,14 @@ function openReport(id) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title">${titles[id] || 'Relatório'}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body" style="max-height:70vh;overflow-y:auto">
       ${fn()}
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="exportReport()"><i class="fas fa-download"></i> Exportar</button>
-      <button class="btn btn-primary" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-secondary" data-action="export-report"><i class="fas fa-download"></i> Exportar</button>
+      <button class="btn btn-primary" data-action="close-modal">Fechar</button>
     </div>
   `, 'modal-lg');
 
@@ -775,3 +775,5 @@ function _taskTable(tasks, emptyMsg) {
 function exportReport() {
   showToast('📥 Exportação PDF/Excel disponível com backend configurado', 'info');
 }
+
+Router.register('relatorios', renderRelatorios, 'Relatórios');

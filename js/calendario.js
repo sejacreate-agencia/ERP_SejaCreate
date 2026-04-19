@@ -22,8 +22,8 @@ function renderCalendario() {
         </div>
         <div class="page-actions">
           <div class="tabs" style="margin:0">
-            <button class="tab-btn ${calMode==='mensal'?'active':''}" onclick="setCalMode('mensal')"><i class="fas fa-calendar"></i> Mensal</button>
-            <button class="tab-btn ${calMode==='semanal'?'active':''}" onclick="setCalMode('semanal')"><i class="fas fa-calendar-week"></i> Semanal</button>
+            <button class="tab-btn ${calMode==='mensal'?'active':''}" data-action="set-cal-mode" data-mode="mensal"><i class="fas fa-calendar"></i> Mensal</button>
+            <button class="tab-btn ${calMode==='semanal'?'active':''}" data-action="set-cal-mode" data-mode="semanal"><i class="fas fa-calendar-week"></i> Semanal</button>
           </div>
         </div>
       </div>
@@ -31,11 +31,11 @@ function renderCalendario() {
 
     <!-- FILTERS -->
     <div class="filters-bar">
-      <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+      <button class="btn btn-ghost btn-sm" data-action="change-month" data-dir="-1"><i class="fas fa-chevron-left"></i></button>
       <span id="cal-month-label" style="font-size:15px;font-weight:700;min-width:180px;text-align:center">
         ${monthNames[calDate.getMonth()]} ${calDate.getFullYear()}
       </span>
-      <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+      <button class="btn btn-ghost btn-sm" data-action="change-month" data-dir="1"><i class="fas fa-chevron-right"></i></button>
       <div style="margin-left:10px;display:flex;gap:8px;flex-wrap:wrap">
         <select class="filter-select" id="cal-client" onchange="applyCalFilters()">${clientOpts}</select>
         <select class="filter-select" id="cal-assignee" onchange="applyCalFilters()">${empOpts}</select>
@@ -105,7 +105,7 @@ function renderCalGrid() {
         <div class="cal-day">${d}</div>
         ${dayTasks.slice(0,3).map(t => {
           const cls = t.status === 'Publicado' ? 'published' : t.status === 'Aprovado' || t.status === 'Programado' ? '' : 'pending';
-          return `<div class="cal-event ${cls}" title="${SC.getClientName(t.client)} — ${t.title}" onclick="openTaskModal(${t.id})">${t.title.slice(0,20)}${t.title.length>20?'…':''}</div>`;
+          return `<div class="cal-event ${cls}" title="${SC.getClientName(t.client)} — ${t.title}" data-action="open-task-modal" data-id="${t.id}">${t.title.slice(0,20)}${t.title.length>20?'…':''}</div>`;
         }).join('')}
         ${dayTasks.length > 3 ? `<div style="font-size:10px;color:var(--text-muted);padding:2px 4px">+${dayTasks.length-3} mais</div>` : ''}
       </div>`;
@@ -132,7 +132,7 @@ function renderUpcomingList() {
     const emp = SC.users.find(u => u.id === t.assignee);
     const sc = SC.statusColor(t.status);
     return `
-      <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border-light);cursor:pointer" onclick="openTaskModal(${t.id})">
+      <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border-light);cursor:pointer" data-action="open-task-modal" data-id="${t.id}">
         <div style="min-width:50px;text-align:center;background:var(--bg-input);border-radius:8px;padding:6px">
           <div style="font-size:18px;font-weight:800">${t.postDate.split('-')[2]}</div>
           <div style="font-size:10px;color:var(--text-muted)">${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][parseInt(t.postDate.split('-')[1])-1]}</div>
@@ -173,3 +173,5 @@ function applyCalFilters() {
   document.getElementById('cal-grid-area').innerHTML = renderCalGrid();
   document.getElementById('upcoming-list').innerHTML = renderUpcomingList();
 }
+
+Router.register('calendario', renderCalendario, 'Calendário');

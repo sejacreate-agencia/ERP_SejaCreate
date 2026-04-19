@@ -21,13 +21,13 @@ function renderDashboard() {
 
   // KPIs comuns a todos
   const commonKPIs = `
-    <div class="kpi-card" onclick="navigate('cadastro')" style="cursor:pointer">
+    <div class="kpi-card" data-action="navigate" data-page="cadastro" style="cursor:pointer">
       <div class="kpi-icon purple"><i class="fas fa-users"></i></div>
       <div class="kpi-value">${activeClients}</div>
       <div class="kpi-label">Clientes Ativos</div>
       <div class="kpi-change up"><i class="fas fa-arrow-up"></i> +2 este mês</div>
     </div>
-    <div class="kpi-card" onclick="navigate('tarefas')" style="cursor:pointer">
+    <div class="kpi-card" data-action="navigate" data-page="tarefas" style="cursor:pointer">
       <div class="kpi-icon blue"><i class="fas fa-tasks"></i></div>
       <div class="kpi-value">${inProgress}</div>
       <div class="kpi-label">Tarefas em Andamento</div>
@@ -39,13 +39,13 @@ function renderDashboard() {
       <div class="kpi-label">Tarefas Concluídas</div>
       <div class="kpi-change up"><i class="fas fa-arrow-up"></i> +85% vs mês ant.</div>
     </div>
-    <div class="kpi-card" onclick="navigate('tarefas')" style="cursor:pointer">
+    <div class="kpi-card" data-action="navigate" data-page="tarefas" style="cursor:pointer">
       <div class="kpi-icon yellow"><i class="fas fa-hourglass-half"></i></div>
       <div class="kpi-value">${pendingApproval.length}</div>
       <div class="kpi-label">Aguardando Aprovação</div>
       <div class="kpi-change down"><i class="fas fa-exclamation-triangle"></i> Ação necessária</div>
     </div>
-    <div class="kpi-card" onclick="navigate('calendario')" style="cursor:pointer">
+    <div class="kpi-card" data-action="navigate" data-page="calendario" style="cursor:pointer">
       <div class="kpi-icon purple"><i class="fas fa-calendar-check"></i></div>
       <div class="kpi-value">${scheduled.length}</div>
       <div class="kpi-label">Posts Programados</div>
@@ -61,13 +61,13 @@ function renderDashboard() {
 
   // KPIs financeiros — só para quem tem permissão
   const finKPIs = hasFinanceiro ? `
-    <div class="kpi-card" onclick="navigate('financeiro')" style="cursor:pointer">
+    <div class="kpi-card" data-action="navigate" data-page="financeiro" style="cursor:pointer">
       <div class="kpi-icon green"><i class="fas fa-dollar-sign"></i></div>
       <div class="kpi-value" style="font-size:18px">R$ 27.100</div>
       <div class="kpi-label">Faturamento do Mês</div>
       <div class="kpi-change up"><i class="fas fa-arrow-up"></i> +14,8% vs fev</div>
     </div>
-    <div class="kpi-card" onclick="navigate('financeiro')" style="cursor:pointer">
+    <div class="kpi-card" data-action="navigate" data-page="financeiro" style="cursor:pointer">
       <div class="kpi-icon yellow"><i class="fas fa-file-invoice-dollar"></i></div>
       <div class="kpi-value" style="font-size:18px">${SC.formatCurrency(pending.reduce((a,r)=>a+r.value,0))}</div>
       <div class="kpi-label">Contas a Receber</div>
@@ -92,8 +92,8 @@ function renderDashboard() {
           <p class="page-subtitle">Aqui está o resumo da sua operação — ${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="navigate('tarefas')"><i class="fas fa-columns"></i> Ver Quadro</button>
-          <button class="btn btn-primary" onclick="showNewTaskModal()"><i class="fas fa-plus"></i> Nova Tarefa</button>
+          <button class="btn btn-secondary" data-action="navigate" data-page="tarefas"><i class="fas fa-columns"></i> Ver Quadro</button>
+          <button class="btn btn-primary" data-action="show-new-task-modal"><i class="fas fa-plus"></i> Nova Tarefa</button>
         </div>
       </div>
     </div>
@@ -118,7 +118,7 @@ function renderDashboard() {
         <div class="section-block">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
             <h3 class="section-title" style="margin:0">Minhas Tarefas</h3>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('tarefas')">Ver todas <i class="fas fa-arrow-right"></i></button>
+            <button class="btn btn-ghost btn-sm" data-action="navigate" data-page="tarefas">Ver todas <i class="fas fa-arrow-right"></i></button>
           </div>
           <div id="my-tasks-list">
             ${myTasks.length
@@ -163,7 +163,7 @@ function renderDashboard() {
         <div class="card section-block">
           <div class="card-header">
             <span class="card-title"><i class="fas fa-lightbulb" style="color:var(--warning);margin-right:8px"></i>Insights do Sistema</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('avisos')">Ver todos</button>
+            <button class="btn btn-ghost btn-sm" data-action="navigate" data-page="avisos">Ver todos</button>
           </div>
           <div class="insight-box" style="border-color:var(--danger-subtle)">
             <span class="insight-icon" style="color:var(--danger)">⏰</span>
@@ -232,7 +232,7 @@ function renderTaskCard(t) {
   const cls = overdue ? 'overdue' : soon ? 'due-soon' : 'on-time';
   const sc = SC.statusColor(t.status);
   return `
-    <div class="task-card ${cls}" onclick="openTaskModal(${t.id})">
+    <div class="task-card ${cls}" data-action="open-task-modal" data-id="${t.id}" style="cursor:pointer">
       <div class="task-card-header">
         <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:0">
           <div class="priority-dot p-${t.priority}"></div>
@@ -245,7 +245,7 @@ function renderTaskCard(t) {
         <div class="task-meta-item"><i class="fas fa-calendar"></i>${SC.formatDate(t.postDate) || 'S/data'}${overdue ? ' <span style="color:var(--danger);font-weight:700">VENCIDA</span>' : ''}</div>
       </div>
       <div style="margin-top:8px;display:flex;gap:6px">
-        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openTaskModal(${t.id})">
+        <button class="btn btn-sm btn-primary" data-action="open-task-modal" data-id="${t.id}" data-stop-propagation="1">
           <i class="fas fa-external-link-alt"></i> Abrir
         </button>
       </div>
@@ -258,7 +258,7 @@ function showNewTaskModal() {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-plus" style="color:var(--purple-light);margin-right:8px"></i>Nova Tarefa</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -299,8 +299,8 @@ function showNewTaskModal() {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveNewTask()"><i class="fas fa-save"></i> Criar Tarefa</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-new-task"><i class="fas fa-save"></i> Criar Tarefa</button>
     </div>
   `);
 }
@@ -333,3 +333,5 @@ function saveNewTask() {
     renderDashboard();
   }, 400);
 }
+
+Router.register('dashboard', renderDashboard, 'Dashboard');

@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // SEJA CREATE — CONFIGURAÇÕES (CRUD COMPLETO)
 // =============================================
 
@@ -27,7 +27,7 @@ function renderConfiguracoes(section) {
       <div class="config-sidebar-nav">
         ${navItems.map(n => `
           <div class="config-nav-item ${configSection === n.id ? 'active' : ''}"
-               onclick="switchConfigSection('${n.id}')">
+               data-action="switch-config-section" data-section="${n.id}">
             <i class="fas ${n.icon}" style="font-size:13px;width:16px;text-align:center"></i>
             ${n.label}
           </div>`).join('')}
@@ -45,7 +45,7 @@ function switchConfigSection(section) {
   if (el) {
     el.innerHTML = renderConfigSection();
     document.querySelectorAll('.config-nav-item').forEach(n => {
-      n.classList.toggle('active', n.getAttribute('onclick')?.includes(`'${section}'`));
+      n.classList.toggle('active', n.dataset.section === section);
     });
   }
 }
@@ -89,11 +89,11 @@ function renderConfigUsuarios() {
       </td>
       <td>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-secondary" onclick="openFuncModal(${e.id})">
+          <button class="btn btn-sm btn-secondary" data-action="open-func-modal" data-id="${e.id}">
             <i class="fas fa-edit"></i> Editar
           </button>
           <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)"
-                  onclick="deleteEmployee(${e.id})">
+                  data-action="delete-employee" data-id="${e.id}">
             <i class="fas fa-trash"></i>
           </button>
         </div>
@@ -103,7 +103,7 @@ function renderConfigUsuarios() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Usuários do Sistema</h3>
-      <button class="btn btn-primary" onclick="openFuncModal(null)">
+      <button class="btn btn-primary" data-action="open-func-modal">
         <i class="fas fa-plus"></i> Novo Usuário
       </button>
     </div>
@@ -129,7 +129,7 @@ function openFuncModal(id) {
         <i class="fas fa-user-${isNew?'plus':'edit'}" style="color:var(--purple-light);margin-right:8px"></i>
         ${isNew ? 'Novo Usuário' : 'Editar Usuário'}
       </span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -160,8 +160,8 @@ function openFuncModal(id) {
       </div>` : ''}
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveFuncModal(${id})">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-func-modal" data-id="${id}">
         <i class="fas fa-save"></i> ${isNew ? 'Criar Usuário' : 'Salvar Alterações'}
       </button>
     </div>
@@ -248,7 +248,7 @@ function renderConfigEquipes() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Equipes</h3>
-      <button class="btn btn-primary" onclick="openEquipeModal(null)">
+      <button class="btn btn-primary" data-action="open-equipe-modal">
         <i class="fas fa-plus"></i> Nova Equipe
       </button>
     </div>
@@ -270,10 +270,10 @@ function renderConfigEquipes() {
               </div>
             </div>
             <div class="team-actions">
-              <button class="btn btn-sm btn-secondary" onclick="openEquipeModal(${eq.id})">
+              <button class="btn btn-sm btn-secondary" data-action="open-equipe-modal" data-id="${eq.id}">
                 <i class="fas fa-edit"></i> Editar
               </button>
-              <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" onclick="deleteEquipe(${eq.id})">
+              <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" data-action="delete-equipe" data-id="${eq.id}">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
@@ -298,7 +298,7 @@ function openEquipeModal(id) {
         <i class="fas fa-sitemap" style="color:var(--purple-light);margin-right:8px"></i>
         ${isNew ? 'Nova Equipe' : 'Editar Equipe'}
       </span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -322,8 +322,8 @@ function openEquipeModal(id) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveEquipe(${id})">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-equipe" data-id="${id}">
         <i class="fas fa-save"></i> ${isNew ? 'Criar Equipe' : 'Salvar'}
       </button>
     </div>
@@ -388,7 +388,7 @@ function renderConfigPerfis() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Perfis de Acesso</h3>
-      <button class="btn btn-secondary" onclick="switchConfigSection('permissoes')">
+      <button class="btn btn-secondary" data-action="switch-config-section" data-section="permissoes">
         <i class="fas fa-lock"></i> Gerenciar Permissões
       </button>
     </div>
@@ -407,7 +407,7 @@ function renderConfigPerfis() {
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">
             ${p.tags.map(t => `<span class="tag tag-purple" style="font-size:10px">${t}</span>`).join('')}
           </div>
-          <button class="btn btn-sm btn-secondary" style="width:100%" onclick="openPerfilModal('${p.role}')">
+          <button class="btn btn-sm btn-secondary" style="width:100%" data-action="open-perfil-modal" data-role="${p.role}">
             <i class="fas fa-edit"></i> Editar Permissões
           </button>
         </div>`).join('')}
@@ -432,7 +432,7 @@ function openPerfilModal(role) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-shield-alt" style="color:var(--purple-light);margin-right:8px"></i>Perfil: ${label}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
@@ -450,8 +450,8 @@ function openPerfilModal(role) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="savePerfilPerms('${role}')">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-perfil-perms" data-role="${role}">
         <i class="fas fa-save"></i> Salvar Permissões
       </button>
     </div>
@@ -485,7 +485,7 @@ function renderConfigPermissoes() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Matriz de Permissões</h3>
-      <button class="btn btn-primary" onclick="savePermissoes()">
+      <button class="btn btn-primary" data-action="save-permissoes">
         <i class="fas fa-save"></i> Salvar Alterações
       </button>
     </div>
@@ -544,7 +544,7 @@ function renderConfigFunil() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Etapas do Funil de Produção</h3>
-      <button class="btn btn-primary" onclick="openFunilStageModal(null)">
+      <button class="btn btn-primary" data-action="open-funil-stage-modal">
         <i class="fas fa-plus"></i> Nova Etapa
       </button>
     </div>
@@ -557,11 +557,11 @@ function renderConfigFunil() {
           <span style="flex:1;font-size:13px;font-weight:500">${col}</span>
           <span class="tag tag-gray" style="font-size:10px">Etapa ${i+1}</span>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-secondary" onclick="openFunilStageModal(${i})">
+            <button class="btn btn-sm btn-secondary" data-action="open-funil-stage-modal" data-idx="${i}">
               <i class="fas fa-edit"></i>
             </button>
             ${SC.kanbanCols.length > 3 ? `
-            <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" onclick="deleteFunilStage(${i})">
+            <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" data-action="delete-funil-stage" data-idx="${i}">
               <i class="fas fa-trash"></i>
             </button>` : ''}
           </div>
@@ -575,7 +575,7 @@ function openFunilStageModal(idx) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title">${isNew ? 'Nova Etapa' : 'Editar Etapa'}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-col">
@@ -584,8 +584,8 @@ function openFunilStageModal(idx) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveFunilStage(${idx})">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-funil-stage" data-idx="${idx}">
         <i class="fas fa-save"></i> Salvar
       </button>
     </div>
@@ -622,7 +622,7 @@ function renderConfigTipos() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Tipos de Conteúdo</h3>
-      <button class="btn btn-primary" onclick="openTipoModal(null)">
+      <button class="btn btn-primary" data-action="open-tipo-modal">
         <i class="fas fa-plus"></i> Novo Tipo
       </button>
     </div>
@@ -633,10 +633,10 @@ function renderConfigTipos() {
           <span style="font-size:18px">🏷️</span>
           <span style="flex:1;font-size:13px;font-weight:500">${tipo}</span>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-secondary" onclick="openTipoModal(${i})">
+            <button class="btn btn-sm btn-secondary" data-action="open-tipo-modal" data-idx="${i}">
               <i class="fas fa-edit"></i>
             </button>
-            <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" onclick="deleteTipo(${i})">
+            <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" data-action="delete-tipo" data-idx="${i}">
               <i class="fas fa-trash"></i>
             </button>
           </div>
@@ -649,7 +649,7 @@ function openTipoModal(idx) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title">${idx === null ? 'Novo Tipo de Conteúdo' : 'Editar Tipo'}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-col">
@@ -658,8 +658,8 @@ function openTipoModal(idx) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveTipo(${idx})"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-tipo" data-idx="${idx}"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }
@@ -693,7 +693,7 @@ function renderConfigServicos() {
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <h3 style="font-size:16px;font-weight:700">Serviços Oferecidos</h3>
-      <button class="btn btn-primary" onclick="openServicoModal(null)">
+      <button class="btn btn-primary" data-action="open-servico-modal">
         <i class="fas fa-plus"></i> Novo Serviço
       </button>
     </div>
@@ -704,10 +704,10 @@ function renderConfigServicos() {
           <span style="font-size:18px">💼</span>
           <span style="flex:1;font-size:13px;font-weight:500">${svc}</span>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-secondary" onclick="openServicoModal(${i})">
+            <button class="btn btn-sm btn-secondary" data-action="open-servico-modal" data-idx="${i}">
               <i class="fas fa-edit"></i>
             </button>
-            <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" onclick="deleteServico(${i})">
+            <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)" data-action="delete-servico" data-idx="${i}">
               <i class="fas fa-trash"></i>
             </button>
           </div>
@@ -720,7 +720,7 @@ function openServicoModal(idx) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title">${idx === null ? 'Novo Serviço' : 'Editar Serviço'}</span>
-      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
       <div class="form-col">
@@ -729,8 +729,8 @@ function openServicoModal(idx) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveServico(${idx})"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-servico" data-idx="${idx}"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
 }
@@ -778,7 +778,7 @@ function renderConfigAprovacao() {
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
             ${m.ativo ? `<span class="tag tag-green" style="font-size:11px">✅ Ativo</span>` : ''}
             <button class="btn btn-sm ${m.ativo ? 'btn-secondary' : 'btn-primary'}"
-                    onclick="toggleModeloAprovacao(${m.id})">
+                    data-action="toggle-modelo-aprovacao" data-id="${m.id}">
               ${m.ativo ? 'Desativar' : 'Ativar'}
             </button>
           </div>
@@ -798,3 +798,5 @@ function toggleModeloAprovacao(id) {
   showToast(isActivating ? `✅ Modelo "${m.name}" ativado!` : 'Modelo desativado.', isActivating ? 'success' : 'info');
   switchConfigSection('aprovacao');
 }
+
+Router.register('configuracoes', renderConfiguracoes, 'Configurações');
