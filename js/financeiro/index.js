@@ -84,18 +84,25 @@ function _renderFinContent() {
       <button class="tab-btn ${finTab==='receber'?'active':''}" data-action="switch-fin-tab" data-tab="receber"><i class="fas fa-arrow-down"></i> A Receber</button>
       <button class="tab-btn ${finTab==='pagar'?'active':''}" data-action="switch-fin-tab" data-tab="pagar"><i class="fas fa-arrow-up"></i> A Pagar</button>
       <button class="tab-btn ${finTab==='inadimplencia'?'active':''}" data-action="switch-fin-tab" data-tab="inadimplencia"><i class="fas fa-exclamation-circle"></i> Inadimplência</button>
+      <button class="tab-btn ${finTab==='fluxo-caixa'?'active':''}" data-action="switch-fin-tab" data-tab="fluxo-caixa"><i class="fas fa-water"></i> Fluxo de Caixa</button>
+      <button class="tab-btn ${finTab==='dre'?'active':''}" data-action="switch-fin-tab" data-tab="dre"><i class="fas fa-file-invoice-dollar"></i> DRE</button>
     </div>
 
     <div id="fin-tab-content">
-      ${finTab === 'visao-geral'    ? renderFinVisaoGeral()    :
-        finTab === 'receber'        ? renderFinReceber()        :
-        finTab === 'pagar'          ? renderFinPagar()          :
+      ${finTab === 'visao-geral'  ? renderFinVisaoGeral()   :
+        finTab === 'receber'      ? renderFinReceber()       :
+        finTab === 'pagar'        ? renderFinPagar()         :
+        finTab === 'fluxo-caixa'  ? renderFinFluxoCaixa()    :
+        finTab === 'dre'          ? renderFinDRE()           :
         renderFinInadimplencia()}
     </div>
   `;
 
   if (finTab === 'visao-geral') {
     setTimeout(() => renderFluxoCaixa(), 100);
+  }
+  if (finTab === 'fluxo-caixa') {
+    setTimeout(() => renderFcChart(), 100);
   }
 
   if (!SC.hasPermission('financeiro')) {

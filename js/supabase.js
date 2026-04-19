@@ -590,6 +590,10 @@ const SCAdapter = {
   cashflow() {
     return SC.finances.cashflow;
   },
+
+  dre() {
+    return SC.finances.dre;
+  },
 };
 
 // ─── DADOS UNIFICADOS (Supabase OU Local) ────
@@ -657,6 +661,10 @@ const Data = {
 
   cashflow() {
     return SCAdapter.cashflow();
+  },
+
+  dre() {
+    return SCAdapter.dre();
   },
 };
 

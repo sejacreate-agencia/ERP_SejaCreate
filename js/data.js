@@ -137,7 +137,15 @@ const SC = {
       { month: 'Jan', in: 22800, out: 7600 },
       { month: 'Fev', in: 23600, out: 7900 },
       { month: 'Mar', in: 27100, out: 7520 },
-    ]
+    ],
+    dre: [
+      { month: 'Out/24', receita: 18200, impostos: 1092, custos_diretos: 3600, folha: 10200, despesas_op: 2800 },
+      { month: 'Nov/24', receita: 21500, impostos: 1290, custos_diretos: 4100, folha: 10200, despesas_op: 3100 },
+      { month: 'Dez/24', receita: 25000, impostos: 1500, custos_diretos: 4800, folha: 10200, despesas_op: 3300 },
+      { month: 'Jan/25', receita: 22800, impostos: 1368, custos_diretos: 3900, folha: 10200, despesas_op: 3700 },
+      { month: 'Fev/25', receita: 23600, impostos: 1416, custos_diretos: 4200, folha: 10200, despesas_op: 3700 },
+      { month: 'Mar/25', receita: 27100, impostos: 1626, custos_diretos: 4020, folha: 10200, despesas_op: 3500 },
+    ],
   },
 
   getClientName(id) { return this.clients.find(c => c.id === id)?.name || 'N/A'; },
