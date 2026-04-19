@@ -65,6 +65,11 @@ const Actions = {
   'save-new-lanc':        ()  => saveNewLanc(),
   'save-edit-lanc':       el  => saveEditLanc(el.dataset.type, parseInt(el.dataset.id)),
   'whatsapp-cobrar':      el  => Toast.info(`📱 WhatsApp aberto para ${el.dataset.client}`),
+  // ── PLANO DE CONTAS ───────────────────────
+  'open-conta-modal':     el  => openContaModal(el.dataset.id),
+  'save-conta':           el  => saveConta(el.dataset.id),
+  'delete-conta':         el  => deleteContaConfirm(el.dataset.id),
+  'toggle-conta-status':  el  => toggleContaStatus(el.dataset.id),
 
   // ── TAREFAS ───────────────────────────────
   'set-task-view':        el  => setTaskView(el.dataset.view),

@@ -25,6 +25,11 @@ async function markAsPaid(type, id) {
 
 function openNewLancModal() {
   const clientOpts = SC.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const contaOpts  = SC.planoDeContas
+    .filter(c => c.ativo)
+    .map(c => `<option value="${c.id}">${c.codigo} — ${c.nome}</option>`)
+    .join('');
+
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-plus" style="color:var(--purple-light);margin-right:8px"></i>Novo Lançamento</span>
@@ -48,6 +53,15 @@ function openNewLancModal() {
         <div class="form-col full">
           <label>Descrição *</label>
           <input class="input-field" id="nl-desc" placeholder="Ex: Mensalidade Março" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Conta Contábil <span style="font-size:11px;color:var(--text-secondary)">(Plano de Contas — classifica a DRE)</span></label>
+          <select class="select-field" id="nl-conta">
+            <option value="">— Sem classificação —</option>
+            ${contaOpts}
+          </select>
         </div>
       </div>
       <div class="form-row" id="nl-client-row">
@@ -93,31 +107,33 @@ async function saveNewLanc() {
   const btn = document.getElementById('btn-save-lanc');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
 
+  const contaId = document.getElementById('nl-conta')?.value || '';
+
   if (type === 'receivable') {
     const clientId = document.getElementById('nl-client').value;
     const due      = document.getElementById('nl-due').value;
-    const payload  = { client_id: clientId, description: desc, value, due_date: due || null, status: 'pendente' };
+    const payload  = { client_id: clientId, description: desc, value, due_date: due || null, status: 'pendente', conta_id: contaId || null };
 
     if (isSupabaseReady()) {
       const { data, error } = await DB.receivables.create(payload);
       if (error) { showToast(`Erro: ${error.message}`, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; } return; }
       _recData.push({ ...data, client: { name: SC.getClientName(parseInt(clientId)) } });
     } else {
-      const newItem = { id: Date.now(), client: parseInt(clientId), client_id: parseInt(clientId), desc, description: desc, value, due, due_date: due, status: 'pendente' };
+      const newItem = { id: Date.now(), client: parseInt(clientId), client_id: parseInt(clientId), desc, description: desc, value, due, due_date: due, status: 'pendente', conta_id: contaId ? parseInt(contaId) : null };
       SC.finances.receivable.push(newItem);
       _recData.push(newItem);
     }
   } else {
     const supplierName = document.getElementById('nl-supplier').value.trim() || 'Fornecedor';
     const due          = document.getElementById('nl-due-pay').value;
-    const payload      = { supplier_name: supplierName, description: desc, value, due_date: due || null, status: 'pendente' };
+    const payload      = { supplier_name: supplierName, description: desc, value, due_date: due || null, status: 'pendente', conta_id: contaId || null };
 
     if (isSupabaseReady()) {
       const { data, error } = await DB.payables.create(payload);
       if (error) { showToast(`Erro: ${error.message}`, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; } return; }
       _payData.push(data);
     } else {
-      const newItem = { id: Date.now(), supplier: supplierName, supplier_name: supplierName, desc, description: desc, value, due, due_date: due, status: 'pendente' };
+      const newItem = { id: Date.now(), supplier: supplierName, supplier_name: supplierName, desc, description: desc, value, due, due_date: due, status: 'pendente', conta_id: contaId ? parseInt(contaId) : null };
       SC.finances.payable.push(newItem);
       _payData.push(newItem);
     }

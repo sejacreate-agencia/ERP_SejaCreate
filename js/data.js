@@ -137,8 +137,41 @@ const SC = {
       { month: 'Jan', in: 22800, out: 7600 },
       { month: 'Fev', in: 23600, out: 7900 },
       { month: 'Mar', in: 27100, out: 7520 },
-    ]
+    ],
+    dre: [
+      { month: 'Out/24', receita: 18200, impostos: 1092, custos_diretos: 3600, folha: 10200, despesas_op: 2800 },
+      { month: 'Nov/24', receita: 21500, impostos: 1290, custos_diretos: 4100, folha: 10200, despesas_op: 3100 },
+      { month: 'Dez/24', receita: 25000, impostos: 1500, custos_diretos: 4800, folha: 10200, despesas_op: 3300 },
+      { month: 'Jan/25', receita: 22800, impostos: 1368, custos_diretos: 3900, folha: 10200, despesas_op: 3700 },
+      { month: 'Fev/25', receita: 23600, impostos: 1416, custos_diretos: 4200, folha: 10200, despesas_op: 3700 },
+      { month: 'Mar/25', receita: 27100, impostos: 1626, custos_diretos: 4020, folha: 10200, despesas_op: 3500 },
+    ],
   },
+
+  planoDeContas: [
+    { id: 1,  codigo: '1.1.1', nome: 'Receita de Social Media',          tipo: 'receita',  dre_grupo: 'receita',        ativo: true },
+    { id: 2,  codigo: '1.1.2', nome: 'Receita de Design',                tipo: 'receita',  dre_grupo: 'receita',        ativo: true },
+    { id: 3,  codigo: '1.1.3', nome: 'Receita de Tráfego Pago',          tipo: 'receita',  dre_grupo: 'receita',        ativo: true },
+    { id: 4,  codigo: '1.1.4', nome: 'Receita de Projetos Extras',       tipo: 'receita',  dre_grupo: 'receita',        ativo: true },
+    { id: 5,  codigo: '2.1.1', nome: 'ISS / Impostos sobre Serviços',    tipo: 'despesa',  dre_grupo: 'impostos',       ativo: true },
+    { id: 6,  codigo: '3.1.1', nome: 'Fotografia e Vídeo',               tipo: 'despesa',  dre_grupo: 'custos_diretos', ativo: true },
+    { id: 7,  codigo: '3.1.2', nome: 'Freelancers e Terceiros',          tipo: 'despesa',  dre_grupo: 'custos_diretos', ativo: true },
+    { id: 8,  codigo: '3.1.3', nome: 'Ferramentas de Produção',          tipo: 'despesa',  dre_grupo: 'custos_diretos', ativo: true },
+    { id: 9,  codigo: '4.1.1', nome: 'Salários e Pro-labore',            tipo: 'despesa',  dre_grupo: 'folha',          ativo: true },
+    { id: 10, codigo: '4.1.2', nome: 'Encargos Trabalhistas',            tipo: 'despesa',  dre_grupo: 'folha',          ativo: true },
+    { id: 11, codigo: '5.1.1', nome: 'Marketing e Ads',                  tipo: 'despesa',  dre_grupo: 'despesas_op',    ativo: true },
+    { id: 12, codigo: '5.1.2', nome: 'Aluguel e Infraestrutura',         tipo: 'despesa',  dre_grupo: 'despesas_op',    ativo: true },
+    { id: 13, codigo: '5.1.3', nome: 'Assinaturas e Softwares',          tipo: 'despesa',  dre_grupo: 'despesas_op',    ativo: true },
+    { id: 14, codigo: '5.1.4', nome: 'Outras Despesas Administrativas',  tipo: 'despesa',  dre_grupo: 'despesas_op',    ativo: true },
+  ],
+
+  dreGrupos: [
+    { id: 'receita',        label: 'Receita Bruta de Serviços',     tipo: 'receita'  },
+    { id: 'impostos',       label: 'Impostos e Deduções',           tipo: 'despesa'  },
+    { id: 'custos_diretos', label: 'Custo de Produção / Terceiros', tipo: 'despesa'  },
+    { id: 'folha',          label: 'Folha de Pagamento',            tipo: 'despesa'  },
+    { id: 'despesas_op',    label: 'Despesas Operacionais',         tipo: 'despesa'  },
+  ],
 
   getClientName(id) { return this.clients.find(c => c.id === id)?.name || 'N/A'; },
   getEmployeeName(id) { const u = this.users.find(u => u.id === id); return u ? u.name : 'N/A'; },
