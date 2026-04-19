@@ -65,6 +65,13 @@ const Actions = {
   'save-new-lanc':        ()  => saveNewLanc(),
   'save-edit-lanc':       el  => saveEditLanc(el.dataset.type, parseInt(el.dataset.id)),
   'confirm-provisao':     el  => confirmProvisao(parseInt(el.dataset.id)),
+  // ── META ─────────────────────────────────
+  'open-meta-schedule':   el  => { const t = _taskData?.find(x => String(x.id) === String(el.dataset.id)); if (t) MetaService.openScheduleModal(t); },
+  'meta-schedule-post':   el  => MetaService.executeSchedule(el.dataset.taskId),
+  'open-meta-config':     el  => openMetaConfigModal(el.dataset.clientId),
+  'save-meta-config':     el  => saveMetaConfig(el.dataset.clientId),
+  'remove-meta-config':   el  => removeMetaConfig(el.dataset.clientId),
+  'verify-meta-page':     el  => verifyMetaPage(el.dataset.clientId),
   'whatsapp-cobrar':      el  => Toast.info(`📱 WhatsApp aberto para ${el.dataset.client}`),
   // ── PLANO DE CONTAS ───────────────────────
   'open-conta-modal':     el  => openContaModal(el.dataset.id),

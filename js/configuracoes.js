@@ -15,7 +15,8 @@ function renderConfiguracoes(section) {
     { id: 'funil',      icon: 'fa-columns',       label: 'Etapas do Funil' },
     { id: 'tipos',      icon: 'fa-tag',           label: 'Tipos de Conteúdo' },
     { id: 'servicos',   icon: 'fa-briefcase',     label: 'Serviços' },
-    { id: 'aprovacao',  icon: 'fa-check-double',  label: 'Aprovação' },
+    { id: 'aprovacao',    icon: 'fa-check-double',  label: 'Aprovação' },
+    { id: 'integracoes', icon: 'fa-plug',           label: 'Integrações' },
   ];
 
   document.getElementById('page-content').innerHTML = `
@@ -59,7 +60,8 @@ function renderConfigSection() {
     case 'funil':      return renderConfigFunil();
     case 'tipos':      return renderConfigTipos();
     case 'servicos':   return renderConfigServicos();
-    case 'aprovacao':  return renderConfigAprovacao();
+    case 'aprovacao':    return renderConfigAprovacao();
+    case 'integracoes':  return renderConfigIntegracoes();
     default: return '<p style="color:var(--text-muted)">Selecione uma seção</p>';
   }
 }
@@ -797,6 +799,184 @@ function toggleModeloAprovacao(id) {
   if (isActivating) m.ativo = true;
   showToast(isActivating ? `✅ Modelo "${m.name}" ativado!` : 'Modelo desativado.', isActivating ? 'success' : 'info');
   switchConfigSection('aprovacao');
+}
+
+/* ─── INTEGRAÇÕES ───────────────────────── */
+
+function renderConfigIntegracoes() {
+  const rows = SC.clients.map(c => {
+    const cfg        = MetaService.getClientConfig(c.id);
+    const configured = !!(cfg && cfg.page_token && cfg.page_id);
+    return `
+      <tr>
+        <td>
+          <div style="font-weight:600">${c.name}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${c.services?.join(', ') || ''}</div>
+        </td>
+        <td>
+          ${configured
+            ? `<span class="tag tag-green"><i class="fab fa-facebook" style="margin-right:4px"></i>Conectado${cfg.ig_account_id ? ' + IG' : ''}</span>`
+            : `<span class="tag tag-gray">Não configurado</span>`}
+        </td>
+        <td style="font-size:12px;color:var(--text-muted)">${cfg?.page_name || (configured ? cfg.page_id : '—')}</td>
+        <td style="text-align:right">
+          <button class="btn btn-sm" data-action="open-meta-config" data-client-id="${c.id}">
+            <i class="fas fa-${configured ? 'edit' : 'plug'}"></i> ${configured ? 'Editar' : 'Configurar'}
+          </button>
+          ${configured ? `<button class="btn btn-sm btn-danger" style="margin-left:4px" data-action="remove-meta-config" data-client-id="${c.id}" title="Remover integração"><i class="fas fa-unlink"></i></button>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div>
+          <h3 style="margin:0 0 4px;font-size:15px">Integrações Meta (Facebook & Instagram)</h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0">Configure o Page Access Token de cada cliente para programar publicações direto no painel.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <span class="card-title"><i class="fab fa-facebook" style="color:#1877f2;margin-right:6px"></i>Contas Meta por Cliente</span>
+        </div>
+        <div class="table-wrap">
+          <table style="font-size:13px">
+            <thead><tr><th>Cliente</th><th>Status</th><th>Página</th><th style="text-align:right">Ações</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title"><i class="fas fa-question-circle" style="color:var(--purple-light);margin-right:6px"></i>Como obter o Page Access Token</span></div>
+        <div style="padding:12px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+          <div style="padding:12px;background:rgba(24,119,242,.07);border-radius:8px;border:1px solid rgba(24,119,242,.15)">
+            <div style="font-weight:600;margin-bottom:6px;font-size:13px"><i class="fas fa-code" style="color:#60a5fa;margin-right:6px"></i>1. Graph Explorer</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:0">Acesse <strong>developers.facebook.com/tools/explorer</strong>, selecione sua App e Page, e gere um token com <code>pages_manage_posts</code>.</p>
+          </div>
+          <div style="padding:12px;background:rgba(24,119,242,.07);border-radius:8px;border:1px solid rgba(24,119,242,.15)">
+            <div style="font-weight:600;margin-bottom:6px;font-size:13px"><i class="fas fa-key" style="color:#60a5fa;margin-right:6px"></i>2. Token de Longa Duração</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:0">Converta para long-lived token (60 dias) usando o endpoint <code>/oauth/access_token?grant_type=fb_exchange_token</code>.</p>
+          </div>
+          <div style="padding:12px;background:rgba(24,119,242,.07);border-radius:8px;border:1px solid rgba(24,119,242,.15)">
+            <div style="font-weight:600;margin-bottom:6px;font-size:13px"><i class="fab fa-instagram" style="color:#e1306c;margin-right:6px"></i>3. Instagram Business</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:0">A conta Instagram deve ser Business/Creator e vinculada à Página. O Account ID está em Configurações → Conta Profissional.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openMetaConfigModal(clientId) {
+  const client = SC.clients.find(c => String(c.id) === String(clientId));
+  if (!client) return;
+  const cfg = MetaService.getClientConfig(clientId) || {};
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fab fa-facebook" style="color:#1877f2;margin-right:6px"></i>
+        Meta — ${client.name}
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-row">
+          <div class="form-col full">
+            <label>Page Access Token *</label>
+            <input class="input-field" id="mc-token" type="password" placeholder="EAAxxxxx..." value="${cfg.page_token || ''}" />
+            <span style="font-size:11px;color:var(--text-muted)">Token com permissão <code>pages_manage_posts</code> e <code>pages_read_engagement</code></span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-col">
+            <label>Facebook Page ID *</label>
+            <input class="input-field" id="mc-page-id" placeholder="123456789" value="${cfg.page_id || ''}" />
+          </div>
+          <div class="form-col" style="display:flex;align-items:flex-end">
+            <button class="btn btn-secondary" style="width:100%" data-action="verify-meta-page" data-client-id="${clientId}">
+              <i class="fas fa-search"></i> Verificar página
+            </button>
+          </div>
+        </div>
+        <div id="mc-page-name-row" style="${cfg.page_name ? '' : 'display:none'}">
+          <div style="padding:8px 12px;background:rgba(24,119,242,.08);border-radius:6px;font-size:12px;color:#93c5fd">
+            <i class="fab fa-facebook" style="margin-right:6px"></i>
+            <span id="mc-page-name-label">${cfg.page_name ? `Página: <strong>${cfg.page_name}</strong>` : ''}</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-col full">
+            <label>Instagram Business Account ID <span style="font-size:11px;color:var(--text-muted)">(opcional)</span></label>
+            <input class="input-field" id="mc-ig-id" placeholder="987654321" value="${cfg.ig_account_id || ''}" />
+            <span style="font-size:11px;color:var(--text-muted)">Encontre em: IG → Configurações → Conta Profissional → ID da conta</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-meta-config" data-client-id="${clientId}">
+        <i class="fas fa-save"></i> Salvar
+      </button>
+    </div>
+  `);
+}
+
+async function verifyMetaPage(clientId) {
+  const token  = document.getElementById('mc-token')?.value?.trim();
+  const pageId = document.getElementById('mc-page-id')?.value?.trim();
+  if (!token || !pageId) { showToast('Preencha o Token e o Page ID primeiro.', 'warning'); return; }
+
+  const btn = document.querySelector('[data-action="verify-meta-page"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+  const result = await MetaService.fetchPageName(pageId, token);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> Verificar página'; }
+
+  if (result.error) {
+    showToast(`Erro: ${result.error.message}`, 'error');
+  } else {
+    const row   = document.getElementById('mc-page-name-row');
+    const label = document.getElementById('mc-page-name-label');
+    if (row)   row.style.display   = '';
+    if (label) label.innerHTML = `Página encontrada: <strong>${result.name}</strong>`;
+    showToast(`✅ Página "${result.name}" verificada!`, 'success');
+  }
+}
+
+function saveMetaConfig(clientId) {
+  const token      = document.getElementById('mc-token')?.value?.trim();
+  const pageId     = document.getElementById('mc-page-id')?.value?.trim();
+  const igId       = document.getElementById('mc-ig-id')?.value?.trim();
+  const nameLabel  = document.getElementById('mc-page-name-label');
+  const pageNameMatch = nameLabel?.innerHTML?.match(/<strong>(.*?)<\/strong>/);
+  const pageName   = pageNameMatch ? pageNameMatch[1] : '';
+
+  if (!token || !pageId) { showToast('Token e Page ID são obrigatórios!', 'error'); return; }
+
+  MetaService.saveClientConfig(clientId, {
+    page_token:    token,
+    page_id:       pageId,
+    page_name:     pageName,
+    ig_account_id: igId || null,
+  });
+
+  closeModal();
+  showToast('✅ Integração Meta salva!', 'success');
+  switchConfigSection('integracoes');
+}
+
+function removeMetaConfig(clientId) {
+  if (!confirm('Remover a integração Meta deste cliente?')) return;
+  MetaService.removeClientConfig(clientId);
+  showToast('Integração removida.', 'info');
+  switchConfigSection('integracoes');
 }
 
 Router.register('configuracoes', renderConfiguracoes, 'Configurações');

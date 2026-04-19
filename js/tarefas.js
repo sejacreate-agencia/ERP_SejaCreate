@@ -681,6 +681,10 @@ async function openTaskModal(id) {
             <button class="btn btn-warning btn-sm" style="width:100%" data-action="request-adjust" data-id="${id}">
               <i class="fas fa-redo"></i> Solicitar Ajuste
             </button>
+            <div class="divider" style="margin:4px 0"></div>
+            <button class="btn btn-sm" style="width:100%;background:rgba(24,119,242,.15);color:#93c5fd;border-color:rgba(24,119,242,.3)" data-action="open-meta-schedule" data-id="${id}">
+              <i class="fab fa-facebook" style="margin-right:4px"></i><i class="fab fa-instagram" style="color:#f472b6;margin-right:6px"></i> Programar no Meta
+            </button>
           </div>
         </div>
       </div>
@@ -808,6 +812,10 @@ async function moveTask(id) {
   await _saveTaskStatus(id, newStage, prev);
   closeModal();
   renderTaskBoard();
+
+  if (newStage === 'Programado' && MetaService.isClientConfigured(t.client_id || t.client)) {
+    setTimeout(() => MetaService.openScheduleModal(t), 350);
+  }
 }
 
 async function sendToClient(id) {
