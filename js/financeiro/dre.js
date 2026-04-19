@@ -86,9 +86,9 @@ function _calcDreRow(d) {
     ebitda,
     provisoes,
     resultado,
-    mg_bruta:  (lucro_bruto / d.receita) * 100,
-    mg_ebitda: (ebitda      / d.receita) * 100,
-    mg_liq:    (resultado   / d.receita) * 100,
+    mg_bruta:  d.receita ? (lucro_bruto / d.receita) * 100 : 0,
+    mg_ebitda: d.receita ? (ebitda      / d.receita) * 100 : 0,
+    mg_liq:    d.receita ? (resultado   / d.receita) * 100 : 0,
   };
 }
 
@@ -101,7 +101,7 @@ function _dreSection(label) {
 
 function _dreRow(label, rows, field, isDeduct, style) {
   const cur = rows[rows.length - 1];
-  const pct = ((cur[field] / cur.receita) * 100).toFixed(1) + '%';
+  const pct = cur.receita ? ((cur[field] / cur.receita) * 100).toFixed(1) + '%' : '—';
 
   let rowStyle = '';
   if (style === 'total')  rowStyle = 'font-weight:700;border-top:1px solid rgba(255,255,255,0.08)';

@@ -55,10 +55,13 @@ const Actions = {
   'save-new-client':      ()  => saveNewClient(),
   'save-funcionario':     el  => saveFuncionario(el.dataset.id ? parseInt(el.dataset.id) : 0),
   'save-new-supplier':    ()  => saveNewSupplier(),
+  'open-edit-supplier':   el  => openEditSupplierModal(el.dataset.id),
+  'save-edit-supplier':   el  => saveEditSupplier(el.dataset.id),
 
   // ── FINANCEIRO ────────────────────────────
   'open-new-lanc-modal':  ()  => openNewLancModal(),
   'switch-fin-tab':       el  => renderFinanceiro(el.dataset.tab),
+  'switch-fin-filter':    ()  => switchFinFilter(),
   'mark-paid':            el  => markAsPaid(el.dataset.type, parseInt(el.dataset.id)),
   'open-edit-lanc':       el  => openEditLancModal(el.dataset.type, parseInt(el.dataset.id)),
   'toggle-lanc-type':     ()  => toggleLancType(),

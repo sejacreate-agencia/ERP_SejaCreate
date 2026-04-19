@@ -128,11 +128,15 @@ function renderFornecedoresTab() {
   const rows = SC.suppliers.map(s => `
     <tr>
       <td><strong>${s.name}</strong></td>
-      <td style="font-size:12px">${s.contact}</td>
-      <td style="font-size:12px">${s.phone}</td>
-      <td><span class="tag tag-blue">${s.service}</span></td>
+      <td style="font-size:12px">${s.contact || '—'}</td>
+      <td style="font-size:12px">${s.phone || '—'}</td>
+      <td><span class="tag tag-blue">${s.service || '—'}</span></td>
       <td><span class="tag ${s.status === 'ativo' ? 'tag-green' : 'tag-gray'}">${s.status}</span></td>
-      <td><button class="btn btn-sm btn-ghost"><i class="fas fa-edit"></i></button></td>
+      <td>
+        <button class="btn btn-sm btn-ghost" data-action="open-edit-supplier" data-id="${s.id}">
+          <i class="fas fa-edit"></i>
+        </button>
+      </td>
     </tr>
   `).join('');
   return `
@@ -140,11 +144,57 @@ function renderFornecedoresTab() {
       <div class="table-wrap">
         <table>
           <thead><tr><th>Fornecedor</th><th>Contato</th><th>Telefone</th><th>Serviço</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Nenhum fornecedor cadastrado</td></tr>'}</tbody>
         </table>
       </div>
     </div>
   `;
+}
+
+function openEditSupplierModal(id) {
+  const s = SC.suppliers.find(x => String(x.id) === String(id));
+  if (!s) return;
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-truck" style="color:var(--purple-light);margin-right:8px"></i>Editar Fornecedor</span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-col full"><label>Nome *</label><input class="input-field" id="es-name" value="${s.name}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Contato</label><input class="input-field" id="es-contact" value="${s.contact || ''}" /></div>
+        <div class="form-col"><label>Telefone</label><input class="input-field" id="es-phone" value="${s.phone || ''}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Serviço Prestado</label><input class="input-field" id="es-service" value="${s.service || ''}" /></div>
+        <div class="form-col"><label>Status</label>
+          <select class="select-field" id="es-status">
+            <option value="ativo" ${s.status === 'ativo' ? 'selected' : ''}>Ativo</option>
+            <option value="inativo" ${s.status === 'inativo' ? 'selected' : ''}>Inativo</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-edit-supplier" data-id="${id}"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  `);
+}
+
+function saveEditSupplier(id) {
+  const s = SC.suppliers.find(x => String(x.id) === String(id));
+  if (!s) return;
+  const name = document.getElementById('es-name').value.trim();
+  if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
+  s.name    = name;
+  s.contact = document.getElementById('es-contact').value;
+  s.phone   = document.getElementById('es-phone').value;
+  s.service = document.getElementById('es-service').value;
+  s.status  = document.getElementById('es-status').value;
+  closeModal(); showToast('Fornecedor atualizado!'); renderCadastro('fornecedores');
 }
 
 function openClientDetail(id) {

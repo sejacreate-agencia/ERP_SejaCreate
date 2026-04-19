@@ -2,10 +2,14 @@
 // FINANCEIRO — Orquestrador principal
 // =============================================
 
-let finTab = 'visao-geral';
-let finChart = null;
-let _recData = [];
-let _payData = [];
+let finTab          = 'visao-geral';
+let finChart        = null;
+let _recData        = [];
+let _payData        = [];
+let _recDataAll     = []; // cópia completa antes do filtro
+let _payDataAll     = []; // cópia completa antes do filtro
+let _finFilterYear  = new Date().getFullYear();
+let _finFilterMonth = 0; // 0 = todos os meses
 
 async function renderFinanceiro(tab) {
   if (tab) finTab = tab;
@@ -28,11 +32,37 @@ async function renderFinanceiro(tab) {
     </div>
   `;
 
-  [_recData, _payData] = await Promise.all([Data.receivables(), Data.payables()]);
+  [_recDataAll, _payDataAll] = await Promise.all([Data.receivables(), Data.payables()]);
+  _recData = [..._recDataAll];
+  _payData = [..._payDataAll];
+  _renderFinContent();
+}
+
+function _applyFinFilter(data) {
+  if (!_finFilterMonth) return data;
+  return data.filter(r => {
+    const d = (r.due_date || r.due || '').split('T')[0];
+    if (!d) return false;
+    const parts = d.split('-');
+    return parseInt(parts[0]) === _finFilterYear && parseInt(parts[1]) === _finFilterMonth;
+  });
+}
+
+function switchFinFilter() {
+  const yearEl  = document.getElementById('fin-filter-year');
+  const monthEl = document.getElementById('fin-filter-month');
+  if (yearEl)  _finFilterYear  = parseInt(yearEl.value);
+  if (monthEl) _finFilterMonth = parseInt(monthEl.value);
+  _recData = [..._recDataAll];
+  _payData = [..._payDataAll];
   _renderFinContent();
 }
 
 function _renderFinContent() {
+  // Aplica filtro mês/ano sobre os dados completos
+  _recData = _applyFinFilter([..._recDataAll]);
+  _payData = _applyFinFilter([..._payDataAll]);
+
   const totalRec     = _recData.reduce((s, r) => s + (r.value || 0), 0);
   const totalPago    = _recData.filter(r => r.status === 'pago').reduce((s, r) => s + (r.value || 0), 0);
   const totalPend    = _recData.filter(r => r.status === 'pendente').reduce((s, r) => s + (r.value || 0), 0);
@@ -43,7 +73,25 @@ function _renderFinContent() {
   const finSummaryArea = document.getElementById('fin-summary-area');
   if (!finSummaryArea) return;
 
+  const curYear = new Date().getFullYear();
+  const yearOpts = [curYear-1, curYear, curYear+1].map(y =>
+    `<option value="${y}" ${y === _finFilterYear ? 'selected' : ''}>${y}</option>`
+  ).join('');
+  const mLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const monthOpts = `<option value="0" ${!_finFilterMonth ? 'selected' : ''}>Todos os meses</option>` +
+    mLabels.map((m, i) =>
+      `<option value="${i+1}" ${(i+1) === _finFilterMonth ? 'selected' : ''}>${m}</option>`
+    ).join('');
+
   finSummaryArea.innerHTML = `
+    <!-- FILTRO MÊS/ANO -->
+    <div class="filters-bar" style="margin-bottom:16px">
+      <span class="filter-label"><i class="fas fa-filter"></i> Período:</span>
+      <select class="filter-select" id="fin-filter-month" data-action="switch-fin-filter">${monthOpts}</select>
+      <select class="filter-select" id="fin-filter-year"  data-action="switch-fin-filter">${yearOpts}</select>
+      ${_finFilterMonth ? `<span class="tag tag-purple" style="font-size:11px">${mLabels[_finFilterMonth-1]}/${_finFilterYear}</span>` : ''}
+    </div>
+
     <!-- SUMMARY CARDS -->
     <div class="fin-summary">
       <div class="fin-card" data-perm="financial">

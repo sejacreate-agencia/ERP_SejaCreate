@@ -668,6 +668,48 @@ const Data = {
   },
 };
 
+// ─── HELPERS DE CÁLCULO FINANCEIRO ───────────
+
+function _computeCashflowFromRealData(receivables, payables) {
+  const today = new Date();
+  const result = [];
+  const mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  for (let i = 5; i >= 0; i--) {
+    const d   = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const inVal  = receivables.filter(r => (r.due_date || r.due || '').startsWith(key))
+                              .reduce((s, r) => s + (r.value || 0), 0);
+    const outVal = payables.filter(p => (p.due_date || p.due || '').startsWith(key) && p.status !== 'cancelado')
+                           .reduce((s, p) => s + (p.value || 0), 0);
+    result.push({ month: mNames[d.getMonth()], in: inVal, out: outVal });
+  }
+  return result;
+}
+
+function _computeDREFromRealData(receivables, payables) {
+  const today = new Date();
+  const result = [];
+  const mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  for (let i = 5; i >= 0; i--) {
+    const d      = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const key    = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label  = `${mNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+    const receita = receivables.filter(r => (r.due_date || r.due || '').startsWith(key))
+                               .reduce((s, r) => s + (r.value || 0), 0);
+    const custos  = payables.filter(p => (p.due_date || p.due || '').startsWith(key) && p.status !== 'cancelado')
+                            .reduce((s, p) => s + (p.value || 0), 0);
+    result.push({
+      month: label,
+      receita,
+      impostos: Math.round(receita * 0.06),
+      custos_diretos: custos,
+      folha: 0,
+      despesas_op: 0,
+    });
+  }
+  return result;
+}
+
 // ─── HYDRATE SC FROM SUPABASE ────────────────
 // Carrega dados reais do Supabase nos arrays SC.*
 // para que módulos legados (dashboard, etc.) funcionem com dados reais.
@@ -750,6 +792,14 @@ async function hydrateFromSupabase() {
       provisao_mes: p.provisao_mes || null,
       provisao_total: p.provisao_total || null,
     }));
+
+    // Limpa demo data
+    SC.suppliers = [];
+    SC.avisos    = [];
+
+    // Recalcula Fluxo de Caixa e DRE a partir dos dados reais
+    SC.finances.cashflow = _computeCashflowFromRealData(SC.finances.receivable, SC.finances.payable);
+    SC.finances.dre      = _computeDREFromRealData(SC.finances.receivable, SC.finances.payable);
 
   } catch (err) {
     console.warn('hydrateFromSupabase error:', err);

@@ -2,7 +2,68 @@
 // SEJA CREATE — AVISOS IMPORTANTES
 // =============================================
 
+function generateAvisosFromData() {
+  if (!isSupabaseReady()) return; // mantém SC.avisos demo intacto em modo demo
+  const avisos = [];
+  const today = new Date(new Date().toDateString());
+  let id = 1;
+
+  // Financeiro: recebíveis em atraso
+  (SC.finances.receivable || []).forEach(r => {
+    const due = r.due_date || r.due;
+    const isAtrasado = r.status === 'atrasado' ||
+      (r.status === 'pendente' && due && new Date(due.split('T')[0]) < today);
+    if (isAtrasado) {
+      const clientName = SC.getClientName(r.client_id || r.client) || 'Cliente';
+      avisos.push({
+        id: id++, type: 'pagamento-aberto',
+        title: `${clientName} — ${r.description || r.desc || 'fatura'} em atraso`,
+        priority: 'alta', assignee: null, client: r.client_id || r.client,
+        deadline: due, action: 'financeiro', icon: '💸',
+      });
+    }
+  });
+
+  // Tarefas: ajuste solicitado
+  (SC.tasks || []).filter(t => t.status === 'Ajuste Solicitado').forEach(t => {
+    avisos.push({
+      id: id++, type: 'ajuste-solicitado',
+      title: `Ajuste solicitado: ${t.title}`,
+      priority: 'alta', assignee: t.assignee, client: t.client,
+      deadline: t.postDate, action: 'tarefas', icon: '🔄',
+    });
+  });
+
+  // Tarefas: aguardando aprovação do cliente
+  (SC.tasks || []).filter(t => t.status === 'Enviado ao Cliente').forEach(t => {
+    avisos.push({
+      id: id++, type: 'aprovacao-pendente',
+      title: `Aguardando aprovação: ${t.title}`,
+      priority: 'media', assignee: t.assignee, client: t.client,
+      deadline: t.postDate, action: 'tarefas', icon: '✅',
+    });
+  });
+
+  // Contratos vencendo nos próximos 30 dias
+  (SC.clients || []).forEach(c => {
+    if (!c.expiry) return;
+    const expiry = new Date(c.expiry);
+    const diff = Math.round((expiry - today) / 86400000);
+    if (diff >= 0 && diff <= 30) {
+      avisos.push({
+        id: id++, type: 'contrato-vencendo',
+        title: `${c.name} — contrato vence em ${diff} dia${diff !== 1 ? 's' : ''}`,
+        priority: diff <= 7 ? 'alta' : 'media', assignee: null, client: c.id,
+        deadline: c.expiry, action: 'cadastro', icon: '📋',
+      });
+    }
+  });
+
+  SC.avisos = avisos;
+}
+
 function renderAvisos() {
+  generateAvisosFromData();
   const types = [
     { value: '', label: 'Todos os tipos' },
     { value: 'tarefa-vencida', label: 'Tarefas Vencidas' },
@@ -129,7 +190,7 @@ function filterAvisos() {
   let filtered = SC.avisos;
   if (type) filtered = filtered.filter(a => a.type === type);
   if (priority) filtered = filtered.filter(a => a.priority === priority);
-  if (client) filtered = filtered.filter(a => a.client === parseInt(client));
+  if (client) filtered = filtered.filter(a => String(a.client) === String(client));
 
   document.getElementById('avisos-list').innerHTML = renderAvisosList(filtered);
 }

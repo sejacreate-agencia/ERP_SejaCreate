@@ -32,8 +32,8 @@ function renderCalendario() {
     <!-- FILTERS -->
     <div class="filters-bar">
       <button class="btn btn-ghost btn-sm" data-action="change-month" data-dir="-1"><i class="fas fa-chevron-left"></i></button>
-      <span id="cal-month-label" style="font-size:15px;font-weight:700;min-width:180px;text-align:center">
-        ${monthNames[calDate.getMonth()]} ${calDate.getFullYear()}
+      <span id="cal-month-label" style="font-size:15px;font-weight:700;min-width:200px;text-align:center">
+        ${calMode === 'semanal' ? _calWeekLabel() : `${monthNames[calDate.getMonth()]} ${calDate.getFullYear()}`}
       </span>
       <button class="btn btn-ghost btn-sm" data-action="change-month" data-dir="1"><i class="fas fa-chevron-right"></i></button>
       <div style="margin-left:10px;display:flex;gap:8px;flex-wrap:wrap">
@@ -77,6 +77,8 @@ function getCalendarTasks() {
 }
 
 function renderCalGrid() {
+  if (calMode === 'semanal') return renderCalWeekGrid();
+
   const year = calDate.getFullYear();
   const month = calDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
@@ -152,11 +154,83 @@ function renderUpcomingList() {
   }).join('');
 }
 
+function renderCalWeekGrid() {
+  const dayNames = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const today = new Date(new Date().toDateString());
+
+  // Acha a segunda-feira da semana de calDate
+  const ref = new Date(calDate);
+  const dow = ref.getDay(); // 0=Dom
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  ref.setDate(ref.getDate() + diffToMon);
+
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ref);
+    d.setDate(ref.getDate() + i);
+    days.push(d);
+  }
+
+  const headers = dayNames.map((n, i) => {
+    const d = days[i];
+    const isToday = d.toDateString() === today.toDateString();
+    return `<div class="cal-header-cell" style="${isToday ? 'color:var(--purple-light)' : ''}">
+      ${n}<br><span style="font-size:18px;font-weight:800;${isToday ? 'color:var(--purple-light)' : ''}">${d.getDate()}</span>
+    </div>`;
+  }).join('');
+
+  const allWeekTasks = SC.tasks.filter(t => {
+    if (!t.postDate) return false;
+    const td = new Date(t.postDate + 'T00:00:00');
+    const diff = Math.round((td - days[0]) / 86400000);
+    if (diff < 0 || diff > 6) return false;
+    if (calFilters.client && String(t.client) !== String(calFilters.client)) return false;
+    if (calFilters.assignee && String(t.assignee) !== String(calFilters.assignee)) return false;
+    if (calFilters.status && t.status !== calFilters.status) return false;
+    return true;
+  });
+
+  const cols = days.map(d => {
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const dayTasks = allWeekTasks.filter(t => t.postDate === dateStr);
+    const isToday = d.toDateString() === today.toDateString();
+    return `<div class="cal-cell" style="min-height:120px;${isToday ? 'background:rgba(139,92,246,.05)' : ''}">
+      ${dayTasks.map(t => {
+        const cls = t.status === 'Publicado' ? 'published' : (t.status === 'Aprovado' || t.status === 'Programado') ? '' : 'pending';
+        return `<div class="cal-event ${cls}" data-action="open-task-modal" data-id="${t.id}" title="${SC.getClientName(t.client)} — ${t.title}">
+          <div style="font-size:10px;opacity:.75">${SC.getClientName(t.client).split(' ')[0]}</div>
+          <div>${t.title.slice(0,24)}${t.title.length>24?'…':''}</div>
+        </div>`;
+      }).join('')}
+      ${!dayTasks.length ? `<div style="text-align:center;padding:16px 0;font-size:11px;color:var(--text-muted)">—</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="calendar-grid" style="grid-template-columns:repeat(7,1fr)">${headers}${cols}</div>`;
+}
+
+function _calWeekLabel() {
+  const ref = new Date(calDate);
+  const dow = ref.getDay();
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  ref.setDate(ref.getDate() + diffToMon);
+  const sun = new Date(ref);
+  sun.setDate(ref.getDate() + 6);
+  const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${ref.getDate()} ${monthNames[ref.getMonth()]} — ${sun.getDate()} ${monthNames[sun.getMonth()]} ${sun.getFullYear()}`;
+}
+
 function changeMonth(dir) {
-  calDate = new Date(calDate.getFullYear(), calDate.getMonth() + dir, 1);
+  if (calMode === 'semanal') {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth(), calDate.getDate() + dir * 7);
+  } else {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() + dir, 1);
+  }
   const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const label = document.getElementById('cal-month-label');
-  if (label) label.textContent = `${monthNames[calDate.getMonth()]} ${calDate.getFullYear()}`;
+  if (label) label.textContent = calMode === 'semanal'
+    ? _calWeekLabel()
+    : `${monthNames[calDate.getMonth()]} ${calDate.getFullYear()}`;
   document.getElementById('cal-grid-area').innerHTML = renderCalGrid();
   document.getElementById('upcoming-list').innerHTML = renderUpcomingList();
 }
