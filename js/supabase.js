@@ -668,6 +668,94 @@ const Data = {
   },
 };
 
+// ─── HYDRATE SC FROM SUPABASE ────────────────
+// Carrega dados reais do Supabase nos arrays SC.*
+// para que módulos legados (dashboard, etc.) funcionem com dados reais.
+// Se o banco estiver vazio, SC.* fica vazio → sem dados demo.
+async function hydrateFromSupabase() {
+  if (!isSupabaseReady()) return;
+
+  try {
+    const [clients, profiles, tasks, leads, receivables, payables] = await Promise.all([
+      SB.list('clients', { order: { col: 'name', asc: true } }),
+      SB.list('profiles', { order: { col: 'full_name', asc: true } }),
+      SB.list('tasks', {
+        select: '*, client:clients(id,name), assignee:profiles!tasks_assignee_id_fkey(id,full_name,avatar_initials), task_checklists(id,text,done,sort_order), task_comments(id,text,created_at,user_id)',
+        order: { col: 'created_at', asc: false }
+      }),
+      SB.list('leads', {
+        select: '*, assignee:profiles!leads_assignee_id_fkey(full_name,avatar_initials)',
+        order: { col: 'created_at', asc: false }
+      }),
+      SB.list('financial_receivables', {
+        select: '*, client:clients(id,name,phone)',
+        order: { col: 'due_date', asc: true }
+      }),
+      SB.list('financial_payables', { order: { col: 'due_date', asc: true } }),
+    ]);
+
+    // Clientes
+    SC.clients = (clients.data || []).map(c => ({
+      id: c.id, name: c.name, resp: c.contact_name || '', email: c.email || '',
+      phone: c.phone || '', cnpj: c.cnpj || '', services: c.services || [],
+      plan: c.plan || 'Padrão', start: c.start_date || '', expiry: c.expiry_date || '',
+      status: c.status, revenue: c.monthly_revenue || 0, notes: c.notes || '',
+    }));
+
+    // Funcionários
+    SC.employees = (profiles.data || []).filter(p => p.role !== 'cliente').map(p => ({
+      id: p.id, name: p.full_name, avatar: p.avatar_initials || p.full_name?.slice(0,2) || '??',
+      avatar_initials: p.avatar_initials || '', email: p.email || '', phone: p.phone || '',
+      role: p.role, cargo: p.cargo || '', status: p.status,
+    }));
+
+    // Tarefas
+    SC.tasks = (tasks.data || []).map(t => ({
+      id: t.id, title: t.title, text: t.text || '', status: t.status, priority: t.priority,
+      client: t.client_id, client_id: t.client_id,
+      assignee: t.assignee_id, assignee_id: t.assignee_id,
+      postDate: t.post_date, post_date: t.post_date,
+      created: t.created_at?.split('T')[0], created_at: t.created_at,
+      contentType: t.content_type, content_type: t.content_type,
+      art_url: t.art_url || null,
+      checklist: (t.task_checklists || []).map(c => ({ id: c.id, text: c.text, done: c.done })),
+      task_checklists: t.task_checklists || [],
+      comments: (t.task_comments || []).map(c => ({ id: c.id, text: c.text, date: c.created_at, user: c.user_id })),
+      task_comments: t.task_comments || [],
+    }));
+
+    // Leads
+    SC.leads = (leads.data || []).map(l => ({
+      id: l.id, name: l.name, company: l.company, email: l.email || '',
+      phone: l.phone || '', origin: l.origin, service: l.service || '',
+      stage: l.stage, value: l.value || 0, notes: l.notes || '',
+      assignee: l.assignee_id, assignee_id: l.assignee_id,
+      lastContact: l.last_contact, last_contact: l.last_contact,
+    }));
+
+    // Financeiro
+    SC.finances.receivable = (receivables.data || []).map(r => ({
+      id: r.id, client: r.client_id, client_id: r.client_id,
+      desc: r.description, description: r.description,
+      value: r.value, due: r.due_date, due_date: r.due_date,
+      status: r.status, paid_at: r.paid_at || null,
+    }));
+
+    SC.finances.payable = (payables.data || []).map(p => ({
+      id: p.id, supplier: p.supplier_name, supplier_name: p.supplier_name,
+      desc: p.description, description: p.description,
+      value: p.value, due: p.due_date, due_date: p.due_date,
+      status: p.status, paid_at: p.paid_at || null,
+      provisao_grupo: p.provisao_grupo || null,
+      provisao_mes: p.provisao_mes || null,
+      provisao_total: p.provisao_total || null,
+    }));
+
+  } catch (err) {
+    console.warn('hydrateFromSupabase error:', err);
+  }
+}
+
 // ─── INICIALIZAÇÃO ───────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initSupabase();

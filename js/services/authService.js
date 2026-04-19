@@ -69,6 +69,7 @@ const AuthService = {
       } catch { /* ignora JSON inválido */ }
     }
 
+    await hydrateFromSupabase();
     this._postLogin(profile.role);
     return { data: SC.currentUser };
   },
@@ -146,6 +147,7 @@ const AuthService = {
     if (!profile) return null;
 
     SC.currentUser = this._mapProfile(profile);
+    await hydrateFromSupabase();
     this._postLogin(profile.role);
     return SC.currentUser;
   },

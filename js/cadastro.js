@@ -274,20 +274,41 @@ function openNewClientModal() {
   `);
 }
 
-function saveNewClient() {
-  const name = document.getElementById('nc-name').value;
+async function saveNewClient() {
+  const name = document.getElementById('nc-name').value.trim();
   if (!name) { showToast('Nome da empresa é obrigatório!', 'error'); return; }
-  SC.clients.push({
-    id: SC.clients.length + 1, name,
-    resp: document.getElementById('nc-resp').value,
+
+  const payload = {
+    name,
+    contact_name: document.getElementById('nc-resp').value,
     email: document.getElementById('nc-email').value,
     phone: document.getElementById('nc-phone').value,
     cnpj: document.getElementById('nc-cnpj').value,
-    services: [], plan: document.getElementById('nc-plan').value,
-    start: document.getElementById('nc-start').value,
-    expiry: '', status: 'ativo',
-    revenue: parseFloat(document.getElementById('nc-revenue').value) || 0,
-  });
+    services: [],
+    plan: document.getElementById('nc-plan').value,
+    start_date: document.getElementById('nc-start').value || null,
+    status: 'ativo',
+    monthly_revenue: parseFloat(document.getElementById('nc-revenue').value) || 0,
+  };
+
+  if (isSupabaseReady()) {
+    const { data, error } = await DB.clients.create(payload);
+    if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+    SC.clients.push({
+      id: data.id, name: data.name, resp: data.contact_name || '', email: data.email || '',
+      phone: data.phone || '', cnpj: data.cnpj || '', services: data.services || [],
+      plan: data.plan, start: data.start_date || '', expiry: data.expiry_date || '',
+      status: data.status, revenue: data.monthly_revenue || 0,
+    });
+    await logActivity('client.created', 'client', data.id, JSON.stringify({ name }));
+  } else {
+    SC.clients.push({
+      id: SC.clients.length + 1, name, resp: payload.contact_name, email: payload.email,
+      phone: payload.phone, cnpj: payload.cnpj, services: [], plan: payload.plan,
+      start: payload.start_date || '', expiry: '', status: 'ativo', revenue: payload.monthly_revenue,
+    });
+  }
+
   closeModal(); showToast('Cliente cadastrado!'); renderCadastro('clientes');
 }
 
