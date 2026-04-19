@@ -259,9 +259,12 @@ CREATE TABLE IF NOT EXISTS public.financial_payables (
   value           NUMERIC(10,2) NOT NULL,
   due_date        DATE,
   status          TEXT NOT NULL DEFAULT 'pendente'
-                    CHECK (status IN ('pendente','pago','atrasado','cancelado')),
+                    CHECK (status IN ('pendente','pago','atrasado','cancelado','provisionado')),
   paid_at         TIMESTAMPTZ,
   category        TEXT,
+  provisao_grupo  TEXT,
+  provisao_mes    INTEGER,
+  provisao_total  INTEGER,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
