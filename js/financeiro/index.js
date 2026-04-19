@@ -86,14 +86,16 @@ function _renderFinContent() {
       <button class="tab-btn ${finTab==='inadimplencia'?'active':''}" data-action="switch-fin-tab" data-tab="inadimplencia"><i class="fas fa-exclamation-circle"></i> Inadimplência</button>
       <button class="tab-btn ${finTab==='fluxo-caixa'?'active':''}" data-action="switch-fin-tab" data-tab="fluxo-caixa"><i class="fas fa-water"></i> Fluxo de Caixa</button>
       <button class="tab-btn ${finTab==='dre'?'active':''}" data-action="switch-fin-tab" data-tab="dre"><i class="fas fa-file-invoice-dollar"></i> DRE</button>
+      <button class="tab-btn ${finTab==='plano-contas'?'active':''}" data-action="switch-fin-tab" data-tab="plano-contas"><i class="fas fa-sitemap"></i> Plano de Contas</button>
     </div>
 
     <div id="fin-tab-content">
-      ${finTab === 'visao-geral'  ? renderFinVisaoGeral()   :
-        finTab === 'receber'      ? renderFinReceber()       :
-        finTab === 'pagar'        ? renderFinPagar()         :
-        finTab === 'fluxo-caixa'  ? renderFinFluxoCaixa()    :
-        finTab === 'dre'          ? renderFinDRE()           :
+      ${finTab === 'visao-geral'    ? renderFinVisaoGeral()       :
+        finTab === 'receber'        ? renderFinReceber()           :
+        finTab === 'pagar'          ? renderFinPagar()             :
+        finTab === 'fluxo-caixa'    ? renderFinFluxoCaixa()        :
+        finTab === 'dre'            ? renderFinDRE()               :
+        finTab === 'plano-contas'   ? renderFinPlanoDeContas()     :
         renderFinInadimplencia()}
     </div>
   `;
