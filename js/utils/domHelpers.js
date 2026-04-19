@@ -16,7 +16,7 @@ const Dom = {
 
   show(target) {
     const el = typeof target === 'string' ? document.getElementById(target) : target;
-    if (el) el.style.display = '';
+    if (el) { el.style.display = ''; el.classList.remove('hidden'); }
   },
 
   hide(target) {
