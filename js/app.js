@@ -41,6 +41,16 @@ function toggleSidebar() {
 // ─── INIT ─────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Esconde seletor de perfil demo quando Supabase está configurado
+  if (isSupabaseReady()) {
+    const demoRow = document.querySelector('.login-roles');
+    if (demoRow) demoRow.style.display = 'none';
+    const emailInput = document.getElementById('login-email');
+    if (emailInput) emailInput.value = '';
+    const passInput = document.getElementById('login-pass');
+    if (passInput) passInput.value = '';
+  }
+
   setTimeout(() => checkExistingSession(), 100);
   NotificationService.refreshBadge();
 });
