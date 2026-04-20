@@ -801,6 +801,10 @@ async function hydrateFromSupabase() {
     SC.finances.cashflow = _computeCashflowFromRealData(SC.finances.receivable, SC.finances.payable);
     SC.finances.dre      = _computeDREFromRealData(SC.finances.receivable, SC.finances.payable);
 
+    // Gera avisos dinâmicos e atualiza badge
+    if (typeof generateAvisosFromData === 'function') generateAvisosFromData();
+    NotificationService.refreshBadge();
+
   } catch (err) {
     console.warn('hydrateFromSupabase error:', err);
   }
