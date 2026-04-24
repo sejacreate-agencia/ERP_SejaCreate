@@ -136,6 +136,8 @@ const Actions = {
 // ─── LISTENER ÚNICO ──────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+
   document.body.addEventListener('click', e => {
     const el = e.target.closest('[data-action]');
     if (!el || el.tagName === 'SELECT') return;

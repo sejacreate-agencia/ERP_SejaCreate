@@ -1,0 +1,13 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="40" height="40" rx="10" fill="#7c3aed"/>
+  <!-- C ring -->
+  <path d="M28 10A12 12 0 1 0 28 30" stroke="white" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+  <!-- Speech bubble body -->
+  <rect x="11" y="14" width="15" height="10" rx="3" fill="white"/>
+  <!-- Bubble tail -->
+  <path d="M15 24L12.5 29L21 24Z" fill="white"/>
+  <!-- Three dots -->
+  <circle cx="15" cy="19" r="1.5" fill="#7c3aed"/>
+  <circle cx="18.5" cy="19" r="1.5" fill="#7c3aed"/>
+  <circle cx="22" cy="19" r="1.5" fill="#7c3aed"/>
+</svg>

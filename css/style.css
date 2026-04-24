@@ -46,6 +46,59 @@
   --transition: all 0.2s ease;
 }
 
+/* =============================================
+   LIGHT THEME
+   ============================================= */
+[data-theme="light"] {
+  --bg-primary:    #f0f2f5;
+  --bg-secondary:  #ffffff;
+  --bg-card:       #ffffff;
+  --bg-card-hover: #f5f6fa;
+  --bg-input:      #f3f4f6;
+
+  --border:        rgba(0,0,0,0.08);
+  --border-light:  rgba(0,0,0,0.04);
+
+  --purple:        #4f46e5;
+  --purple-light:  #6366f1;
+  --purple-dark:   #4338ca;
+  --purple-glow:   rgba(79,70,229,0.12);
+  --purple-subtle: rgba(79,70,229,0.08);
+  --purple-border: rgba(79,70,229,0.25);
+
+  --text-primary:   #111827;
+  --text-secondary: #6b7280;
+  --text-muted:     #9ca3af;
+  --text-purple:    #4f46e5;
+
+  --shadow:        0 2px 12px rgba(0,0,0,0.07);
+  --shadow-purple: 0 4px 20px rgba(79,70,229,0.18);
+}
+
+/* Overrides para valores rgba-white hardcoded no CSS base */
+[data-theme="light"] .nav-item:hover           { background: rgba(0,0,0,0.04); color: var(--text-primary); }
+[data-theme="light"] .tag-gray                 { background: rgba(0,0,0,0.06); color: #374151; }
+[data-theme="light"] tbody tr:hover td         { background: rgba(0,0,0,0.015); }
+[data-theme="light"] .kanban-col-count         { background: rgba(0,0,0,0.06); }
+[data-theme="light"] .kanban-card:hover        { box-shadow: 0 4px 12px rgba(0,0,0,0.10); }
+[data-theme="light"] .card                     { box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+[data-theme="light"] .kpi-card                 { box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+[data-theme="light"] .input-field:focus        { background: rgba(79,70,229,0.04); }
+[data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group select:focus  { background: rgba(79,70,229,0.04); }
+[data-theme="light"] select option             { background: #ffffff; color: #111827; }
+[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f2f5; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c7d2fe; }
+[data-theme="light"] .login-bg {
+  background: radial-gradient(ellipse at 40% 50%, rgba(79,70,229,0.12) 0%, transparent 70%),
+              radial-gradient(ellipse at 80% 20%, rgba(67,56,202,0.08) 0%, transparent 60%),
+              #f0f2f5;
+}
+[data-theme="light"] .login-box {
+  background: #ffffff;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.10), 0 0 60px rgba(79,70,229,0.06);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { font-size: 14px; }
 

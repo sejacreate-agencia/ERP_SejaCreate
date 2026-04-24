@@ -8,6 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
+  <!-- Tema: aplicar antes do render para evitar flash -->
+  <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase SDK — carregado antes dos módulos JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -20,13 +22,16 @@
   <div class="login-box">
     <div class="login-logo">
       <span class="logo-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff" opacity="0.9"/>
-          <path d="M2 17l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-          <path d="M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg width="26" height="26" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M28 10A12 12 0 1 0 28 30" stroke="white" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <rect x="11" y="14" width="15" height="10" rx="3" fill="white"/>
+          <path d="M15 24L12.5 29L21 24Z" fill="white"/>
+          <circle cx="15" cy="19" r="1.5" fill="var(--purple)"/>
+          <circle cx="18.5" cy="19" r="1.5" fill="var(--purple)"/>
+          <circle cx="22" cy="19" r="1.5" fill="var(--purple)"/>
         </svg>
       </span>
-      <span class="logo-text">Seja <strong>Create</strong></span>
+      <span class="logo-text">seja <strong>create</strong></span>
     </div>
     <p class="login-subtitle">Plataforma de Gestão para Agências</p>
     <div class="login-form">
@@ -63,13 +68,16 @@
     <div class="sidebar-header">
       <div class="logo">
         <span class="logo-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff" opacity="0.9"/>
-            <path d="M2 17l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-            <path d="M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg width="22" height="22" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M28 10A12 12 0 1 0 28 30" stroke="white" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+            <rect x="11" y="14" width="15" height="10" rx="3" fill="white"/>
+            <path d="M15 24L12.5 29L21 24Z" fill="white"/>
+            <circle cx="15" cy="19" r="1.5" fill="var(--purple)"/>
+            <circle cx="18.5" cy="19" r="1.5" fill="var(--purple)"/>
+            <circle cx="22" cy="19" r="1.5" fill="var(--purple)"/>
           </svg>
         </span>
-        <span class="logo-text">Seja <strong>Create</strong></span>
+        <span class="logo-text">seja <strong>create</strong></span>
       </div>
       <button class="sidebar-toggle" data-action="toggle-sidebar"><i class="fas fa-bars"></i></button>
     </div>
@@ -152,6 +160,9 @@
           <i class="fas fa-search"></i>
           <input type="text" placeholder="Buscar clientes, tarefas..." />
         </div>
+        <button class="topbar-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema">
+          <i class="fas fa-sun" id="theme-icon"></i>
+        </button>
         <button class="topbar-btn" data-action="navigate" data-page="avisos">
           <i class="fas fa-bell"></i>
           <span class="notif-dot"></span>
