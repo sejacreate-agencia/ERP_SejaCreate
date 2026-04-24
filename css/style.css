@@ -76,7 +76,8 @@
 }
 
 /* Overrides para valores rgba-white hardcoded no CSS base */
-[data-theme="light"] .nav-item:hover           { background: rgba(0,0,0,0.04); color: var(--text-primary); }
+[data-theme="light"] .nav-item:hover           { background: rgba(124,0,192,0.08); color: var(--purple-light); }
+[data-theme="light"] .nav-item:hover i         { color: var(--purple-light); }
 [data-theme="light"] .tag-gray                 { background: rgba(0,0,0,0.06); color: #374151; }
 [data-theme="light"] tbody tr:hover td         { background: rgba(0,0,0,0.015); }
 [data-theme="light"] .kanban-col-count         { background: rgba(0,0,0,0.06); }
@@ -147,12 +148,12 @@ input, select, textarea { font-family: var(--font); outline: none; }
   margin-bottom: 6px;
 }
 .logo-icon {
-  width: 40px; height: 40px;
-  background: var(--purple);
-  border-radius: 10px;
+  width: 32px; height: 32px;
+  background: #7c00c0;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-purple);
+  box-shadow: 0 4px 16px rgba(124,0,192,0.35);
 }
 .logo-text {
   font-family: 'Nunito', 'Inter', sans-serif;
@@ -273,7 +274,8 @@ input, select, textarea { font-family: var(--font); outline: none; }
   position: relative; white-space: nowrap;
 }
 .nav-item i { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; transition: var(--transition); }
-.nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+.nav-item:hover { background: rgba(124,0,192,0.12); color: var(--purple-light); }
+.nav-item:hover i { color: var(--purple-light); }
 .nav-item.active {
   background: var(--purple-subtle); color: var(--purple-light);
   font-weight: 600;
