@@ -179,44 +179,95 @@ async function saveFuncModal(id) {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
 
-  const payload = {
-    full_name: name, email,
-    cargo:  document.getElementById('fu-cargo').value.trim() || 'Colaborador',
-    phone:  document.getElementById('fu-phone').value.trim(),
-    role:   document.getElementById('fu-role').value,
-    status: document.getElementById('fu-status').value,
-    avatar_initials: name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+  const resetBtn = (label = 'Salvar Alterações') => {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fas fa-save"></i> ${label}`;
+  };
+
+  const profilePayload = {
+    full_name: name,
+    email,
+    cargo:           document.getElementById('fu-cargo').value.trim() || 'Colaborador',
+    phone:           document.getElementById('fu-phone').value.trim(),
+    role:            document.getElementById('fu-role').value,
+    status:          document.getElementById('fu-status').value,
+    avatar_initials: name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   };
 
   if (isSupabaseReady()) {
     if (!id) {
-      // Criar no Supabase Auth + profile
-      const pass = document.getElementById('fu-pass')?.value;
-      if (!pass) { showToast('Senha é obrigatória para criar usuário!', 'error'); btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Criar Usuário'; return; }
-      // Nota: criação de user Auth requer service role key no backend
-      // Para demo, apenas cria o profile diretamente
-      const { data, error } = await DB.profiles.create(payload);
-      if (error) { showToast(`Erro: ${error.message}`, 'error'); btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Criar Usuário'; return; }
-      showToast(`✅ Perfil "${name}" criado no Supabase!`, 'success');
+      // ── 1. CRIAR USUÁRIO ────────────────────────────────────────────
+      const pass = document.getElementById('fu-pass')?.value?.trim();
+      if (!pass || pass.length < 6) {
+        showToast('Senha obrigatória com no mínimo 6 caracteres!', 'error');
+        resetBtn('Criar Usuário');
+        return;
+      }
+
+      // Salva sessão do admin para restaurar após o signUp
+      const { data: { session: adminSession } } = await supabaseClient.auth.getSession();
+
+      // Passo 1: cria o usuário no Auth
+      const { data: signUpData, error: authError } = await supabaseClient.auth.signUp({
+        email,
+        password: pass,
+        options: { data: { full_name: name, role: profilePayload.role } },
+      });
+
+      // Restaura sessão do admin (signUp pode criar nova sessão se confirmação de e-mail estiver desligada)
+      if (adminSession) {
+        await supabaseClient.auth.setSession({
+          access_token:  adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+
+      if (authError || !signUpData?.user?.id) {
+        showToast(`Erro ao criar usuário: ${authError?.message || 'ID não retornado pelo Auth'}`, 'error');
+        resetBtn('Criar Usuário');
+        return;
+      }
+
+      const userId = signUpData.user.id;
+
+      // Passo 2: upsert em profiles com o id retornado pelo Auth
+      const { error: profileError } = await SB.upsert('profiles', { id: userId, ...profilePayload });
+
+      if (profileError) {
+        showToast(`Usuário criado, mas erro ao salvar perfil: ${profileError.message}`, 'warning');
+      } else {
+        showToast(`✅ Usuário "${name}" criado com sucesso!`, 'success');
+      }
+
     } else {
-      const { error } = await DB.profiles.update(id, payload);
-      if (error) { showToast(`Erro: ${error.message}`, 'error'); btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Salvar'; return; }
-      showToast(`✅ Usuário "${name}" atualizado no Supabase!`, 'success');
+      // ── 2. EDITAR USUÁRIO EXISTENTE ─────────────────────────────────
+      const { error } = await DB.profiles.update(id, profilePayload);
+      if (error) {
+        showToast(`Erro ao atualizar usuário: ${error.message}`, 'error');
+        resetBtn();
+        return;
+      }
+      showToast(`✅ Usuário "${name}" atualizado com sucesso!`, 'success');
     }
+
   } else {
-    // Fallback mock
+    // ── MODO DEMO (sem Supabase) ────────────────────────────────────
     await new Promise(r => setTimeout(r, 350));
-    const legacyData = { name, email, cargo: payload.cargo, phone: payload.phone, role: payload.role, status: payload.status };
+    const legacyData = {
+      name, email,
+      cargo: profilePayload.cargo, phone: profilePayload.phone,
+      role: profilePayload.role, status: profilePayload.status,
+    };
     if (!id) {
       const newEmp = { id: Date.now(), ...legacyData };
       SC.employees.push(newEmp);
-      SC.users.push({ id: newEmp.id, name, role: payload.role, avatar: payload.avatar_initials, email, cargo: payload.cargo });
+      SC.users.push({ id: newEmp.id, name, role: profilePayload.role, avatar: profilePayload.avatar_initials, email, cargo: profilePayload.cargo });
       showToast(`✅ Usuário "${name}" criado!`, 'success');
     } else {
       const emp = SC.employees.find(e => e.id === id);
       if (emp) Object.assign(emp, legacyData);
-      const user = SC.users.find(u => u.id === id);
-      if (user) { user.name = name; user.role = payload.role; user.email = email; user.cargo = payload.cargo; }
+      const usr = SC.users.find(u => u.id === id);
+      if (usr) { usr.name = name; usr.role = profilePayload.role; usr.email = email; usr.cargo = profilePayload.cargo; }
       showToast(`✅ Usuário "${name}" atualizado!`, 'success');
     }
   }
