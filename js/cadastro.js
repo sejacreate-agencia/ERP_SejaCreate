@@ -738,7 +738,12 @@ async function _autoGerarRecebimentos(clientId, clientName, valor, diaVenc, star
     };
 
     if (isSupabaseReady()) {
-      const { data, error } = await DB.receivables.create(payload);
+      let { data, error } = await DB.receivables.create(payload);
+      if (error && (error.message.includes('schema cache') || error.message.includes('parcela'))) {
+        const fallback = { client_id: payload.client_id, description: payload.description, value: payload.value, due_date: payload.due_date, status: payload.status };
+        const res = await DB.receivables.create(fallback);
+        data = res.data; error = res.error;
+      }
       if (!error && data) {
         const item = { ...data, client: { name: clientName } };
         _recData.push(item);

@@ -131,23 +131,26 @@ async function saveNewLanc() {
   if (type === 'receivable') {
     const clientId = document.getElementById('nl-client').value;
     const due      = document.getElementById('nl-due').value;
-    const payload  = { client_id: clientId, description: desc, value, due_date: due || null, status: 'pendente', conta_id: contaId || null };
+    // conta_id é local (sem tabela no Supabase) — omitido no payload do banco
+    const dbPayload = { client_id: clientId, description: desc, value, due_date: due || null, status: 'pendente' };
 
     if (isSupabaseReady()) {
-      const { data, error } = await DB.receivables.create(payload);
+      const { data, error } = await DB.receivables.create(dbPayload);
       if (error) { showToast(`Erro: ${error.message}`, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; } return; }
       _recData.push({ ...data, client: { name: SC.getClientName(parseInt(clientId)) } });
+      _recDataAll.push({ ...data, client: { name: SC.getClientName(parseInt(clientId)) } });
     } else {
       const newItem = { id: Date.now(), client: parseInt(clientId), client_id: parseInt(clientId), desc, description: desc, value, due, due_date: due, status: 'pendente', conta_id: contaId ? parseInt(contaId) : null };
       SC.finances.receivable.push(newItem);
       _recData.push(newItem);
+      _recDataAll.push(newItem);
     }
   } else {
-    const supplierName  = document.getElementById('nl-supplier').value.trim() || 'Fornecedor';
-    const dueBase       = document.getElementById('nl-due-pay').value;
-    const isProvisao    = document.getElementById('nl-provisao-check')?.checked;
-    const meses         = isProvisao ? Math.max(1, parseInt(document.getElementById('nl-provisao-meses')?.value) || 1) : 1;
-    const grupoId       = isProvisao && meses > 1 ? `prov_${Date.now()}` : null;
+    const supplierName = document.getElementById('nl-supplier').value.trim() || 'Fornecedor';
+    const dueBase      = document.getElementById('nl-due-pay').value;
+    const isProvisao   = document.getElementById('nl-provisao-check')?.checked;
+    const meses        = isProvisao ? Math.max(1, parseInt(document.getElementById('nl-provisao-meses')?.value) || 1) : 1;
+    const grupoId      = isProvisao && meses > 1 ? `prov_${Date.now()}` : null;
 
     for (let i = 0; i < meses; i++) {
       let dueDate = dueBase;
@@ -158,16 +161,19 @@ async function saveNewLanc() {
       }
       const status  = isProvisao ? 'provisionado' : 'pendente';
       const descMes = meses > 1 ? `${desc} (${i + 1}/${meses})` : desc;
-      const payload = { supplier_name: supplierName, description: descMes, value, due_date: dueDate || null, status, conta_id: contaId || null };
+      // conta_id é local — omitido no payload do banco
+      const dbPayload = { supplier_name: supplierName, description: descMes, value, due_date: dueDate || null, status };
 
       if (isSupabaseReady()) {
-        const { data, error } = await DB.payables.create(payload);
+        const { data, error } = await DB.payables.create(dbPayload);
         if (error) { showToast(`Erro: ${error.message}`, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; } return; }
         _payData.push(data);
+        _payDataAll.push(data);
       } else {
         const newItem = { id: Date.now() + i, supplier: supplierName, supplier_name: supplierName, desc: descMes, description: descMes, value, due: dueDate, due_date: dueDate, status, conta_id: contaId ? parseInt(contaId) : null, provisao_grupo: grupoId, provisao_mes: i + 1, provisao_total: meses };
         SC.finances.payable.push(newItem);
         _payData.push(newItem);
+        _payDataAll.push(newItem);
       }
     }
   }
@@ -267,7 +273,15 @@ async function saveEditLanc(type, id) {
 
   if (isSupabaseReady()) {
     const fn = type === 'receivable' ? DB.receivables.update : DB.payables.update;
-    const { error } = await fn(id, payload);
+    let { error } = await fn(id, payload);
+    if (error && (error.message.includes('schema cache') || error.message.includes('forma_pagamento') || error.message.includes('observacoes'))) {
+      const fallback = { description: payload.description, value: payload.value, due_date: payload.due_date, status: payload.status };
+      if (payload.client_id) fallback.client_id = payload.client_id;
+      if (payload.paid_at)   fallback.paid_at   = payload.paid_at;
+      const res = await fn(id, fallback);
+      error = res.error;
+      if (!error) showToast('⚠️ Salvo sem forma_pagamento/observacoes — execute a migration-002.sql no Supabase.', 'warning');
+    }
     if (error) {
       showToast(`Erro: ${error.message}`, 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; }
@@ -394,7 +408,13 @@ async function saveNewRecebimento() {
     };
 
     if (isSupabaseReady()) {
-      const { data, error } = await DB.receivables.create(payload);
+      let { data, error } = await DB.receivables.create(payload);
+      if (error && (error.message.includes('schema cache') || error.message.includes('forma_pagamento') || error.message.includes('parcela') || error.message.includes('observacoes'))) {
+        const fallback = { client_id: payload.client_id, description: payload.description, value: payload.value, due_date: payload.due_date, status: payload.status, paid_at: payload.paid_at };
+        const res = await DB.receivables.create(fallback);
+        data = res.data; error = res.error;
+        if (!error) showToast('⚠️ Parcela salva sem campos extras — execute a migration-002.sql no Supabase.', 'warning');
+      }
       if (error) {
         showToast(`Erro ao criar parcela ${i + 1}: ${error.message}`, 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; }
