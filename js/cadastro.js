@@ -237,10 +237,10 @@ function saveEditSupplier(id) {
 }
 
 function openClientDetail(id) {
-  const c = SC.clients.find(x => x.id === id);
+  const c = SC.clients.find(x => String(x.id) === String(id));
   if (!c) return;
-  const tasks = SC.tasks.filter(t => t.client === id);
-  const financials = SC.finances.receivable.filter(f => f.client === id);
+  const tasks = SC.tasks.filter(t => String(t.client) === String(id) || String(t.client_id) === String(id));
+  const financials = SC.finances.receivable.filter(f => String(f.client) === String(id) || String(f.client_id) === String(id));
 
   openModal(`
     <div class="modal-header">
@@ -320,7 +320,7 @@ function switchClientTab(n) {
 }
 
 function toggleClientStatus(id) {
-  const c = SC.clients.find(x => x.id === id);
+  const c = SC.clients.find(x => String(x.id) === String(id));
   if (c) { c.status = c.status === 'ativo' ? 'inativo' : 'ativo'; renderCadastro('clientes'); showToast('Status atualizado!'); }
 }
 
