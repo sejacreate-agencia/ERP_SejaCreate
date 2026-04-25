@@ -138,6 +138,18 @@ const SB = {
     return await supabaseClient.from(table).delete().eq('id', id);
   },
 
+  async removeWhere(table, filters) {
+    if (!isSupabaseReady()) return { error: null };
+    let q = supabaseClient.from(table).delete();
+    filters.forEach(f => {
+      if (f.op === 'eq')  q = q.eq(f.col, f.val);
+      if (f.op === 'neq') q = q.neq(f.col, f.val);
+      if (f.op === 'gte') q = q.gte(f.col, f.val);
+      if (f.op === 'lte') q = q.lte(f.col, f.val);
+    });
+    return await q;
+  },
+
   async upsert(table, payload, conflictCol = 'id') {
     if (!isSupabaseReady()) return { data: null, error: { message: 'offline' } };
     return await supabaseClient.from(table).upsert(payload, { onConflict: conflictCol }).select().single();
@@ -399,6 +411,7 @@ const DB = {
         order: { col: 'due_date', asc: true }
       });
     },
+    async remove(id) { return SB.remove('financial_receivables', id); },
   },
 
   // ── FINANCIAL: PAYABLES ─────────────────
@@ -413,6 +426,7 @@ const DB = {
         status: 'pago', paid_at: new Date().toISOString()
       });
     },
+    async remove(id) { return SB.remove('financial_payables', id); },
   },
 
   // ── ACTIVITY LOGS ───────────────────────
@@ -742,6 +756,7 @@ async function hydrateFromSupabase() {
       phone: c.phone || '', cnpj: c.cnpj || '', services: c.services || [],
       plan: c.plan || 'Padrão', start: c.start_date || '', expiry: c.expiry_date || '',
       status: c.status, revenue: c.monthly_revenue || 0, notes: c.notes || '',
+      diaVenc: c.dia_vencimento || null,
     }));
 
     // Funcionários

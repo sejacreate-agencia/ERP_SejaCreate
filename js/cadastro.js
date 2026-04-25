@@ -4,6 +4,44 @@
 
 let cadastroTab = 'clientes';
 
+// ── MÁSCARAS DE INPUT ────────────────────────────────────────────────────────
+
+function _maskPhone(v) {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (!d) return '';
+  if (d.length <= 2)  return `(${d}`;
+  if (d.length <= 6)  return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
+
+function _maskCnpjCpf(v) {
+  const d = v.replace(/\D/g, '').slice(0, 14);
+  if (!d) return '';
+  if (d.length <= 3)  return d;
+  if (d.length <= 6)  return `${d.slice(0,3)}.${d.slice(3)}`;
+  if (d.length <= 9)  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+  if (d.length <= 11) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+  if (d.length <= 12) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8)}`;
+  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
+}
+
+function _attachInputMasks(phoneId, cnpjId) {
+  const attach = (el, maskFn) => {
+    if (!el) return;
+    el.value = maskFn(el.value);
+    el.addEventListener('input', e => {
+      const pos    = e.target.selectionStart;
+      const before = e.target.value.length;
+      e.target.value = maskFn(e.target.value);
+      const delta  = e.target.value.length - before;
+      try { e.target.setSelectionRange(pos + delta, pos + delta); } catch (_) {}
+    });
+  };
+  attach(document.getElementById(phoneId),  _maskPhone);
+  attach(document.getElementById(cnpjId),   _maskCnpjCpf);
+}
+
 function renderCadastro(tab) {
   if (tab) cadastroTab = tab;
 
@@ -333,6 +371,7 @@ function openNewClientModal() {
       <button class="btn btn-primary" data-action="save-new-client"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `, 'modal-lg');
+  _attachInputMasks('nc-phone', 'nc-cnpj');
 }
 
 async function saveNewClient() {
@@ -397,12 +436,12 @@ async function saveNewClient() {
   }
 
   closeModal();
+  showToast('✅ Cliente cadastrado com sucesso!', 'success');
   renderCadastro('clientes');
 
   if (revenue > 0 && diaVenc) {
-    _openGerarParcelasModal(clientId, name, revenue, diaVenc, startDate);
-  } else {
-    showToast('✅ Cliente cadastrado com sucesso!', 'success');
+    const count = await _autoGerarRecebimentos(clientId, name, revenue, diaVenc, startDate, false);
+    if (count > 0) showToast(`📅 ${count} recebimentos futuros gerados automaticamente!`, 'success');
   }
 }
 
@@ -554,6 +593,7 @@ function openEditClientModal(id) {
       </button>
     </div>
   `, 'modal-lg');
+  _attachInputMasks('ec-phone', 'ec-cnpj');
 }
 
 async function saveEditClient(id) {
@@ -566,6 +606,14 @@ async function saveEditClient(id) {
   const servicesRaw = document.getElementById('ec-services').value;
   const services    = servicesRaw ? servicesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
   const diaVenc     = parseInt(document.getElementById('ec-diaVenc').value) || null;
+  const newRevenue  = parseFloat(document.getElementById('ec-revenue').value) || 0;
+  const newStart    = document.getElementById('ec-start').value || null;
+
+  // Captura valores financeiros antigos ANTES de qualquer atualização
+  const c = SC.clients.find(x => String(x.id) === String(id));
+  const oldRevenue = c?.revenue   || 0;
+  const oldDiaVenc = c?.diaVenc   || null;
+  const oldStart   = c?.start     || null;
 
   const payload = {
     name,
@@ -576,15 +624,14 @@ async function saveEditClient(id) {
     services,
     plan:            document.getElementById('ec-plan').value,
     status:          document.getElementById('ec-status').value,
-    start_date:      document.getElementById('ec-start').value || null,
-    monthly_revenue: parseFloat(document.getElementById('ec-revenue').value) || 0,
+    start_date:      newStart,
+    monthly_revenue: newRevenue,
     dia_vencimento:  diaVenc,
   };
 
   if (isSupabaseReady()) {
     let { error } = await DB.clients.update(id, payload);
     if (error && (error.message.includes('dia_vencimento') || error.message.includes('services') || error.message.includes('schema cache'))) {
-      // Migration 002 ainda não foi executada — salvar sem os campos novos
       const fallback = { ...payload };
       delete fallback.dia_vencimento;
       delete fallback.services;
@@ -599,20 +646,27 @@ async function saveEditClient(id) {
     }
   }
 
-  const c = SC.clients.find(x => String(x.id) === String(id));
   if (c) {
-    c.name    = payload.name;         c.resp    = payload.contact_name;
-    c.email   = payload.email;        c.phone   = payload.phone;
-    c.cnpj    = payload.cnpj;         c.services = payload.services;
-    c.plan    = payload.plan;         c.status  = payload.status;
-    c.start   = payload.start_date || '';
-    c.revenue = payload.monthly_revenue;
+    c.name    = payload.name;    c.resp    = payload.contact_name;
+    c.email   = payload.email;   c.phone   = payload.phone;
+    c.cnpj    = payload.cnpj;    c.services = payload.services;
+    c.plan    = payload.plan;    c.status  = payload.status;
+    c.start   = newStart || '';  c.revenue = newRevenue;
     c.diaVenc = diaVenc;
   }
 
   closeModal();
   showToast('✅ Cliente atualizado com sucesso!', 'success');
   renderCadastro('clientes');
+
+  // Auto-atualiza contas a receber se dados financeiros mudaram
+  const financialChanged = newRevenue !== oldRevenue ||
+                           diaVenc !== oldDiaVenc ||
+                           (newStart || '') !== (oldStart || '');
+  if (financialChanged) {
+    const count = await _autoGerarRecebimentos(id, name, newRevenue, diaVenc, newStart, true);
+    if (count > 0) showToast(`📅 ${count} recebimentos futuros atualizados!`, 'success');
+  }
 }
 
 // ── GERAÇÃO DE PARCELAS ───────────────────────────────────────────────────────
@@ -623,119 +677,94 @@ function _calcVencimento(mes, ano, dia) {
   return d.toISOString().slice(0, 10);
 }
 
-function _openGerarParcelasModal(clientId, clientName, valor, diaVenc, startDate) {
-  const hoje = new Date();
-  const anoAtual = hoje.getFullYear();
-  const mesAtual = hoje.getMonth() + 1;
-  const mNames   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+async function _autoGerarRecebimentos(clientId, clientName, valor, diaVenc, startDate, isEdit = false) {
+  const hoje     = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const todayStr = hoje.toISOString().slice(0, 10);
 
-  openModal(`
-    <div class="modal-header">
-      <span class="modal-title">
-        <i class="fas fa-file-invoice-dollar" style="color:var(--success);margin-right:8px"></i>
-        Gerar Contas a Receber
-      </span>
-      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body">
-      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--text-secondary)">
-        <i class="fas fa-check-circle" style="color:var(--success);margin-right:6px"></i>
-        Cliente <strong style="color:var(--text-primary)">${clientName}</strong> cadastrado! Deseja gerar as cobranças mensais automaticamente?
-      </div>
-      <div class="form-row">
-        <div class="form-col">
-          <label>Valor da Mensalidade (R$)</label>
-          <input class="input-field" id="gp-valor" type="number" value="${valor}" step="0.01" />
-        </div>
-        <div class="form-col">
-          <label>Dia de Vencimento</label>
-          <input class="input-field" id="gp-dia" type="number" min="1" max="31" value="${diaVenc}" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-col">
-          <label>Mês de início</label>
-          <select class="select-field" id="gp-mes">
-            ${mNames.map((m, i) => `<option value="${i + 1}" ${(i + 1) === mesAtual ? 'selected' : ''}>${m}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-col">
-          <label>Ano de início</label>
-          <input class="input-field" id="gp-ano" type="number" min="2020" max="2035" value="${anoAtual}" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-col">
-          <label>Quantidade de parcelas *</label>
-          <input class="input-field" id="gp-parcelas" type="number" min="1" max="60" value="12" />
-        </div>
-        <div class="form-col"></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" data-action="close-modal">Pular</button>
-      <button class="btn btn-primary" id="btn-gerar-parcelas"
-        data-action="gerar-parcelas"
-        data-client-id="${clientId}"
-        data-client-name="${clientName.replace(/"/g, '&quot;')}">
-        <i class="fas fa-magic"></i> Gerar Parcelas
-      </button>
-    </div>
-  `);
-}
+  // 1. Remover recebimentos futuros pendentes ao editar
+  if (isEdit) {
+    if (isSupabaseReady()) {
+      await SB.removeWhere('financial_receivables', [
+        { op: 'eq',  col: 'client_id', val: clientId },
+        { op: 'eq',  col: 'status',    val: 'pendente' },
+        { op: 'gte', col: 'due_date',  val: todayStr },
+      ]);
+    }
+    const pred = r => !(String(r.client_id) === String(clientId) &&
+                        r.status === 'pendente' &&
+                        (r.due_date || r.due || '') >= todayStr);
+    _recData    = _recData.filter(pred);
+    _recDataAll = _recDataAll.filter(pred);
+    SC.finances.receivable = SC.finances.receivable.filter(r =>
+      !(String(r.client || r.client_id) === String(clientId) &&
+        r.status === 'pendente' &&
+        (r.due || r.due_date || '') >= todayStr)
+    );
+  }
 
-async function _confirmarGerarParcelas(clientId, clientName) {
-  const valor    = parseFloat(document.getElementById('gp-valor')?.value) || 0;
-  const dia      = parseInt(document.getElementById('gp-dia')?.value) || 1;
-  const mes      = parseInt(document.getElementById('gp-mes')?.value) || (new Date().getMonth() + 1);
-  const ano      = parseInt(document.getElementById('gp-ano')?.value) || new Date().getFullYear();
-  const parcelas = Math.max(1, parseInt(document.getElementById('gp-parcelas')?.value) || 1);
+  if (!valor || !diaVenc) return 0;
 
-  if (!valor || !parcelas) { showToast('Preencha valor e quantidade de parcelas!', 'error'); return; }
+  // 2. Determinar mês de início (data de início do contrato ou mês atual)
+  let inicioMes, inicioAno;
+  if (startDate) {
+    const sd    = new Date(startDate + 'T12:00:00');
+    const sdMs  = new Date(sd.getFullYear(), sd.getMonth(), 1).getTime();
+    const nowMs = new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime();
+    inicioMes = sdMs >= nowMs ? sd.getMonth() + 1 : hoje.getMonth() + 1;
+    inicioAno = sdMs >= nowMs ? sd.getFullYear()  : hoje.getFullYear();
+  } else {
+    inicioMes = hoje.getMonth() + 1;
+    inicioAno = hoje.getFullYear();
+  }
 
-  const btn = document.getElementById('btn-gerar-parcelas');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...'; }
+  // 3. Gerar 12 meses
+  const MESES = 12;
+  let created = 0;
 
-  let erros = 0;
-
-  for (let i = 0; i < parcelas; i++) {
-    const parcelaMes = ((mes - 1 + i) % 12) + 1;
-    const parcelaAno = ano + Math.floor((mes - 1 + i) / 12);
-    const dueDate    = _calcVencimento(parcelaMes, parcelaAno, dia);
-    const desc       = parcelas > 1
-      ? `Mensalidade - ${clientName} (${i + 1}/${parcelas})`
-      : `Mensalidade - ${clientName}`;
+  for (let i = 0; i < MESES; i++) {
+    const parcelaMes = ((inicioMes - 1 + i) % 12) + 1;
+    const parcelaAno = inicioAno + Math.floor((inicioMes - 1 + i) / 12);
+    const dueDate    = _calcVencimento(parcelaMes, parcelaAno, diaVenc);
 
     const payload = {
       client_id:      clientId,
-      description:    desc,
+      description:    `Mensalidade ${clientName}`,
       value:          valor,
       due_date:       dueDate,
       status:         'pendente',
       parcela_numero: i + 1,
-      parcela_total:  parcelas,
+      parcela_total:  MESES,
     };
 
     if (isSupabaseReady()) {
-      const { error } = await DB.receivables.create(payload);
-      if (error) { erros++; console.error('Erro ao criar parcela:', error.message); }
+      const { data, error } = await DB.receivables.create(payload);
+      if (!error && data) {
+        const item = { ...data, client: { name: clientName } };
+        _recData.push(item);
+        _recDataAll.push(item);
+        SC.finances.receivable.push({
+          id: data.id, client: clientId, client_id: clientId,
+          desc: payload.description, description: payload.description,
+          value: valor, due: dueDate, due_date: dueDate, status: 'pendente',
+        });
+        created++;
+      }
     } else {
-      SC.finances.receivable.push({
-        id: Date.now() + i, client_id: clientId,
-        client: { name: clientName },
-        description: desc, desc, value: valor,
-        due_date: dueDate, due: dueDate, status: 'pendente',
-        parcela_numero: i + 1, parcela_total: parcelas,
-      });
+      const item = {
+        id: Date.now() + i, client_id: clientId, client: { name: clientName },
+        description: payload.description, desc: payload.description,
+        value: valor, due_date: dueDate, due: dueDate,
+        status: 'pendente', parcela_numero: i + 1, parcela_total: MESES,
+      };
+      SC.finances.receivable.push({ ...item, client: clientId });
+      _recData.push(item);
+      _recDataAll.push(item);
+      created++;
     }
   }
 
-  closeModal();
-  if (erros === 0) {
-    showToast(`✅ Cliente criado e ${parcelas} conta(s) a receber gerada(s) com sucesso!`, 'success');
-  } else {
-    showToast(`⚠️ ${parcelas - erros} parcela(s) criada(s), ${erros} com erro. Verifique o console.`, 'warning');
-  }
+  return created;
 }
 
 Router.register('cadastro', renderCadastro, 'Cadastro');
