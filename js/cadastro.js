@@ -365,7 +365,15 @@ async function saveNewClient() {
   let clientId;
 
   if (isSupabaseReady()) {
-    const { data, error } = await DB.clients.create(payload);
+    let { data, error } = await DB.clients.create(payload);
+    if (error && (error.message.includes('dia_vencimento') || error.message.includes('services') || error.message.includes('schema cache'))) {
+      const fallback = { ...payload };
+      delete fallback.dia_vencimento;
+      delete fallback.services;
+      const res = await DB.clients.create(fallback);
+      data = res.data; error = res.error;
+      if (!error) showToast('⚠️ Cliente salvo sem dia_vencimento/serviços — execute a migration-002.sql no Supabase.', 'warning');
+    }
     if (error) {
       showToast(`Erro ao criar cliente: ${error.message}`, 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; }
@@ -574,7 +582,16 @@ async function saveEditClient(id) {
   };
 
   if (isSupabaseReady()) {
-    const { error } = await DB.clients.update(id, payload);
+    let { error } = await DB.clients.update(id, payload);
+    if (error && (error.message.includes('dia_vencimento') || error.message.includes('services') || error.message.includes('schema cache'))) {
+      // Migration 002 ainda não foi executada — salvar sem os campos novos
+      const fallback = { ...payload };
+      delete fallback.dia_vencimento;
+      delete fallback.services;
+      const res = await DB.clients.update(id, fallback);
+      error = res.error;
+      if (!error) showToast('⚠️ Salvo sem dia_vencimento/serviços — execute a migration-002.sql no Supabase.', 'warning');
+    }
     if (error) {
       showToast(`Erro ao atualizar cliente: ${error.message}`, 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações'; }
