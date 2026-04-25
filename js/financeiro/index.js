@@ -152,7 +152,7 @@ function _renderFinContent() {
     setTimeout(() => renderFluxoCaixa(), 100);
   }
   if (finTab === 'fluxo-caixa') {
-    setTimeout(() => renderFcChart(), 100);
+    setTimeout(() => { renderFcChart(); _renderFcBody(); }, 100);
   }
 
   if (!SC.hasPermission('financeiro')) {

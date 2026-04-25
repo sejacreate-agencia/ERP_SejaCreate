@@ -57,6 +57,9 @@ const Actions = {
   'save-new-supplier':    ()  => saveNewSupplier(),
   'open-edit-supplier':   el  => openEditSupplierModal(el.dataset.id),
   'save-edit-supplier':   el  => saveEditSupplier(el.dataset.id),
+  'open-edit-client':     el  => openEditClientModal(el.dataset.id),
+  'save-edit-client':     el  => saveEditClient(el.dataset.id),
+  'gerar-parcelas':       el  => _confirmarGerarParcelas(el.dataset.clientId, el.dataset.clientName),
 
   // ── FINANCEIRO ────────────────────────────
   'open-new-lanc-modal':  ()  => openNewLancModal(),
@@ -67,7 +70,11 @@ const Actions = {
   'toggle-lanc-type':     ()  => toggleLancType(),
   'save-new-lanc':        ()  => saveNewLanc(),
   'save-edit-lanc':       el  => saveEditLanc(el.dataset.type, parseInt(el.dataset.id)),
-  'confirm-provisao':     el  => confirmProvisao(parseInt(el.dataset.id)),
+  'confirm-provisao':         el  => confirmProvisao(parseInt(el.dataset.id)),
+  'open-new-recebimento':     ()  => openNewRecebimentoModal(),
+  'save-new-recebimento':     ()  => saveNewRecebimento(),
+  'delete-lanc':              el  => deleteLanc(el.dataset.type, el.dataset.id),
+  'open-new-lancamento-pagar':()  => openNewLancModal(),
   // ── META ─────────────────────────────────
   'open-meta-schedule':   el  => { const t = _taskData?.find(x => String(x.id) === String(el.dataset.id)); if (t) MetaService.openScheduleModal(t); },
   'meta-schedule-post':   el  => MetaService.executeSchedule(el.dataset.taskId),

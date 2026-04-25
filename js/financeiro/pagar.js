@@ -52,6 +52,11 @@ function renderFinPagar() {
     </div>` : '';
 
   return `
+    <div style="margin-bottom:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-primary" data-action="open-new-lancamento-pagar">
+        <i class="fas fa-plus"></i> Nova Despesa
+      </button>
+    </div>
     <div class="card">
       ${provBanner}
       <div class="table-wrap">

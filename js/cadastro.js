@@ -64,6 +64,7 @@ function renderClientesTab() {
       </td>
       <td>
         <button class="btn btn-sm btn-ghost" data-action="open-client-detail" data-id="${c.id}" data-stop-propagation="1"><i class="fas fa-eye"></i></button>
+        <button class="btn btn-sm btn-ghost" data-action="open-edit-client" data-id="${c.id}" data-stop-propagation="1" title="Editar cliente"><i class="fas fa-edit"></i></button>
         <button class="btn btn-sm btn-ghost" data-action="toggle-client-status" data-id="${c.id}" data-stop-propagation="1"><i class="fas fa-power-off"></i></button>
       </td>
     </tr>
@@ -300,11 +301,17 @@ function openNewClientModal() {
     <div class="modal-body">
       <div class="form-row">
         <div class="form-col"><label>Nome da Empresa *</label><input class="input-field" id="nc-name" placeholder="Ex: TechVision Soluções" /></div>
-        <div class="form-col"><label>Responsável *</label><input class="input-field" id="nc-resp" placeholder="Nome do responsável" /></div>
+        <div class="form-col"><label>Responsável</label><input class="input-field" id="nc-resp" placeholder="Nome do responsável" /></div>
       </div>
       <div class="form-row">
         <div class="form-col"><label>E-mail</label><input class="input-field" id="nc-email" type="email" /></div>
         <div class="form-col"><label>Telefone</label><input class="input-field" id="nc-phone" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Serviços Contratados <span style="font-size:11px;color:var(--text-secondary)">(separados por vírgula)</span></label>
+          <input class="input-field" id="nc-services" placeholder="Ex: Social Media, Design, Tráfego Pago" />
+        </div>
       </div>
       <div class="form-row">
         <div class="form-col"><label>CNPJ / CPF</label><input class="input-field" id="nc-cnpj" /></div>
@@ -313,53 +320,82 @@ function openNewClientModal() {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>Mensalidade (R$)</label><input class="input-field" id="nc-revenue" type="number" /></div>
+        <div class="form-col"><label>Mensalidade (R$)</label><input class="input-field" id="nc-revenue" type="number" step="0.01" /></div>
+        <div class="form-col"><label>Dia de Vencimento</label><input class="input-field" id="nc-diaVenc" type="number" min="1" max="31" placeholder="Ex: 10" /></div>
+      </div>
+      <div class="form-row">
         <div class="form-col"><label>Data de Início</label><input class="input-field" id="nc-start" type="date" /></div>
+        <div class="form-col"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
       <button class="btn btn-primary" data-action="save-new-client"><i class="fas fa-save"></i> Salvar</button>
     </div>
-  `);
+  `, 'modal-lg');
 }
 
 async function saveNewClient() {
   const name = document.getElementById('nc-name').value.trim();
   if (!name) { showToast('Nome da empresa é obrigatório!', 'error'); return; }
 
+  const btn = document.querySelector('[data-action="save-new-client"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const servicesRaw = document.getElementById('nc-services')?.value || '';
+  const services    = servicesRaw ? servicesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const diaVenc     = parseInt(document.getElementById('nc-diaVenc')?.value) || null;
+  const revenue     = parseFloat(document.getElementById('nc-revenue')?.value) || 0;
+  const startDate   = document.getElementById('nc-start')?.value || null;
+
   const payload = {
     name,
-    contact_name: document.getElementById('nc-resp').value,
-    email: document.getElementById('nc-email').value,
-    phone: document.getElementById('nc-phone').value,
-    cnpj: document.getElementById('nc-cnpj').value,
-    services: [],
-    plan: document.getElementById('nc-plan').value,
-    start_date: document.getElementById('nc-start').value || null,
-    status: 'ativo',
-    monthly_revenue: parseFloat(document.getElementById('nc-revenue').value) || 0,
+    contact_name:    document.getElementById('nc-resp').value,
+    email:           document.getElementById('nc-email').value,
+    phone:           document.getElementById('nc-phone').value,
+    cnpj:            document.getElementById('nc-cnpj').value,
+    services,
+    plan:            document.getElementById('nc-plan').value,
+    start_date:      startDate,
+    status:          'ativo',
+    monthly_revenue: revenue,
+    dia_vencimento:  diaVenc,
   };
+
+  let clientId;
 
   if (isSupabaseReady()) {
     const { data, error } = await DB.clients.create(payload);
-    if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+    if (error) {
+      showToast(`Erro ao criar cliente: ${error.message}`, 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; }
+      return;
+    }
+    clientId = data.id;
     SC.clients.push({
       id: data.id, name: data.name, resp: data.contact_name || '', email: data.email || '',
       phone: data.phone || '', cnpj: data.cnpj || '', services: data.services || [],
       plan: data.plan, start: data.start_date || '', expiry: data.expiry_date || '',
-      status: data.status, revenue: data.monthly_revenue || 0,
+      status: data.status, revenue: data.monthly_revenue || 0, diaVenc: data.dia_vencimento,
     });
     await logActivity('client.created', 'client', data.id, JSON.stringify({ name }));
   } else {
+    clientId = Date.now();
     SC.clients.push({
-      id: SC.clients.length + 1, name, resp: payload.contact_name, email: payload.email,
-      phone: payload.phone, cnpj: payload.cnpj, services: [], plan: payload.plan,
-      start: payload.start_date || '', expiry: '', status: 'ativo', revenue: payload.monthly_revenue,
+      id: clientId, name, resp: payload.contact_name, email: payload.email,
+      phone: payload.phone, cnpj: payload.cnpj, services, plan: payload.plan,
+      start: startDate || '', expiry: '', status: 'ativo', revenue, diaVenc,
     });
   }
 
-  closeModal(); showToast('Cliente cadastrado!'); renderCadastro('clientes');
+  closeModal();
+  renderCadastro('clientes');
+
+  if (revenue > 0 && diaVenc) {
+    _openGerarParcelasModal(clientId, name, revenue, diaVenc, startDate);
+  } else {
+    showToast('✅ Cliente cadastrado com sucesso!', 'success');
+  }
 }
 
 function openFuncModal(id) {
@@ -448,6 +484,241 @@ function filterClientStatus(v) {
 function filterClientPlan(v) {
   const rows = document.querySelectorAll('#clients-table tbody tr');
   rows.forEach(r => { r.style.display = !v || r.textContent.includes(v) ? '' : 'none'; });
+}
+
+// ── EDITAR CLIENTE ────────────────────────────────────────────────────────────
+
+function openEditClientModal(id) {
+  const c = SC.clients.find(x => String(x.id) === String(id));
+  if (!c) return;
+
+  const servicesStr = (c.services || []).join(', ');
+  const planOpts    = ['Basic','Starter','Padrão','Premium'].map(p =>
+    `<option ${c.plan === p ? 'selected' : ''}>${p}</option>`
+  ).join('');
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-building" style="color:var(--purple-light);margin-right:8px"></i>
+        Editar Cliente: ${c.name}
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-col"><label>Nome da Empresa *</label><input class="input-field" id="ec-name" value="${c.name}" /></div>
+        <div class="form-col"><label>Responsável</label><input class="input-field" id="ec-resp" value="${c.resp || ''}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>E-mail</label><input class="input-field" id="ec-email" type="email" value="${c.email || ''}" /></div>
+        <div class="form-col"><label>Telefone</label><input class="input-field" id="ec-phone" value="${c.phone || ''}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Serviços Contratados <span style="font-size:11px;color:var(--text-secondary)">(separados por vírgula)</span></label>
+          <input class="input-field" id="ec-services" value="${servicesStr}" placeholder="Ex: Social Media, Design, Tráfego Pago" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Plano</label><select class="select-field" id="ec-plan">${planOpts}</select></div>
+        <div class="form-col"><label>Status</label>
+          <select class="select-field" id="ec-status">
+            <option value="ativo"        ${c.status === 'ativo'        ? 'selected' : ''}>Ativo</option>
+            <option value="inativo"      ${c.status === 'inativo'      ? 'selected' : ''}>Inativo</option>
+            <option value="inadimplente" ${c.status === 'inadimplente' ? 'selected' : ''}>Inadimplente</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Mensalidade (R$)</label><input class="input-field" id="ec-revenue" type="number" value="${c.revenue || ''}" step="0.01" /></div>
+        <div class="form-col"><label>Dia de Vencimento</label><input class="input-field" id="ec-diaVenc" type="number" min="1" max="31" value="${c.diaVenc || ''}" placeholder="Ex: 10" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Data de Início</label><input class="input-field" id="ec-start" type="date" value="${c.start || ''}" /></div>
+        <div class="form-col"><label>CNPJ / CPF</label><input class="input-field" id="ec-cnpj" value="${c.cnpj || ''}" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-edit-client" data-id="${id}">
+        <i class="fas fa-save"></i> Salvar Alterações
+      </button>
+    </div>
+  `, 'modal-lg');
+}
+
+async function saveEditClient(id) {
+  const name = document.getElementById('ec-name').value.trim();
+  if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
+
+  const btn = document.querySelector('[data-action="save-edit-client"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const servicesRaw = document.getElementById('ec-services').value;
+  const services    = servicesRaw ? servicesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const diaVenc     = parseInt(document.getElementById('ec-diaVenc').value) || null;
+
+  const payload = {
+    name,
+    contact_name:    document.getElementById('ec-resp').value,
+    email:           document.getElementById('ec-email').value,
+    phone:           document.getElementById('ec-phone').value,
+    cnpj:            document.getElementById('ec-cnpj').value,
+    services,
+    plan:            document.getElementById('ec-plan').value,
+    status:          document.getElementById('ec-status').value,
+    start_date:      document.getElementById('ec-start').value || null,
+    monthly_revenue: parseFloat(document.getElementById('ec-revenue').value) || 0,
+    dia_vencimento:  diaVenc,
+  };
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.clients.update(id, payload);
+    if (error) {
+      showToast(`Erro ao atualizar cliente: ${error.message}`, 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações'; }
+      return;
+    }
+  }
+
+  const c = SC.clients.find(x => String(x.id) === String(id));
+  if (c) {
+    c.name    = payload.name;         c.resp    = payload.contact_name;
+    c.email   = payload.email;        c.phone   = payload.phone;
+    c.cnpj    = payload.cnpj;         c.services = payload.services;
+    c.plan    = payload.plan;         c.status  = payload.status;
+    c.start   = payload.start_date || '';
+    c.revenue = payload.monthly_revenue;
+    c.diaVenc = diaVenc;
+  }
+
+  closeModal();
+  showToast('✅ Cliente atualizado com sucesso!', 'success');
+  renderCadastro('clientes');
+}
+
+// ── GERAÇÃO DE PARCELAS ───────────────────────────────────────────────────────
+
+function _calcVencimento(mes, ano, dia) {
+  const maxDay = new Date(ano, mes, 0).getDate();
+  const d      = new Date(ano, mes - 1, Math.min(dia, maxDay));
+  return d.toISOString().slice(0, 10);
+}
+
+function _openGerarParcelasModal(clientId, clientName, valor, diaVenc, startDate) {
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth() + 1;
+  const mNames   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-file-invoice-dollar" style="color:var(--success);margin-right:8px"></i>
+        Gerar Contas a Receber
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--text-secondary)">
+        <i class="fas fa-check-circle" style="color:var(--success);margin-right:6px"></i>
+        Cliente <strong style="color:var(--text-primary)">${clientName}</strong> cadastrado! Deseja gerar as cobranças mensais automaticamente?
+      </div>
+      <div class="form-row">
+        <div class="form-col">
+          <label>Valor da Mensalidade (R$)</label>
+          <input class="input-field" id="gp-valor" type="number" value="${valor}" step="0.01" />
+        </div>
+        <div class="form-col">
+          <label>Dia de Vencimento</label>
+          <input class="input-field" id="gp-dia" type="number" min="1" max="31" value="${diaVenc}" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col">
+          <label>Mês de início</label>
+          <select class="select-field" id="gp-mes">
+            ${mNames.map((m, i) => `<option value="${i + 1}" ${(i + 1) === mesAtual ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-col">
+          <label>Ano de início</label>
+          <input class="input-field" id="gp-ano" type="number" min="2020" max="2035" value="${anoAtual}" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col">
+          <label>Quantidade de parcelas *</label>
+          <input class="input-field" id="gp-parcelas" type="number" min="1" max="60" value="12" />
+        </div>
+        <div class="form-col"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Pular</button>
+      <button class="btn btn-primary" id="btn-gerar-parcelas"
+        data-action="gerar-parcelas"
+        data-client-id="${clientId}"
+        data-client-name="${clientName.replace(/"/g, '&quot;')}">
+        <i class="fas fa-magic"></i> Gerar Parcelas
+      </button>
+    </div>
+  `);
+}
+
+async function _confirmarGerarParcelas(clientId, clientName) {
+  const valor    = parseFloat(document.getElementById('gp-valor')?.value) || 0;
+  const dia      = parseInt(document.getElementById('gp-dia')?.value) || 1;
+  const mes      = parseInt(document.getElementById('gp-mes')?.value) || (new Date().getMonth() + 1);
+  const ano      = parseInt(document.getElementById('gp-ano')?.value) || new Date().getFullYear();
+  const parcelas = Math.max(1, parseInt(document.getElementById('gp-parcelas')?.value) || 1);
+
+  if (!valor || !parcelas) { showToast('Preencha valor e quantidade de parcelas!', 'error'); return; }
+
+  const btn = document.getElementById('btn-gerar-parcelas');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...'; }
+
+  let erros = 0;
+
+  for (let i = 0; i < parcelas; i++) {
+    const parcelaMes = ((mes - 1 + i) % 12) + 1;
+    const parcelaAno = ano + Math.floor((mes - 1 + i) / 12);
+    const dueDate    = _calcVencimento(parcelaMes, parcelaAno, dia);
+    const desc       = parcelas > 1
+      ? `Mensalidade - ${clientName} (${i + 1}/${parcelas})`
+      : `Mensalidade - ${clientName}`;
+
+    const payload = {
+      client_id:      clientId,
+      description:    desc,
+      value:          valor,
+      due_date:       dueDate,
+      status:         'pendente',
+      parcela_numero: i + 1,
+      parcela_total:  parcelas,
+    };
+
+    if (isSupabaseReady()) {
+      const { error } = await DB.receivables.create(payload);
+      if (error) { erros++; console.error('Erro ao criar parcela:', error.message); }
+    } else {
+      SC.finances.receivable.push({
+        id: Date.now() + i, client_id: clientId,
+        client: { name: clientName },
+        description: desc, desc, value: valor,
+        due_date: dueDate, due: dueDate, status: 'pendente',
+        parcela_numero: i + 1, parcela_total: parcelas,
+      });
+    }
+  }
+
+  closeModal();
+  if (erros === 0) {
+    showToast(`✅ Cliente criado e ${parcelas} conta(s) a receber gerada(s) com sucesso!`, 'success');
+  } else {
+    showToast(`⚠️ ${parcelas - erros} parcela(s) criada(s), ${erros} com erro. Verifique o console.`, 'warning');
+  }
 }
 
 Router.register('cadastro', renderCadastro, 'Cadastro');

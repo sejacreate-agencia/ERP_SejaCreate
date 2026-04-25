@@ -3,8 +3,11 @@
 // =============================================
 
 function renderFinReceber() {
+  const today  = new Date().toDateString();
+  const waMsg  = encodeURIComponent('Olá, tudo bem? Identificamos um pagamento pendente referente ao seu contrato. Poderia verificar, por favor?');
+
   const rows = _recData.map(r => {
-    const clientObj = r.client;
+    const clientObj  = r.client;
     let phone = '';
     if (clientObj && typeof clientObj === 'object') {
       phone = (clientObj.phone || '').replace(/\D/g, '');
@@ -13,35 +16,37 @@ function renderFinReceber() {
     }
 
     const clientName = clientObj?.name || SC.getClientName(r.client_id || r.client) || 'N/A';
-    const waMsg  = encodeURIComponent('Olá, tudo bem? Identificamos um pagamento pendente referente ao seu contrato. Poderia verificar, por favor?');
-    const waLink = `https://wa.me/55${phone}?text=${waMsg}`;
-    const dueDate   = r.due_date || r.due;
-    const isOverdue = r.status === 'atrasado' ||
-      (r.status === 'pendente' && dueDate && new Date(dueDate) < new Date(new Date().toDateString()));
+    const waLink     = `https://wa.me/55${phone}?text=${waMsg}`;
+    const dueDate    = r.due_date || r.due;
+    const isOverdue  = r.status === 'atrasado' ||
+      (r.status === 'pendente' && dueDate && new Date(dueDate) < new Date(today));
+    const parcTag    = r.parcela_total > 1
+      ? ` <span style="font-size:10px;color:var(--text-muted)">(${r.parcela_numero}/${r.parcela_total})</span>`
+      : '';
 
     return `
     <tr>
       <td><div style="font-weight:600">${clientName}</div></td>
-      <td style="font-size:13px">${r.description || r.desc}</td>
+      <td style="font-size:13px">${r.description || r.desc || ''}${parcTag}</td>
       <td style="font-weight:700;color:var(--success)">${SC.formatCurrency(r.value || 0)}</td>
-      <td style="font-size:12px;${isOverdue?'color:var(--danger);font-weight:700':''}">${formatDateBR(dueDate) || '—'}</td>
-      <td><span class="tag ${r.status==='pago'?'tag-green':isOverdue?'tag-red':'tag-yellow'}">${r.status}</span></td>
+      <td style="font-size:12px;${isOverdue ? 'color:var(--danger);font-weight:700' : ''}">${formatDateBR(dueDate) || '—'}</td>
+      <td><span class="tag ${r.status === 'pago' ? 'tag-green' : isOverdue ? 'tag-red' : 'tag-yellow'}">${r.status}</span></td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           ${r.status !== 'pago' ? `<button class="btn btn-sm btn-success" data-action="mark-paid" data-type="receivable" data-id="${r.id}"><i class="fas fa-check"></i> Pago</button>` : ''}
-          ${r.status !== 'pago' && phone ? `
-            <a href="${waLink}" target="_blank" class="btn-whatsapp" data-action="whatsapp-cobrar" data-client="${clientName}" data-stop-propagation="1">
-              <i class="fab fa-whatsapp"></i> Cobrar
-            </a>` : ''}
-          <button class="btn btn-sm btn-ghost" data-action="open-edit-lanc" data-type="receivable" data-id="${r.id}" title="Editar">
-            <i class="fas fa-edit"></i>
-          </button>
+          ${r.status !== 'pago' && phone ? `<a href="${waLink}" target="_blank" class="btn-whatsapp" data-action="whatsapp-cobrar" data-client="${clientName}" data-stop-propagation="1"><i class="fab fa-whatsapp"></i> Cobrar</a>` : ''}
+          <button class="btn btn-sm btn-ghost" data-action="open-edit-lanc" data-type="receivable" data-id="${r.id}" title="Editar"><i class="fas fa-edit"></i></button>
         </div>
       </td>
     </tr>`;
   }).join('');
 
   return `
+    <div style="margin-bottom:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-primary" data-action="open-new-recebimento">
+        <i class="fas fa-plus"></i> Novo Recebimento
+      </button>
+    </div>
     <div class="card">
       <div class="table-wrap">
         <table>
