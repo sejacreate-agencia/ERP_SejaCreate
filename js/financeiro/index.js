@@ -2,14 +2,28 @@
 // FINANCEIRO — Orquestrador principal
 // =============================================
 
+const _FIN_LABELS = {
+  'visao-geral':   'Visão Geral',
+  'receber':       'A Receber',
+  'pagar':         'A Pagar',
+  'inadimplencia': 'Inadimplência',
+  'fluxo-caixa':   'Fluxo de Caixa',
+  'dre':           'DRE',
+  'plano-contas':  'Plano de Contas',
+};
+
 let finTab          = 'visao-geral';
+let finRegime       = 'competencia'; // 'caixa' | 'competencia'
 let finChart        = null;
 let _recData        = [];
 let _payData        = [];
-let _recDataAll     = []; // cópia completa antes do filtro
-let _payDataAll     = []; // cópia completa antes do filtro
+let _recDataAll     = [];
+let _payDataAll     = [];
 let _finFilterYear  = new Date().getFullYear();
-let _finFilterMonth = 0; // 0 = todos os meses
+let _finFilterMonth = 0;
+
+const _CONTAS_BANCARIAS = ['Conta Corrente Principal', 'Conta Poupança', 'Caixa', 'Conta Digital', 'Conta Empresarial'];
+const _CENTROS_CUSTO    = ['Geral', 'Marketing', 'Operações', 'Comercial', 'RH', 'TI', 'Administrativo'];
 
 async function renderFinanceiro(tab) {
   if (tab) finTab = tab;
@@ -84,12 +98,19 @@ function _renderFinContent() {
     ).join('');
 
   finSummaryArea.innerHTML = `
-    <!-- FILTRO MÊS/ANO -->
+    <!-- FILTRO MÊS/ANO + REGIME -->
     <div class="filters-bar" style="margin-bottom:16px">
       <span class="filter-label"><i class="fas fa-filter"></i> Período:</span>
       <select class="filter-select" id="fin-filter-month" data-action="switch-fin-filter">${monthOpts}</select>
       <select class="filter-select" id="fin-filter-year"  data-action="switch-fin-filter">${yearOpts}</select>
       ${_finFilterMonth ? `<span class="tag tag-purple" style="font-size:11px">${mLabels[_finFilterMonth-1]}/${_finFilterYear}</span>` : ''}
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">Regime:</span>
+        <select class="filter-select" id="fin-regime-select" data-action="switch-fin-regime" style="min-width:145px">
+          <option value="competencia" ${finRegime==='competencia'?'selected':''}>📊 Competência</option>
+          <option value="caixa"       ${finRegime==='caixa'      ?'selected':''}>💰 Caixa</option>
+        </select>
+      </div>
     </div>
 
     <!-- SUMMARY CARDS -->
@@ -126,17 +147,6 @@ function _renderFinContent() {
       </div>
     </div>
 
-    <!-- TABS -->
-    <div class="tabs">
-      <button class="tab-btn ${finTab==='visao-geral'?'active':''}" data-action="switch-fin-tab" data-tab="visao-geral"><i class="fas fa-chart-line"></i> Visão Geral</button>
-      <button class="tab-btn ${finTab==='receber'?'active':''}" data-action="switch-fin-tab" data-tab="receber"><i class="fas fa-arrow-down"></i> A Receber</button>
-      <button class="tab-btn ${finTab==='pagar'?'active':''}" data-action="switch-fin-tab" data-tab="pagar"><i class="fas fa-arrow-up"></i> A Pagar</button>
-      <button class="tab-btn ${finTab==='inadimplencia'?'active':''}" data-action="switch-fin-tab" data-tab="inadimplencia"><i class="fas fa-exclamation-circle"></i> Inadimplência</button>
-      <button class="tab-btn ${finTab==='fluxo-caixa'?'active':''}" data-action="switch-fin-tab" data-tab="fluxo-caixa"><i class="fas fa-water"></i> Fluxo de Caixa</button>
-      <button class="tab-btn ${finTab==='dre'?'active':''}" data-action="switch-fin-tab" data-tab="dre"><i class="fas fa-file-invoice-dollar"></i> DRE</button>
-      <button class="tab-btn ${finTab==='plano-contas'?'active':''}" data-action="switch-fin-tab" data-tab="plano-contas"><i class="fas fa-sitemap"></i> Plano de Contas</button>
-    </div>
-
     <div id="fin-tab-content">
       ${finTab === 'visao-geral'    ? renderFinVisaoGeral()       :
         finTab === 'receber'        ? renderFinReceber()           :
@@ -158,6 +168,91 @@ function _renderFinContent() {
   if (!SC.hasPermission('financeiro')) {
     document.querySelectorAll('[data-perm="financial"]').forEach(el => el.style.display = 'none');
   }
+
+  _syncFinSidebarActive();
+}
+
+function switchFinRegime(regime) {
+  finRegime = regime;
+  _renderFinContent();
+}
+
+function _finStatusTag(status) {
+  const map = {
+    pago:              { cls: 'tag-green',  label: 'Pago' },
+    pendente:          { cls: 'tag-yellow', label: 'Pendente' },
+    atrasado:          { cls: 'tag-red',    label: 'Vencido' },
+    previsto:          { cls: 'tag-blue',   label: 'Previsto' },
+    parcialmente_pago: { cls: 'tag-purple', label: 'Parcial' },
+    cancelado:         { cls: 'tag-gray',   label: 'Cancelado' },
+    provisionado:      { cls: 'tag-gray',   label: 'Provisionado' },
+  };
+  const { cls, label } = map[status] || { cls: 'tag-gray', label: status };
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+function _guessDreGrupo(p) {
+  const desc = (p.description || p.desc || p.supplier_name || '').toLowerCase();
+  if (/salário|salario|folha|funcionário|funcionario|colaborador|férias|ferias|13º/.test(desc)) return 'folha';
+  if (/terceiro|freelance|produção|custo|fornecedor|gráfica|grafica|video|foto/.test(desc)) return 'custos_diretos';
+  return 'despesas_op';
+}
+
+function _computeDreMonths() {
+  const dateField = finRegime === 'caixa' ? 'paid_at' : 'due_date';
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleString('pt-BR',{month:'short'}).replace('.','') + '/' + String(d.getFullYear()).slice(2);
+    months.push({ key, month: label, receita:0, custos_diretos:0, folha:0, despesas_op:0, impostos:0 });
+  }
+  const monthKeys = months.map(m => m.key);
+
+  (_recDataAll||[]).forEach(r => {
+    const ds = (dateField==='paid_at' ? (r.paid_at||r.paid_date||r.due_date||'') : (r.due_date||r.due||'')).slice(0,7);
+    if (!monthKeys.includes(ds)) return;
+    if (finRegime==='caixa' && r.status!=='pago' && r.status!=='parcialmente_pago') return;
+    if (r.status==='cancelado') return;
+    const m = months.find(x=>x.key===ds);
+    if (m) m.receita += (r.valor_pago||r.value||0);
+  });
+
+  (_payDataAll||[]).forEach(p => {
+    const ds = (dateField==='paid_at' ? (p.paid_at||p.paid_date||p.due_date||'') : (p.due_date||p.due||'')).slice(0,7);
+    if (!monthKeys.includes(ds)) return;
+    if (finRegime==='caixa' && p.status!=='pago' && p.status!=='parcialmente_pago') return;
+    if (p.status==='cancelado' || p.status==='provisionado') return;
+    const conta = p.conta_id ? SC.planoDeContas.find(c=>c.id===parseInt(p.conta_id)) : null;
+    const grupo = conta?.dre_grupo || _guessDreGrupo(p);
+    const m = months.find(x=>x.key===ds);
+    if (m) {
+      if (grupo==='folha') m.folha += (p.valor_pago||p.value||0);
+      else if (grupo==='custos_diretos') m.custos_diretos += (p.valor_pago||p.value||0);
+      else m.despesas_op += (p.valor_pago||p.value||0);
+    }
+  });
+
+  return months.map(m => ({ ...m, impostos: Math.round(m.receita*0.06) }));
+}
+
+function _syncFinSidebarActive() {
+  document.querySelectorAll('.nav-item[data-fin-tab]').forEach(el => {
+    el.classList.toggle('active', el.dataset.finTab === finTab);
+  });
+  const bc = document.getElementById('page-breadcrumb');
+  if (bc) bc.textContent = _FIN_LABELS[finTab] || 'Financeiro';
+}
+
+function navigateFinTab(tab) {
+  finTab = tab || 'visao-geral';
+  if (SC.currentPage !== 'financeiro') {
+    Router.navigate('financeiro');
+  } else {
+    _renderFinContent();
+  }
+  _syncFinSidebarActive();
 }
 
 Router.register('financeiro', renderFinanceiro, 'Financeiro');

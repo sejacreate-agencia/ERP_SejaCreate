@@ -44,6 +44,7 @@ const Actions = {
   'convert-lead':         el  => convertLead(parseInt(el.dataset.id)),
   'update-lead-stage':    el  => updateLeadStage(parseInt(el.dataset.id)),
   'save-new-lead':        ()  => saveNewLead(),
+  'gerar-proposta-crm':   el  => gerarPropostaCRM(el.dataset.id, el.dataset.name),
 
   // ── CADASTRO ──────────────────────────────
   'open-new-cadastro-modal': () => openNewCadastroModal(),
@@ -64,8 +65,11 @@ const Actions = {
   // ── FINANCEIRO ────────────────────────────
   'open-new-lanc-modal':  ()  => openNewLancModal(),
   'switch-fin-tab':       el  => renderFinanceiro(el.dataset.tab),
+  'navigate-fin':         el  => navigateFinTab(el.dataset.finTab),
   'switch-fin-filter':    ()  => switchFinFilter(),
-  'mark-paid':            el  => markAsPaid(el.dataset.type, el.dataset.id),
+  'mark-paid':            el  => openMarkPaidModal(el.dataset.type, el.dataset.id),
+  'save-mark-paid':       el  => saveMarkPaid(el.dataset.type, el.dataset.id),
+  'switch-fin-regime':    el  => switchFinRegime(el.value),
   'open-edit-lanc':       el  => openEditLancModal(el.dataset.type, el.dataset.id),
   'toggle-lanc-type':     ()  => toggleLancType(),
   'save-new-lanc':        ()  => saveNewLanc(),

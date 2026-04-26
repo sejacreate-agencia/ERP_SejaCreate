@@ -52,8 +52,13 @@ function renderFinFluxoCaixa() {
   const thStyle = 'style="text-align:right"';
   const thCommon = `<th>Mês</th><th ${thStyle}>Entradas</th><th ${thStyle}>Saídas</th><th ${thStyle}>Saldo Mês</th><th ${thStyle}>Acumulado</th>`;
 
+  const regimeTag = finRegime === 'caixa'
+    ? `<span class="tag tag-purple" style="font-size:11px"><i class="fas fa-coins"></i> Regime Caixa — movimentação real</span>`
+    : `<span class="tag tag-blue" style="font-size:11px"><i class="fas fa-calendar-check"></i> Regime Competência — por vencimento</span>`;
+
   return `
     <div style="margin-top:8px">
+      <div style="margin-bottom:12px">${regimeTag}</div>
       <div class="fin-summary" style="margin-bottom:20px">
         <div class="fin-card" data-perm="financial">
           <div class="fin-label">Saldo Acumulado</div>
@@ -140,22 +145,29 @@ function _renderFcBody() {
   const recAll = (_recDataAll || _recData || []);
   const payAll = (_payDataAll || _payData || []);
 
+  const isCaixa = finRegime === 'caixa';
   const allTx = [
-    ...recAll.filter(r => r.status === 'pago').map(r => ({
-      date:     (r.paid_at || r.due_date || '').slice(0, 10),
+    ...recAll.filter(r => isCaixa ? (r.status==='pago'||r.status==='parcialmente_pago') : r.status!=='cancelado').map(r => ({
+      date:     isCaixa
+        ? (r.paid_date||(r.paid_at||'').slice(0,10)||r.due_date||'').slice(0,10)
+        : (r.due_date||r.due||'').slice(0,10),
       desc:     r.description || r.desc || 'Recebimento',
       tipo:     'entrada',
-      client:   r.client?.name || (SC.clients.find(c => String(c.id) === String(r.client_id || r.client))?.name) || '—',
-      category: 'Recebimento',
-      value:    r.value || 0,
+      client:   r.client?.name || (SC.clients.find(c=>String(c.id)===String(r.client_id||r.client))?.name) || '—',
+      category: r.categoria || 'Recebimento',
+      value:    r.valor_pago || r.value || 0,
+      status:   r.status,
     })),
-    ...payAll.filter(p => p.status === 'pago').map(p => ({
-      date:     (p.paid_at || p.due_date || '').slice(0, 10),
+    ...payAll.filter(p => isCaixa ? (p.status==='pago'||p.status==='parcialmente_pago') : (p.status!=='cancelado'&&p.status!=='provisionado')).map(p => ({
+      date:     isCaixa
+        ? (p.paid_date||(p.paid_at||'').slice(0,10)||p.due_date||'').slice(0,10)
+        : (p.due_date||p.due||'').slice(0,10),
       desc:     p.description || p.desc || 'Pagamento',
       tipo:     'saida',
       client:   p.supplier_name || p.supplier || '—',
-      category: p.category || 'Despesa',
-      value:    p.value || 0,
+      category: p.categoria || p.category || 'Despesa',
+      value:    p.valor_pago || p.value || 0,
+      status:   p.status,
     })),
   ].filter(t => t.date).sort((a, b) => a.date.localeCompare(b.date));
 
@@ -207,24 +219,33 @@ function _renderFcBody() {
 function _buildRealMonthly() {
   const recAll = (_recDataAll || _recData || []);
   const payAll = (_payDataAll || _payData || []);
+  const isCaixa = finRegime === 'caixa';
   const monthMap = {};
 
-  recAll.filter(r => r.status === 'pago').forEach(r => {
-    const dateStr = (r.paid_at || r.due_date || '').slice(0, 10);
+  recAll.forEach(r => {
+    if (isCaixa && r.status !== 'pago' && r.status !== 'parcialmente_pago') return;
+    if (!isCaixa && (r.status === 'cancelado')) return;
+    const dateStr = isCaixa
+      ? (r.paid_date || (r.paid_at||'').slice(0,10) || r.due_date || '').slice(0, 10)
+      : (r.due_date || r.due || '').slice(0, 10);
     if (!dateStr) return;
     const d = new Date(dateStr + 'T12:00:00');
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!monthMap[key]) monthMap[key] = { key, month: d.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''), year: d.getFullYear(), in: 0, out: 0 };
-    monthMap[key].in += (r.value || 0);
+    monthMap[key].in += (r.valor_pago || r.value || 0);
   });
 
-  payAll.filter(p => p.status === 'pago').forEach(p => {
-    const dateStr = (p.paid_at || p.due_date || '').slice(0, 10);
+  payAll.forEach(p => {
+    if (isCaixa && p.status !== 'pago' && p.status !== 'parcialmente_pago') return;
+    if (!isCaixa && (p.status === 'cancelado' || p.status === 'provisionado')) return;
+    const dateStr = isCaixa
+      ? (p.paid_date || (p.paid_at||'').slice(0,10) || p.due_date || '').slice(0, 10)
+      : (p.due_date || p.due || '').slice(0, 10);
     if (!dateStr) return;
     const d = new Date(dateStr + 'T12:00:00');
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!monthMap[key]) monthMap[key] = { key, month: d.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''), year: d.getFullYear(), in: 0, out: 0 };
-    monthMap[key].out += (p.value || 0);
+    monthMap[key].out += (p.valor_pago || p.value || 0);
   });
 
   const sorted = Object.values(monthMap).sort((a, b) => a.key.localeCompare(b.key)).slice(-6);

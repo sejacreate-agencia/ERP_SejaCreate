@@ -342,6 +342,20 @@ async function openLeadDetail(id) {
         </a>
       </div>
       ` : ''}
+
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-primary)"><i class="fas fa-file-contract"></i> Proposta Comercial</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="proposal-status-${id}">
+            ${l.proposal_url
+              ? `<a href="${l.proposal_url}" target="_blank" style="color:var(--primary)"><i class="fas fa-external-link-alt"></i> Ver proposta gerada</a>`
+              : 'Nenhuma proposta gerada ainda'}
+          </div>
+        </div>
+        <button class="btn btn-sm" style="background:var(--primary);color:#fff" data-action="gerar-proposta-crm" data-id="${id}" data-name="${l.name}">
+          <i class="fas fa-magic"></i> ${l.proposal_url ? 'Regerar Proposta' : 'Gerar Proposta'}
+        </button>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-sm btn-danger" data-action="delete-lead" data-id="${id}">
@@ -349,6 +363,11 @@ async function openLeadDetail(id) {
       </button>
       ${l.stage !== 'Fechado' && l.stage !== 'Perdido' ?
         `<button class="btn btn-success" data-action="convert-lead" data-id="${id}"><i class="fas fa-user-plus"></i> Converter em Cliente</button>` : ''}
+      ${l.proposal_url ? `
+        <a href="https://wa.me/55${(l.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent('Olá '+l.name+'! Preparei uma proposta especial para você: '+l.proposal_url)}"
+           target="_blank" class="btn btn-success">
+          <i class="fab fa-whatsapp"></i> Enviar Proposta
+        </a>` : ''}
       <button class="btn btn-primary" id="btn-save-lead-${id}" data-action="update-lead-stage" data-id="${id}">
         <i class="fas fa-save"></i> Salvar Alterações
       </button>
@@ -598,6 +617,19 @@ async function showCRMList() {
         </table>
       </div>
     </div>`;
+}
+
+function gerarPropostaCRM(id, name) {
+  const cmd = `/proposta-crm id:${id} nome:"${name}"`;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(cmd).then(() => {
+      showToast(`Comando copiado! Cole no Claude Code: ${cmd}`, 'info', 6000);
+    }).catch(() => {
+      showToast(`Execute no Claude Code: ${cmd}`, 'info', 8000);
+    });
+  } else {
+    showToast(`Execute no Claude Code: ${cmd}`, 'info', 8000);
+  }
 }
 
 // formatDateBR é definida globalmente em app.js
