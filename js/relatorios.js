@@ -274,7 +274,7 @@ function calcRelKPIs(tasks) {
 
 /* ─── CHARTS ──────────────────────────── */
 
-const chartColors = ['#8b5cf6','#10b981','#f59e0b','#3b82f6','#ef4444','#06b6d4','#f97316','#ec4899','#84cc16'];
+const chartColors = ['#ac5ec0','#10b981','#f59e0b','#3b82f6','#ef4444','#06b6d4','#f97316','#ec4899','#84cc16'];
 
 function renderStatusChart(tasks) {
   const ctx = document.getElementById('rel-chart-status');
@@ -322,7 +322,7 @@ function renderProdChart(tasks) {
     data: {
       labels,
       datasets: [
-        { label: 'Total', data: labels.map(l => byAssignee[l].total), backgroundColor: 'rgba(139,92,246,0.6)', borderColor: '#8b5cf6', borderWidth: 2, borderRadius: 6 },
+        { label: 'Total', data: labels.map(l => byAssignee[l].total), backgroundColor: 'rgba(172,94,192,0.6)', borderColor: '#ac5ec0', borderWidth: 2, borderRadius: 6 },
         { label: 'Publicado', data: labels.map(l => byAssignee[l].published), backgroundColor: 'rgba(16,185,129,0.6)', borderColor: '#10b981', borderWidth: 2, borderRadius: 6 },
         { label: 'Ajuste', data: labels.map(l => byAssignee[l].adjusted), backgroundColor: 'rgba(245,158,11,0.6)', borderColor: '#f59e0b', borderWidth: 2, borderRadius: 6 },
       ]

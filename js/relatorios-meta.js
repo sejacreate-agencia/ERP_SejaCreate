@@ -744,7 +744,7 @@ async function _mrOpenDetailModal(reportId) {
             ${_kpi('Ganho mês',     ig.follower_gain || 0, 'fa-user-plus',    '#e1306c')}
             ${_kpi('Alcance',       ig.reach         || 0, 'fa-eye',          '#a855f7')}
             ${_kpi('Impressões',    ig.impressions   || 0, 'fa-layer-group',  '#a855f7')}
-            ${_kpi('Visitas perfil',ig.profile_views || 0, 'fa-id-badge',     '#6366f1')}
+            ${_kpi('Visitas perfil',ig.profile_views || 0, 'fa-id-badge',     '#ac5ec0')}
           </div>
           ${topIgPosts.length ? `
             <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Top Posts</div>
@@ -766,7 +766,7 @@ async function _mrOpenDetailModal(reportId) {
             ${_kpi('Curtidores',   fb.fans             || 0, 'fa-thumbs-up',    '#1877f2')}
             ${_kpi('Ganho mês',    fb.fan_adds         || 0, 'fa-user-plus',    '#1877f2')}
             ${_kpi('Alcance',      fb.reach            || 0, 'fa-eye',          '#3b82f6')}
-            ${_kpi('Impressões',   fb.impressions      || 0, 'fa-layer-group',  '#6366f1')}
+            ${_kpi('Impressões',   fb.impressions      || 0, 'fa-layer-group',  '#ac5ec0')}
             ${_kpi('Engajamento',  fb.post_engagements || 0, 'fa-heart',        '#ef4444')}
           </div>
           ${topFbPosts.length ? `

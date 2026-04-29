@@ -137,6 +137,47 @@ const AuthService = {
     Dom.show('login-screen');
   },
 
+  async resetPassword(email) {
+    if (!isSupabaseReady()) {
+      Toast.show('Reset de senha disponível apenas na versão conectada ao Supabase.', 'warning');
+      return;
+    }
+    if (!email) {
+      Toast.show('Preencha o e-mail antes de solicitar o reset.', 'warning');
+      return;
+    }
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) {
+      Toast.show(`Erro: ${error.message}`, 'error');
+    } else {
+      Toast.show('✅ E-mail de redefinição enviado! Verifique sua caixa de entrada.', 'success');
+    }
+  },
+
+  async changePassword(newPass, confirmPass) {
+    if (!newPass || newPass.length < 6) {
+      Toast.show('A senha deve ter no mínimo 6 caracteres.', 'warning');
+      return false;
+    }
+    if (newPass !== confirmPass) {
+      Toast.show('As senhas não coincidem.', 'warning');
+      return false;
+    }
+    if (!isSupabaseReady()) {
+      Toast.show('Alteração de senha disponível apenas na versão conectada ao Supabase.', 'warning');
+      return false;
+    }
+    const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+    if (error) {
+      Toast.show(`Erro: ${error.message}`, 'error');
+      return false;
+    }
+    Toast.show('✅ Senha alterada com sucesso!', 'success');
+    return true;
+  },
+
   async checkSession() {
     if (!isSupabaseReady()) return null;
 

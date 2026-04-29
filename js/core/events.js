@@ -16,6 +16,9 @@ const Actions = {
   'toggle-sidebar':       ()  => toggleSidebar(),
   'close-modal':          ()  => Modal.close(),
   'login':                ()  => doLogin(),
+  'forgot-password':      ()  => AuthService.resetPassword(document.getElementById('login-email')?.value?.trim()),
+  'change-password':      ()  => openChangePasswordModal(),
+  'save-change-password': ()  => saveChangePassword(),
 
   // ── AVISOS ────────────────────────────────
   'refresh-avisos':       ()  => renderAvisos(),

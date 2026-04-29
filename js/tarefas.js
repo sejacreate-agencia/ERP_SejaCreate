@@ -189,12 +189,12 @@ function getColColor(col) {
   const map = {
     'Pauta': '#5a5a70',
     'Conteúdo em Produção': '#3b82f6',
-    'Arte em Produção': '#8b5cf6',
+    'Arte em Produção': '#ac5ec0',
     'Aprovação Interna': '#f59e0b',
-    'Enviado ao Cliente': '#a78bfa',
+    'Enviado ao Cliente': '#c880d8',
     'Ajuste Solicitado': '#ef4444',
     'Aprovado': '#10b981',
-    'Programado': '#7c3aed',
+    'Programado': '#79009d',
     'Publicado': '#059669',
   };
   return map[col] || '#5a5a70';

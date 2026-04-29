@@ -14,7 +14,7 @@ const stageIcons = {
   'Negociação': 'fa-handshake', 'Fechado': 'fa-check-circle', 'Perdido': 'fa-times-circle'
 };
 const stageCSSColors = {
-  'Lead Novo': '#3b82f6', 'Contato Iniciado': '#8b5cf6', 'Proposta Enviada': '#f59e0b',
+  'Lead Novo': '#3b82f6', 'Contato Iniciado': '#ac5ec0', 'Proposta Enviada': '#f59e0b',
   'Negociação': '#f97316', 'Fechado': '#10b981', 'Perdido': '#ef4444'
 };
 

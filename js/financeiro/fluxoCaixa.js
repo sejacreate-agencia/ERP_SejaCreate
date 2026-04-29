@@ -273,9 +273,9 @@ function renderFcChart() {
         {
           label: 'Saldo Acumulado',
           data: allRows.map(r => r.saldo_final),
-          borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.15)',
+          borderColor: '#ac5ec0', backgroundColor: 'rgba(172,94,192,0.15)',
           borderWidth: 2, tension: 0.35, fill: true,
-          pointBackgroundColor: allRows.map(r => r.isProj ? 'rgba(139,92,246,0.4)' : '#8b5cf6'),
+          pointBackgroundColor: allRows.map(r => r.isProj ? 'rgba(172,94,192,0.4)' : '#ac5ec0'),
         },
         {
           label: 'Entradas', data: allRows.map(r => r.in),

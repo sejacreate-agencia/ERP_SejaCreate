@@ -296,7 +296,7 @@ async function deleteEmployee(id) {
 /* ─── EQUIPES ──────────────────────────── */
 
 function renderConfigEquipes() {
-  const colorMap = { purple:'#7c3aed', blue:'#3b82f6', green:'#10b981', yellow:'#f59e0b', red:'#ef4444', gray:'#6b7280' };
+  const colorMap = { purple:'#79009d', blue:'#3b82f6', green:'#10b981', yellow:'#f59e0b', red:'#ef4444', gray:'#6b7280' };
 
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
@@ -307,7 +307,7 @@ function renderConfigEquipes() {
     </div>
     <div id="equipes-list">
       ${SC.equipes.map(eq => {
-        const color = colorMap[eq.color] || '#7c3aed';
+        const color = colorMap[eq.color] || '#79009d';
         return `
           <div class="team-card">
             <div class="team-color-badge" style="background:${color}"></div>
@@ -1068,6 +1068,52 @@ function removeMetaConfig(clientId) {
   MetaService.removeClientConfig(clientId);
   showToast('Integração removida.', 'info');
   switchConfigSection('integracoes');
+}
+
+/* ─── ALTERAR SENHA ──────────────────────── */
+
+function openChangePasswordModal() {
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-key" style="color:var(--purple-light);margin-right:8px"></i>
+        Alterar Senha
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Nova Senha *</label>
+          <input class="input-field" id="cp-new" type="password" placeholder="Mínimo 6 caracteres" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Confirmar Nova Senha *</label>
+          <input class="input-field" id="cp-confirm" type="password" placeholder="Repita a nova senha" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-change-password">
+        <i class="fas fa-save"></i> Salvar Nova Senha
+      </button>
+    </div>
+  `);
+}
+
+async function saveChangePassword() {
+  const newPass  = document.getElementById('cp-new')?.value?.trim();
+  const confirm_ = document.getElementById('cp-confirm')?.value?.trim();
+  const btn = document.querySelector('[data-action="save-change-password"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const ok = await AuthService.changePassword(newPass, confirm_);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Nova Senha'; }
+  if (ok) closeModal();
 }
 
 Router.register('configuracoes', renderConfiguracoes, 'Configurações');

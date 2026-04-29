@@ -611,7 +611,7 @@ function renderClientCalSemanal(tasks, year, month) {
                 <div data-action="open-client-content-modal" data-id="${t.id}"
                      style="background:${bg};border-radius:6px;padding:5px 7px;margin-bottom:5px;
                             font-size:10px;cursor:pointer;line-height:1.4;
-                            border:1px solid rgba(124,58,237,0.2)">
+                            border:1px solid rgba(121,0,157,0.2)">
                   ${getContentIcon(t.title)} ${t.title.slice(0,20)}
                 </div>`;
             }).join('')}
