@@ -470,36 +470,66 @@ function renderConfigPerfis() {
 function openPerfilModal(role) {
   const label = SC.roleLabels[role] || role;
   const perms = SC.permissoes[role] || {};
+  const mods  = (SC.modulePermissions && SC.modulePermissions[role]) || {};
+
+  const modLabels = {
+    comercial:   { icon:'fa-funnel-dollar', label:'Comercial',              desc:'CRM + Cadastro' },
+    operacional: { icon:'fa-columns',       label:'Operacional',            desc:'Tarefas + Calendário' },
+    financeiro:  { icon:'fa-chart-line',    label:'Financeiro',             desc:'Contas, Fluxo, DRE' },
+    relatorios:  { icon:'fa-chart-bar',     label:'Análise / Relatórios',   desc:'Relatórios gerenciais e Meta' },
+    config:      { icon:'fa-cog',           label:'Configurações',          desc:'Usuários, perfis, integrações' },
+    clienteArea: { icon:'fa-user-check',    label:'Área do Cliente',        desc:'Portal de aprovação do cliente' },
+    avisos:      { icon:'fa-bell',          label:'Avisos Importantes',     desc:'Notificações e alertas' },
+  };
+
   const permLabels = {
     visualizar: 'Visualizar conteúdos',
-    criar: 'Criar cards/conteúdos',
-    editar: 'Editar conteúdos',
-    comentar: 'Comentar',
-    aprovar: 'Aprovar conteúdos',
-    programar: 'Programar publicações',
-    publicar: 'Publicar posts',
+    criar:      'Criar cards/conteúdos',
+    editar:     'Editar conteúdos',
+    comentar:   'Comentar',
+    aprovar:    'Aprovar conteúdos',
+    programar:  'Programar publicações',
+    publicar:   'Publicar posts',
     financeiro: 'Acessar financeiro',
     relatorios: 'Acessar relatórios',
   };
+
+  const checkboxRow = (id, checked, icon, labelText, desc) => `
+    <label style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+                  background:var(--bg-input);border-radius:8px;cursor:pointer;
+                  border:1px solid var(--border);transition:var(--transition)"
+           onmouseenter="this.style.borderColor='var(--purple-border)'"
+           onmouseleave="this.style.borderColor='var(--border)'">
+      <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}
+             style="accent-color:var(--purple);width:15px;height:15px;flex-shrink:0">
+      <i class="fas ${icon}" style="color:var(--purple-light);width:14px;text-align:center;font-size:12px"></i>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${labelText}</div>
+        ${desc ? `<div style="font-size:11px;color:var(--text-muted)">${desc}</div>` : ''}
+      </div>
+    </label>`;
+
+  const sectionTitle = (text) =>
+    `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 8px">${text}</div>`;
 
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-shield-alt" style="color:var(--purple-light);margin-right:8px"></i>Perfil: ${label}</span>
       <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
-        Defina o que o perfil <strong>${label}</strong> pode fazer no sistema.
-      </p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${Object.entries(permLabels).map(([key, label_]) => `
-          <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
-                        background:var(--bg-input);border-radius:8px;cursor:pointer;
-                        border:1px solid var(--border)">
-            <span style="font-size:13px">${label_}</span>
-            <input type="checkbox" id="perm-${key}" ${perms[key] ? 'checked' : ''}
-                   style="accent-color:var(--purple);width:16px;height:16px">
-          </label>`).join('')}
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+      ${sectionTitle('Módulos com Acesso')}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${Object.entries(modLabels).map(([key, m]) =>
+          checkboxRow(`mod-${key}`, mods[key], m.icon, m.label, m.desc)
+        ).join('')}
+      </div>
+      <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+      ${sectionTitle('Ações Permitidas')}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${Object.entries(permLabels).map(([key, label_]) =>
+          checkboxRow(`perm-${key}`, perms[key], 'fa-check', label_, '')
+        ).join('')}
       </div>
     </div>
     <div class="modal-footer">
@@ -515,10 +545,20 @@ function savePerfilPerms(role) {
   const permKeys = ['visualizar','criar','editar','comentar','aprovar','programar','publicar','financeiro','relatorios'];
   permKeys.forEach(key => {
     const cb = document.getElementById(`perm-${key}`);
-    if (cb && SC.permissoes[role]) {
-      SC.permissoes[role][key] = cb.checked ? 1 : 0;
-    }
+    if (cb && SC.permissoes[role]) SC.permissoes[role][key] = cb.checked ? 1 : 0;
   });
+
+  const modKeys = ['comercial','operacional','financeiro','relatorios','config','clienteArea','avisos'];
+  if (!SC.modulePermissions) SC.modulePermissions = {};
+  if (!SC.modulePermissions[role]) SC.modulePermissions[role] = {};
+  modKeys.forEach(key => {
+    const cb = document.getElementById(`mod-${key}`);
+    if (cb) SC.modulePermissions[role][key] = cb.checked ? 1 : 0;
+  });
+
+  // Reflete imediatamente se o perfil editado é o do usuário logado
+  if (SC.currentUser?.role === role) applyPermissions(role);
+
   closeModal();
   showToast(`✅ Permissões do perfil "${SC.roleLabels[role]}" salvas!`, 'success');
   switchConfigSection('perfis');

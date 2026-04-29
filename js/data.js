@@ -77,6 +77,17 @@ const SC = {
     cliente:   { visualizar:1, criar:0, editar:0, comentar:1, aprovar:1, programar:0, publicar:0, financeiro:0, relatorios:0 },
   },
 
+  // Acesso por módulo (quais seções do menu cada perfil vê) — editável via Configurações > Perfis
+  modulePermissions: {
+    admin:     { comercial:1, operacional:1, financeiro:1, relatorios:1, config:1, clienteArea:1, avisos:1 },
+    gestor:    { comercial:1, operacional:1, financeiro:0, relatorios:1, config:1, clienteArea:1, avisos:1 },
+    social:    { comercial:0, operacional:1, financeiro:0, relatorios:0, config:1, clienteArea:1, avisos:1 },
+    designer:  { comercial:0, operacional:1, financeiro:0, relatorios:0, config:0, clienteArea:0, avisos:1 },
+    comercial: { comercial:1, operacional:0, financeiro:0, relatorios:1, config:1, clienteArea:1, avisos:1 },
+    financeiro:{ comercial:0, operacional:0, financeiro:1, relatorios:1, config:0, clienteArea:0, avisos:1 },
+    cliente:   { comercial:0, operacional:0, financeiro:0, relatorios:0, config:0, clienteArea:1, avisos:0 },
+  },
+
   hasPermission(action) {
     const role = this.currentUser?.role;
     if (!role) return false;
