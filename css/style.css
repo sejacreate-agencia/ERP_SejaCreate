@@ -172,7 +172,7 @@ input, select, textarea { font-family: var(--font); outline: none; }
   letter-spacing: -0.5px;
   line-height: 1;
 }
-.logo-text strong { color: #7c3aed !important; font-weight: 800; }
+.logo-text strong { color: #79009d !important; font-weight: 800; }
 .login-subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 24px; letter-spacing: 0.01em; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
