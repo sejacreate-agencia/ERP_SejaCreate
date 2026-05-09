@@ -837,6 +837,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (app) app.classList.add('hidden');
         if (login) login.classList.remove('hidden');
       }
+
+      // Usuário abriu o link de reset do e-mail — mostra formulário de nova senha
+      if (event === 'PASSWORD_RECOVERY') {
+        SB.session = session;
+        if (typeof AuthService !== 'undefined') {
+          AuthService._showRecoveryForm();
+        }
+      }
     });
   }
 });

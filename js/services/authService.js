@@ -56,7 +56,7 @@ const AuthService = {
 
     const profile = SB.profile;
     if (!profile) {
-      Toast.login('Perfil não encontrado. Contate o administrador.');
+      Toast.login('Conta autenticada, mas sem perfil cadastrado. Peça ao admin para criar seu perfil na tabela "profiles".');
       return { error: { message: 'profile_not_found' } };
     }
 
@@ -146,9 +146,9 @@ const AuthService = {
       Toast.show('Preencha o e-mail antes de solicitar o reset.', 'warning');
       return;
     }
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
+    const redirectTo = AuthService._getRedirectUrl();
+    const opts = redirectTo ? { redirectTo } : {};
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, opts);
     if (error) {
       Toast.show(`Erro: ${error.message}`, 'error');
     } else {
@@ -176,6 +176,87 @@ const AuthService = {
     }
     Toast.show('✅ Senha alterada com sucesso!', 'success');
     return true;
+  },
+
+  // URL correta para redirect do Supabase (funciona em GitHub Pages e localhost)
+  _getRedirectUrl() {
+    if (window.APP_CONFIG?.siteUrl) return window.APP_CONFIG.siteUrl;
+    if (window.location.protocol === 'file:') return null;
+    return window.location.origin + window.location.pathname;
+  },
+
+  // Salva nova senha após chegar via link de reset (PASSWORD_RECOVERY)
+  async saveRecoveryPassword(newPass, confirmPass) {
+    if (!newPass || newPass.length < 6) {
+      Toast.show('A senha deve ter no mínimo 6 caracteres.', 'warning');
+      return false;
+    }
+    if (newPass !== confirmPass) {
+      Toast.show('As senhas não coincidem.', 'warning');
+      return false;
+    }
+    if (!isSupabaseReady()) {
+      Toast.show('Supabase não conectado.', 'warning');
+      return false;
+    }
+    const btn = document.querySelector('[data-action="save-recovery-password"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+    const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> Salvar Nova Senha'; }
+
+    if (error) {
+      Toast.show(`Erro: ${error.message}`, 'error');
+      return false;
+    }
+
+    await supabaseClient.auth.signOut();
+    Toast.show('✅ Senha redefinida com sucesso! Faça login com a nova senha.', 'success');
+    this._showLoginForm();
+    return true;
+  },
+
+  // Envia e-mail de reset para qualquer usuário (uso do admin)
+  async sendResetEmailForUser(email) {
+    if (!isSupabaseReady()) {
+      Toast.show('Supabase não conectado.', 'warning');
+      return false;
+    }
+    const redirectTo = this._getRedirectUrl();
+    const opts = redirectTo ? { redirectTo } : {};
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, opts);
+    if (error) {
+      Toast.show(`Erro: ${error.message}`, 'error');
+      return false;
+    }
+    Toast.show(`✅ Link de redefinição enviado para ${email}`, 'success');
+    return true;
+  },
+
+  // Gera senha aleatória segura
+  generatePassword(length = 12) {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+    return Array.from(crypto.getRandomValues(new Uint8Array(length)))
+      .map(b => chars[b % chars.length]).join('');
+  },
+
+  // Alterna entre o form de login e o de recuperação
+  _showLoginForm() {
+    const lf = document.querySelector('#login-screen .login-form');
+    const rf = document.getElementById('recovery-form');
+    if (lf) lf.style.display = '';
+    if (rf) rf.style.display = 'none';
+  },
+
+  _showRecoveryForm() {
+    const lf = document.querySelector('#login-screen .login-form');
+    const rf = document.getElementById('recovery-form');
+    if (lf) lf.style.display = 'none';
+    if (rf) rf.style.display = '';
+    // Garante que a tela de login está visível
+    document.getElementById('login-screen')?.classList.remove('hidden');
+    document.getElementById('app')?.classList.add('hidden');
   },
 
   async checkSession() {

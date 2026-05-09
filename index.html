@@ -56,6 +56,26 @@
         <a class="link-forgot-pass" data-action="forgot-password">Esqueci minha senha</a>
       </div>
     </div>
+
+    <!-- Exibido quando usuário chega via link de reset do e-mail -->
+    <div id="recovery-form" style="display:none">
+      <div style="text-align:center;margin-bottom:20px">
+        <i class="fas fa-key" style="font-size:28px;color:var(--purple-light)"></i>
+        <h3 style="margin:10px 0 4px;font-size:17px;font-weight:700;color:var(--text-primary)">Criar nova senha</h3>
+        <p style="font-size:13px;color:var(--text-secondary)">Insira e confirme sua nova senha abaixo.</p>
+      </div>
+      <div class="form-group">
+        <label>Nova Senha</label>
+        <input type="password" id="recovery-pass" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="form-group">
+        <label>Confirmar Senha</label>
+        <input type="password" id="recovery-pass-confirm" placeholder="Repita a nova senha" />
+      </div>
+      <button class="btn-login" data-action="save-recovery-password">
+        <i class="fas fa-lock"></i> Salvar Nova Senha
+      </button>
+    </div>
   </div>
 </div>
 

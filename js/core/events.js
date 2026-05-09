@@ -17,8 +17,14 @@ const Actions = {
   'close-modal':          ()  => Modal.close(),
   'login':                ()  => doLogin(),
   'forgot-password':      ()  => AuthService.resetPassword(document.getElementById('login-email')?.value?.trim()),
+  'save-recovery-password': () => AuthService.saveRecoveryPassword(
+    document.getElementById('recovery-pass')?.value,
+    document.getElementById('recovery-pass-confirm')?.value
+  ),
   'change-password':      ()  => openChangePasswordModal(),
   'save-change-password': ()  => saveChangePassword(),
+  'open-reset-pass-modal': el => openResetPassModal(el.dataset.name, el.dataset.email),
+  'send-reset-email':      el => AuthService.sendResetEmailForUser(el.dataset.email),
 
   // ── AVISOS ────────────────────────────────
   'refresh-avisos':       ()  => renderAvisos(),

@@ -94,6 +94,11 @@ function renderConfigUsuarios() {
           <button class="btn btn-sm btn-secondary" data-action="open-func-modal" data-id="${e.id}">
             <i class="fas fa-edit"></i> Editar
           </button>
+          <button class="btn btn-sm" style="background:var(--warning-subtle,#fff8e1);color:var(--warning,#f59e0b)"
+                  data-action="open-reset-pass-modal" data-email="${e.email}" data-name="${e.name}"
+                  title="Redefinir senha">
+            <i class="fas fa-key"></i>
+          </button>
           <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)"
                   data-action="delete-employee" data-id="${e.id}">
             <i class="fas fa-trash"></i>
@@ -1114,6 +1119,69 @@ async function saveChangePassword() {
 
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Nova Senha'; }
   if (ok) closeModal();
+}
+
+/* ─── RESET DE SENHA (ADMIN) ──────────────── */
+
+function openResetPassModal(name, email) {
+  if (!email) { Toast.show('E-mail do usuário não encontrado.', 'error'); return; }
+
+  const tempPass = AuthService.generatePassword();
+  const sql = `UPDATE auth.users\nSET encrypted_password = crypt('${tempPass}', gen_salt('bf'))\nWHERE email = '${email}';`;
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-key" style="color:var(--purple-light);margin-right:8px"></i>
+        Redefinir Senha — ${name}
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Opção 1: link por e-mail -->
+      <div style="background:var(--purple-subtle);border-radius:10px;padding:16px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 6px">Opção 1 — Link de redefinição por e-mail</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px">
+          Supabase envia um link para <strong>${email}</strong>. O usuário clica e define a própria senha.
+        </p>
+        <button class="btn btn-primary" data-action="send-reset-email" data-email="${email}">
+          <i class="fas fa-envelope"></i> Enviar Link por E-mail
+        </button>
+      </div>
+
+      <!-- Opção 2: senha temporária -->
+      <div style="background:var(--bg-secondary);border-radius:10px;padding:16px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 6px">Opção 2 — Senha temporária gerada</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px">
+          Copie a senha e informe ao usuário. Para ativá-la, use o SQL abaixo no Supabase.
+        </p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <code id="temp-pass-val" style="flex:1;font-size:15px;font-weight:700;letter-spacing:1px;
+                background:var(--bg-primary);padding:10px 14px;border-radius:6px;
+                border:1px solid var(--border)">${tempPass}</code>
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('temp-pass-val').textContent).then(()=>Toast.show('✅ Senha copiada!','success'))">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+        <details style="font-size:12px">
+          <summary style="cursor:pointer;color:var(--text-secondary);margin-bottom:6px">Ver SQL para ativar esta senha</summary>
+          <div style="display:flex;align-items:flex-start;gap:6px;margin-top:6px">
+            <pre id="reset-sql" style="flex:1;background:var(--bg-primary);border:1px solid var(--border);
+                 border-radius:6px;padding:10px;font-size:11px;margin:0;white-space:pre-wrap;word-break:break-all">${sql}</pre>
+            <button class="btn btn-secondary" style="flex-shrink:0" onclick="navigator.clipboard.writeText(document.getElementById('reset-sql').textContent).then(()=>Toast.show('✅ SQL copiado!','success'))">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          <p style="color:var(--text-muted);margin:8px 0 0">Cole e execute no <strong>SQL Editor</strong> do Supabase.</p>
+        </details>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
+    </div>
+  `);
 }
 
 Router.register('configuracoes', renderConfiguracoes, 'Configurações');
