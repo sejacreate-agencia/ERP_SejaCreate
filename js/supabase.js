@@ -832,6 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     SB.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         SC.currentUser = null;
+        SB._recoveryMode = false;
         const app = document.getElementById('app');
         const login = document.getElementById('login-screen');
         if (app) app.classList.add('hidden');
@@ -840,10 +841,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Usuário abriu o link de reset do e-mail — mostra formulário de nova senha
       if (event === 'PASSWORD_RECOVERY') {
+        SB._recoveryMode = true;
         SB.session = session;
         if (typeof AuthService !== 'undefined') {
           AuthService._showRecoveryForm();
         }
+        return;
+      }
+
+      // Bloqueia auto-login pelo evento SIGNED_IN quando estamos em modo de recovery
+      if (event === 'SIGNED_IN' && SB._recoveryMode) {
+        return;
       }
     });
   }

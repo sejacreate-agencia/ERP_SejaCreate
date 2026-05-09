@@ -211,6 +211,7 @@ const AuthService = {
       return false;
     }
 
+    SB._recoveryMode = false;
     await supabaseClient.auth.signOut();
     Toast.show('✅ Senha redefinida com sucesso! Faça login com a nova senha.', 'success');
     this._showLoginForm();
@@ -261,6 +262,8 @@ const AuthService = {
 
   async checkSession() {
     if (!isSupabaseReady()) return null;
+    // Não faz auto-login durante fluxo de redefinição de senha
+    if (SB._recoveryMode) return null;
 
     const session = await SB.getSession();
     if (!session) return null;

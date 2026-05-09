@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (passInput) passInput.value = '';
   }
 
-  setTimeout(() => checkExistingSession(), 100);
+  // Não faz auto-login se o usuário chegou via link de reset de senha (hash contém type=recovery)
+  const _hashParams = new URLSearchParams(window.location.hash.slice(1));
+  if (_hashParams.get('type') !== 'recovery') {
+    setTimeout(() => checkExistingSession(), 100);
+  }
   NotificationService.refreshBadge();
 });
