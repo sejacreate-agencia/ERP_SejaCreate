@@ -125,7 +125,7 @@ function renderConfigUsuarios() {
 }
 
 function openFuncModal(id) {
-  const e = id !== null ? SC.employees.find(x => x.id === id) : null;
+  const e = id != null ? SC.employees.find(x => String(x.id) === String(id)) : null;
   const isNew = !e;
   const roleOpts = Object.entries(SC.roleLabels).map(([k,v]) =>
     `<option value="${k}" ${e?.role===k?'selected':''}>${v}</option>`).join('');
@@ -168,7 +168,7 @@ function openFuncModal(id) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="save-func-modal" data-id="${id}">
+      <button class="btn btn-primary" data-action="save-func-modal" data-id="${id ?? ''}">
         <i class="fas fa-save"></i> ${isNew ? 'Criar Usuário' : 'Salvar Alterações'}
       </button>
     </div>
@@ -269,9 +269,9 @@ async function saveFuncModal(id) {
       SC.users.push({ id: newEmp.id, name, role: profilePayload.role, avatar: profilePayload.avatar_initials, email, cargo: profilePayload.cargo });
       showToast(`✅ Usuário "${name}" criado!`, 'success');
     } else {
-      const emp = SC.employees.find(e => e.id === id);
+      const emp = SC.employees.find(e => String(e.id) === String(id));
       if (emp) Object.assign(emp, legacyData);
-      const usr = SC.users.find(u => u.id === id);
+      const usr = SC.users.find(u => String(u.id) === String(id));
       if (usr) { usr.name = name; usr.role = profilePayload.role; usr.email = email; usr.cargo = profilePayload.cargo; }
       showToast(`✅ Usuário "${name}" atualizado!`, 'success');
     }
@@ -282,7 +282,7 @@ async function saveFuncModal(id) {
 }
 
 async function deleteEmployee(id) {
-  const emp = SC.employees.find(e => e.id === id);
+  const emp = SC.employees.find(e => String(e.id) === String(id));
   if (!emp) return;
   if (String(emp.id) === String(SC.currentUser?.id)) { showToast('Você não pode excluir sua própria conta!', 'error'); return; }
   if (!confirm(`Excluir o usuário "${emp.name}"? Esta ação não pode ser desfeita.`)) return;

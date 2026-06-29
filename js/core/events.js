@@ -60,7 +60,7 @@ const Actions = {
   'switch-cadastro-tab':  el  => renderCadastro(el.dataset.tab),
   'open-client-detail':   el  => openClientDetail(el.dataset.id),
   'toggle-client-status': el  => toggleClientStatus(el.dataset.id),
-  'open-func-modal':      el  => openFuncModal(el.dataset.id ? parseInt(el.dataset.id) : null),
+  'open-func-modal':      el  => openFuncModal(el.dataset.id || null),
   'switch-client-tab':    el  => switchClientTab(parseInt(el.dataset.tab)),
   'save-new-client':      ()  => saveNewClient(),
   'save-funcionario':     el  => saveFuncionario(el.dataset.id ? parseInt(el.dataset.id) : 0),
@@ -120,8 +120,8 @@ const Actions = {
 
   // ── CONFIGURAÇÕES ─────────────────────────
   'switch-config-section':   el  => switchConfigSection(el.dataset.section),
-  'delete-employee':         el  => deleteEmployee(parseInt(el.dataset.id)),
-  'save-func-modal':         el  => saveFuncModal(parseInt(el.dataset.id)),
+  'delete-employee':         el  => deleteEmployee(el.dataset.id),
+  'save-func-modal':         el  => saveFuncModal(el.dataset.id || null),
   'open-equipe-modal':       el  => openEquipeModal(el.dataset.id ? parseInt(el.dataset.id) : null),
   'delete-equipe':           el  => deleteEquipe(parseInt(el.dataset.id)),
   'save-equipe':             el  => saveEquipe(parseInt(el.dataset.id)),
