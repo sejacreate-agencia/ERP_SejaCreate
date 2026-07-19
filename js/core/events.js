@@ -87,7 +87,7 @@ const Actions = {
   'open-new-recebimento':     ()  => openNewRecebimentoModal(),
   'save-new-recebimento':     ()  => saveNewRecebimento(),
   'delete-lanc':              el  => deleteLanc(el.dataset.type, el.dataset.id),
-  'open-new-lancamento-pagar':()  => openNewLancModal(),
+  'open-new-lancamento-pagar':()  => openNewLancModal('payable'),
   // ── META ─────────────────────────────────
   'open-meta-schedule':   el  => { const t = _taskData?.find(x => String(x.id) === String(el.dataset.id)); if (t) MetaService.openScheduleModal(t); },
   'meta-schedule-post':   el  => MetaService.executeSchedule(el.dataset.taskId),
@@ -112,6 +112,7 @@ const Actions = {
   'add-comment':          el  => addComment(parseInt(el.dataset.id)),
   'move-task':            el  => moveTask(parseInt(el.dataset.id)),
   'send-to-client':       el  => sendToClient(parseInt(el.dataset.id)),
+  'send-approval-whatsapp': el => sendApprovalWhatsApp(el.dataset.id),
   'approve-task':         el  => approveTask(parseInt(el.dataset.id)),
   'request-adjust':       el  => requestAdjust(parseInt(el.dataset.id)),
   'delete-task':          el  => deleteTask(parseInt(el.dataset.id)),
