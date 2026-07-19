@@ -2,6 +2,16 @@
 // FINANCEIRO — Lançamentos (criar / editar / pagar)
 // =============================================
 
+// ── SINCRONIZAÇÃO DE AVISOS ───────────────────────────────────────────────────
+// SC.finances.receivable/payable alimenta os Avisos Importantes (avisos.js) e o
+// badge do sininho, mas só é hidratado 1x em hydrateFromSupabase(). As ações de
+// CRUD abaixo mexem apenas nos arrays locais da tela (_recData/_payData), então
+// precisamos sincronizar SC.finances manualmente e regenerar os avisos aqui.
+function _syncAvisosAfterFinChange() {
+  if (typeof generateAvisosFromData === 'function') generateAvisosFromData();
+  if (typeof NotificationService !== 'undefined') NotificationService.refreshBadge();
+}
+
 // ── HELPERS DE FORMULÁRIO ─────────────────────────────────────────────────────
 
 function _pagOpts(selected) {
@@ -171,16 +181,20 @@ async function saveMarkPaid(type, id) {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Confirmar'; }
       return;
     }
-  } else {
-    const scList = type === 'receivable' ? SC.finances.receivable : SC.finances.payable;
-    const scItem = scList.find(x => String(x.id) === String(id));
-    if (scItem) Object.assign(scItem, payload);
   }
+
+  // Sincroniza SC.finances (fonte dos Avisos Importantes) independente do modo,
+  // já que em Supabase o bloco acima só grava no banco, não no estado local usado pelos avisos.
+  const scList = type === 'receivable' ? SC.finances.receivable : SC.finances.payable;
+  const scItem = scList.find(x => String(x.id) === String(id));
+  if (scItem) Object.assign(scItem, payload);
 
   if (item) Object.assign(item, payload);
   const allList = type === 'receivable' ? _recDataAll : _payDataAll;
   const allItem = allList?.find(x => String(x.id) === String(id));
   if (allItem) Object.assign(allItem, payload);
+
+  _syncAvisosAfterFinChange();
 
   closeModal();
   showToast(`✅ ${type==='receivable'?'Recebimento':'Pagamento'} registrado!`, 'success');
@@ -189,7 +203,8 @@ async function saveMarkPaid(type, id) {
 
 // ── NOVO LANÇAMENTO ───────────────────────────────────────────────────────────
 
-function openNewLancModal() {
+function openNewLancModal(defaultType = 'receivable') {
+  const isPay = defaultType === 'payable';
   const clientOpts = SC.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   const contaOpts  = SC.planoDeContas.filter(c=>c.ativo)
     .map(c => `<option value="${c.id}">${c.codigo} — ${c.nome}</option>`).join('');
@@ -197,7 +212,7 @@ function openNewLancModal() {
 
   openModal(`
     <div class="modal-header">
-      <span class="modal-title"><i class="fas fa-plus" style="color:var(--purple-light);margin-right:8px"></i>Novo Lançamento</span>
+      <span class="modal-title"><i class="fas fa-plus" style="color:var(--purple-light);margin-right:8px"></i>${isPay ? 'Nova Despesa' : 'Novo Lançamento'}</span>
       <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
@@ -205,8 +220,8 @@ function openNewLancModal() {
         <div class="form-col">
           <label>Tipo</label>
           <select class="select-field" id="nl-type" data-action="toggle-lanc-type">
-            <option value="receivable">Conta a Receber</option>
-            <option value="payable">Conta a Pagar</option>
+            <option value="receivable"${isPay ? '' : ' selected'}>Conta a Receber</option>
+            <option value="payable"${isPay ? ' selected' : ''}>Conta a Pagar</option>
           </select>
         </div>
         <div class="form-col">
@@ -287,6 +302,7 @@ function openNewLancModal() {
       <button class="btn btn-primary" id="btn-save-lanc" data-action="save-new-lanc"><i class="fas fa-save"></i> Salvar</button>
     </div>
   `);
+  toggleLancType();
 }
 
 function toggleLancType() {
@@ -326,6 +342,9 @@ async function saveNewLanc() {
       if (error) { showToast(`Erro: ${error.message}`, 'error'); if (btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';} return; }
       const clientName = SC.clients.find(c=>String(c.id)===String(clientId))?.name||'—';
       _recData.push({...data,client:{name:clientName}}); _recDataAll.push({...data,client:{name:clientName}});
+      SC.finances.receivable.push({ id: data.id, client: clientId, client_id: clientId,
+        desc: data.description, description: data.description, value: data.value,
+        due: data.due_date, due_date: data.due_date, status: data.status, paid_at: data.paid_at || null });
     } else {
       const clientName = SC.clients.find(c=>String(c.id)===String(clientId))?.name||'—';
       const newItem = { id:Date.now(), client_id:clientId, client:{name:clientName}, description:desc, desc, value,
@@ -348,9 +367,19 @@ async function saveNewLanc() {
         forma_pagamento:forma||null, categoria:categoria||null, centro_custo:cc||null, conta_id:contaId?parseInt(contaId):null };
 
       if (isSupabaseReady()) {
-        const { data, error } = await DB.payables.create(dbPayload);
+        let { data, error } = await DB.payables.create(dbPayload);
+        if (error && error.message.includes('schema cache')) {
+          const fallback = { supplier_name:supplierName, description:descMes, value, due_date:dueDate||null, status };
+          const res = await DB.payables.create(fallback);
+          data=res.data; error=res.error;
+          if (!error) showToast('⚠️ Conta salva com campos básicos — execute migration-007.sql.', 'warning');
+        }
         if (error) { showToast(`Erro: ${error.message}`, 'error'); if (btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';} return; }
         _payData.push(data); _payDataAll.push(data);
+        SC.finances.payable.push({ id: data.id, supplier: supplierName, supplier_name: supplierName,
+          desc: data.description, description: data.description, value: data.value,
+          due: data.due_date, due_date: data.due_date, status: data.status, paid_at: data.paid_at || null,
+          provisao_grupo: grupoId, provisao_mes: i+1, provisao_total: meses });
       } else {
         const newItem = { id:Date.now()+i, supplier:supplierName, supplier_name:supplierName, desc:descMes, description:descMes,
           value, due:dueDate, due_date:dueDate, status, forma_pagamento:forma, categoria, centro_custo:cc,
@@ -359,6 +388,8 @@ async function saveNewLanc() {
       }
     }
   }
+
+  _syncAvisosAfterFinChange();
 
   closeModal();
   showToast('✅ Lançamento criado!', 'success');
@@ -521,16 +552,20 @@ async function saveEditLanc(type, id) {
       if (!error) showToast('⚠️ Salvo com campos básicos — execute migration-005.sql.', 'warning');
     }
     if (error) { showToast(`Erro: ${error.message}`, 'error'); if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Salvar';} return; }
-  } else {
-    const scList = type === 'receivable' ? SC.finances.receivable : SC.finances.payable;
-    const scItem = scList.find(x => String(x.id) === String(id));
-    if (scItem) Object.assign(scItem, { description:desc, desc, value, due:due, due_date:due, status, forma_pagamento:formaPag, observacoes:obs });
   }
+
+  // Sincroniza SC.finances (fonte dos Avisos Importantes) independente do modo,
+  // já que em Supabase o bloco acima só grava no banco, não no estado local usado pelos avisos.
+  const scList = type === 'receivable' ? SC.finances.receivable : SC.finances.payable;
+  const scItem = scList.find(x => String(x.id) === String(id));
+  if (scItem) Object.assign(scItem, { description:desc, desc, value, due:due, due_date:due, status, forma_pagamento:formaPag, observacoes:obs });
 
   if (item) Object.assign(item, payload);
   const allList = type === 'receivable' ? _recDataAll : _payDataAll;
   const allItem = allList?.find(x => String(x.id) === String(id));
   if (allItem && item) Object.assign(allItem, item);
+
+  _syncAvisosAfterFinChange();
 
   closeModal();
   showToast('✅ Lançamento atualizado!', 'success');
@@ -670,11 +705,14 @@ async function deleteLanc(type, id) {
     const fn = type === 'receivable' ? DB.receivables.remove : DB.payables.remove;
     const { error } = await fn(id);
     if (error) { showToast(`Erro ao excluir: ${error.message}`, 'error'); return; }
-  } else {
-    const scList = type === 'receivable' ? SC.finances.receivable : SC.finances.payable;
-    const idx = scList.findIndex(x => String(x.id) === String(id));
-    if (idx !== -1) scList.splice(idx, 1);
   }
+
+  // Remove também de SC.finances (fonte dos Avisos Importantes) — antes só era
+  // feito em modo demo, então em produção (Supabase) o aviso do lançamento
+  // excluído continuava aparecendo até recarregar a página.
+  const scList = type === 'receivable' ? SC.finances.receivable : SC.finances.payable;
+  const scIdx = scList.findIndex(x => String(x.id) === String(id));
+  if (scIdx !== -1) scList.splice(scIdx, 1);
 
   if (type === 'receivable') {
     _recData    = _recData.filter(x=>String(x.id)!==String(id));
@@ -683,6 +721,8 @@ async function deleteLanc(type, id) {
     _payData    = _payData.filter(x=>String(x.id)!==String(id));
     _payDataAll = _payDataAll.filter(x=>String(x.id)!==String(id));
   }
+
+  _syncAvisosAfterFinChange();
 
   closeModal();
   showToast('✅ Lançamento excluído!', 'success');
