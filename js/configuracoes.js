@@ -13,6 +13,7 @@ function renderConfiguracoes(section) {
     { id: 'perfis',     icon: 'fa-shield-alt',    label: 'Perfis de Acesso' },
     { id: 'permissoes', icon: 'fa-lock',          label: 'Permissões' },
     { id: 'funil',      icon: 'fa-columns',       label: 'Etapas do Funil' },
+    { id: 'colunas',    icon: 'fa-table-columns', label: 'Colunas do Kanban' },
     { id: 'tipos',      icon: 'fa-tag',           label: 'Tipos de Conteúdo' },
     { id: 'servicos',   icon: 'fa-briefcase',     label: 'Serviços' },
     { id: 'aprovacao',    icon: 'fa-check-double',  label: 'Aprovação' },
@@ -58,6 +59,7 @@ function renderConfigSection() {
     case 'perfis':     return renderConfigPerfis();
     case 'permissoes': return renderConfigPermissoes();
     case 'funil':      return renderConfigFunil();
+    case 'colunas':    return renderConfigColunas();
     case 'tipos':      return renderConfigTipos();
     case 'servicos':   return renderConfigServicos();
     case 'aprovacao':    return renderConfigAprovacao();
@@ -1182,6 +1184,111 @@ function openResetPassModal(name, email) {
       <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
     </div>
   `);
+}
+
+/* ─── COLUNAS DO KANBAN ────────────────────── */
+
+let _cfgColunas = [];
+
+function renderConfigColunas() {
+  // Carrega assíncrono (renderConfigSection é síncrono).
+  setTimeout(loadConfigColunas, 0);
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <h3 style="margin:0">Colunas do Kanban</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">
+          Personalize as etapas do quadro de produção. Colunas de sistema
+          <i class="fas fa-lock" style="font-size:10px"></i> são usadas por integrações e não podem ser removidas.
+        </p>
+      </div>
+    </div>
+    <div id="cfg-colunas-list"><div class="loading-state" style="padding:30px 0"><i class="fas fa-spinner fa-spin"></i></div></div>
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-col" style="flex:1;min-width:180px">
+          <label>Nova coluna</label>
+          <input class="input-field" id="cfg-col-new-label" placeholder="Nome da etapa">
+        </div>
+        <div class="form-col" style="width:70px">
+          <label>Cor</label>
+          <input type="color" class="input-field" id="cfg-col-new-color" value="#8b5cf6" style="padding:4px;height:40px">
+        </div>
+        <button class="btn btn-primary" data-action="cfg-col-add"><i class="fas fa-plus"></i> Adicionar</button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadConfigColunas() {
+  if (!isSupabaseReady()) {
+    const el = document.getElementById('cfg-colunas-list');
+    if (el) el.innerHTML = `<div class="empty-state"><i class="fas fa-plug"></i><p>Disponível apenas com Supabase conectado.</p></div>`;
+    return;
+  }
+  const { data } = await DB.kanbanColumns.list();
+  _cfgColunas = data || [];
+  const el = document.getElementById('cfg-colunas-list');
+  if (!el) return;
+  el.innerHTML = _cfgColunas.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-secondary);border-radius:8px;margin-bottom:8px">
+      <span style="width:14px;height:14px;border-radius:4px;background:${c.color || '#64748b'};flex-shrink:0"></span>
+      <input class="input-field" style="flex:1" value="${(c.label || '').replace(/"/g, '&quot;')}"
+             ${c.is_system ? 'disabled' : ''}
+             onchange="saveKanbanColLabel('${c.id}', this.value)">
+      ${c.is_system ? '<span class="tag tag-gray" style="font-size:10px"><i class="fas fa-lock"></i> Sistema</span>' : ''}
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-ghost btn-sm" ${i === 0 ? 'disabled' : ''} data-action="cfg-col-up" data-id="${c.id}" title="Subir"><i class="fas fa-arrow-up"></i></button>
+        <button class="btn btn-ghost btn-sm" ${i === _cfgColunas.length - 1 ? 'disabled' : ''} data-action="cfg-col-down" data-id="${c.id}" title="Descer"><i class="fas fa-arrow-down"></i></button>
+        ${c.is_system ? '' : `<button class="btn btn-ghost btn-sm" data-action="cfg-col-del" data-id="${c.id}" title="Remover"><i class="fas fa-trash" style="color:var(--danger)"></i></button>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveKanbanColLabel(id, label) {
+  label = (label || '').trim();
+  if (!label) return;
+  await DB.kanbanColumns.update(id, { label });
+  showToast('Coluna atualizada.', 'success');
+}
+
+async function addKanbanColumn() {
+  const label = document.getElementById('cfg-col-new-label')?.value.trim();
+  const color = document.getElementById('cfg-col-new-color')?.value || '#8b5cf6';
+  if (!label) { showToast('Informe o nome da coluna.', 'warning'); return; }
+  if (_cfgColunas.some(c => c.key === label)) { showToast('Já existe uma coluna com esse nome.', 'error'); return; }
+  const position = (_cfgColunas.reduce((m, c) => Math.max(m, c.position || 0), 0)) + 1;
+  const { error } = await DB.kanbanColumns.create({ key: label, label, position, color, is_system: false });
+  if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+  showToast('✅ Coluna adicionada!', 'success');
+  loadConfigColunas();
+}
+
+async function deleteKanbanColumn(id) {
+  const col = _cfgColunas.find(c => c.id === id);
+  if (!col) return;
+  const tasks = await Data.tasks();
+  if (tasks.some(t => t.status === col.key)) {
+    showToast('Há cards nesta coluna. Mova-os antes de remover.', 'error');
+    return;
+  }
+  if (!confirm(`Remover a coluna "${col.label}"?`)) return;
+  await DB.kanbanColumns.remove(id);
+  showToast('Coluna removida.', 'info');
+  loadConfigColunas();
+}
+
+async function moveKanbanColumn(id, dir) {
+  const idx = _cfgColunas.findIndex(c => c.id === id);
+  const swap = idx + dir;
+  if (idx < 0 || swap < 0 || swap >= _cfgColunas.length) return;
+  const a = _cfgColunas[idx], b = _cfgColunas[swap];
+  await Promise.all([
+    DB.kanbanColumns.update(a.id, { position: b.position }),
+    DB.kanbanColumns.update(b.id, { position: a.position }),
+  ]);
+  loadConfigColunas();
 }
 
 Router.register('configuracoes', renderConfiguracoes, 'Configurações');

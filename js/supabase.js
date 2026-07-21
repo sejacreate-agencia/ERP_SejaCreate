@@ -286,7 +286,8 @@ const DB = {
       return SB.list('tasks', {
         select: `*, client:clients(id, name), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_initials),
                  task_checklists(id, text, done, sort_order),
-                 task_comments(id, text, created_at, user:profiles!task_comments_user_id_fkey(full_name, avatar_initials))`,
+                 task_comments(id, text, created_at, user:profiles!task_comments_user_id_fkey(full_name, avatar_initials)),
+                 task_attachments(id, file_url, file_name, file_type, kind, created_at)`,
         filters: sbFilters,
         order: { col: 'created_at', asc: false }
       });
@@ -345,9 +346,9 @@ const DB = {
 
   // ── TASK ATTACHMENTS ────────────────────
   taskAttachments: {
-    async add(taskId, fileUrl, fileName, fileType) {
+    async add(taskId, fileUrl, fileName, fileType, kind = 'arte') {
       return SB.insert('task_attachments', {
-        task_id: taskId, file_url: fileUrl, file_name: fileName, file_type: fileType
+        task_id: taskId, file_url: fileUrl, file_name: fileName, file_type: fileType, kind
       });
     },
     async list(taskId) {
@@ -357,6 +358,46 @@ const DB = {
       });
     },
     async remove(id) { return SB.remove('task_attachments', id); },
+  },
+
+  // ── KANBAN COLUMNS (colunas customizáveis) ──
+  kanbanColumns: {
+    async list() {
+      return SB.list('kanban_columns', {
+        filters: [{ op: 'eq', col: 'is_active', val: true }],
+        order: { col: 'position', asc: true }
+      });
+    },
+    async create(data) { return SB.insert('kanban_columns', data); },
+    async update(id, data) { return SB.update('kanban_columns', id, data); },
+    async remove(id) { return SB.remove('kanban_columns', id); },
+  },
+
+  // ── PLANEJAMENTOS (calendário editorial) ──
+  plannings: {
+    async list() {
+      return SB.list('marketing_plannings', {
+        select: '*, client:clients(id, name), assignee:profiles!marketing_plannings_assignee_id_fkey(id, full_name, avatar_initials)',
+        order: { col: 'planned_date', asc: true }
+      });
+    },
+    async get(id) { return SB.get('marketing_plannings', id); },
+    async create(data) { return SB.insert('marketing_plannings', data); },
+    async update(id, data) { return SB.update('marketing_plannings', id, data); },
+    async remove(id) { return SB.remove('marketing_plannings', id); },
+  },
+
+  // ── TASK STATUS HISTORY (movimentações) ──
+  taskStatusHistory: {
+    async listAll() {
+      return SB.list('task_status_history', { order: { col: 'changed_at', asc: true }, limit: 5000 });
+    },
+    async listByTask(taskId) {
+      return SB.list('task_status_history', {
+        filters: [{ op: 'eq', col: 'task_id', val: taskId }],
+        order: { col: 'changed_at', asc: true }
+      });
+    },
   },
 
   // ── APPROVALS ───────────────────────────
@@ -655,6 +696,28 @@ const Data = {
       if (!error) return data || [];
     }
     return SCAdapter.profiles();
+  },
+
+  // Planejamentos de conteúdo. Sem mock (feature nova, só Supabase).
+  async plannings() {
+    if (isSupabaseReady()) {
+      const { data, error } = await DB.plannings.list();
+      if (!error) return data || [];
+    }
+    return [];
+  },
+
+  // Colunas do Kanban (customizáveis). Fallback: SC.kanbanCols (mock/offline).
+  async kanbanColumns() {
+    if (isSupabaseReady()) {
+      const { data, error } = await DB.kanbanColumns.list();
+      if (!error && data?.length) return data;
+    }
+    const reserved = ['Enviado ao Cliente', 'Ajuste Solicitado', 'Aprovado', 'Programado', 'Publicado'];
+    return (SC.kanbanCols || []).map((key, i) => ({
+      id: `col-${i}`, key, label: key, position: i + 1,
+      color: '#64748b', is_system: reserved.includes(key), is_active: true
+    }));
   },
 
   async receivables() {

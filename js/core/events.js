@@ -106,18 +106,39 @@ const Actions = {
   'set-task-view':        el  => setTaskView(el.dataset.view),
   'open-card-modal':      el  => openCardModal(el.dataset.col || null),
   'clear-task-filters':   ()  => clearTaskFilters(),
-  'open-task-modal':      el  => openTaskModal(parseInt(el.dataset.id)),
+  'open-task-modal':      el  => openTaskModal(el.dataset.id),
   'save-new-card':        ()  => saveNewCard(),
-  'add-check-item':       el  => addCheckItem(parseInt(el.dataset.id)),
-  'add-comment':          el  => addComment(parseInt(el.dataset.id)),
-  'move-task':            el  => moveTask(parseInt(el.dataset.id)),
-  'send-to-client':       el  => sendToClient(parseInt(el.dataset.id)),
+  'add-check-item':       el  => addCheckItem(el.dataset.id),
+  'add-comment':          el  => addComment(el.dataset.id),
+  'move-task':            el  => moveTask(el.dataset.id),
+  'send-to-client':       el  => sendToClient(el.dataset.id),
   'send-approval-whatsapp': el => sendApprovalWhatsApp(el.dataset.id),
-  'approve-task':         el  => approveTask(parseInt(el.dataset.id)),
-  'request-adjust':       el  => requestAdjust(parseInt(el.dataset.id)),
-  'delete-task':          el  => deleteTask(parseInt(el.dataset.id)),
-  'upload-art-modal':     el  => uploadArtModal(parseInt(el.dataset.id)),
+  'approve-task':         el  => approveTask(el.dataset.id),
+  'request-adjust':       el  => requestAdjust(el.dataset.id),
+  'delete-task':          el  => deleteTask(el.dataset.id),
+  'upload-art-modal':     el  => uploadArtModal(el.dataset.id),
+  'add-art-link':         el  => addArtLinkModal(el.dataset.id),
+  'save-art-link':        el  => saveArtLink(el.dataset.id),
+  'del-art':              el  => deleteArt(el.dataset.id, el.dataset.task),
   'trigger-art-upload':   ()  => { const fi = document.getElementById('art-file-input'); if (fi) fi.click(); },
+
+  // ── SOLICITAR ARTES ───────────────────────
+  'sa-open-new':          ()  => openNewSolicitacaoModal(),
+  'sa-save':              ()  => saveNovaSolicitacao(),
+  'sa-clear-filters':     ()  => clearSaFilters(),
+
+  // ── DASHBOARD DE MARKETING ────────────────
+  'dm-export-pdf':        ()  => exportDmPdf(),
+  'dm-export-xlsx':       ()  => exportDmXlsx(),
+
+  // ── PLANEJAMENTOS ─────────────────────────
+  'pl-set-view':          el  => setPlView(el.dataset.view),
+  'pl-change-month':      el  => changePlMonth(parseInt(el.dataset.dir)),
+  'pl-open-new':          ()  => openPlanningModal(null),
+  'pl-open-edit':         el  => openPlanningModal(el.dataset.id),
+  'pl-save':              el  => savePlanning(el.dataset.id || null),
+  'pl-approve':           el  => approvePlanning(el.dataset.id),
+  'pl-delete':            el  => deletePlanning(el.dataset.id),
 
   // ── CONFIGURAÇÕES ─────────────────────────
   'switch-config-section':   el  => switchConfigSection(el.dataset.section),
@@ -139,6 +160,10 @@ const Actions = {
   'delete-servico':          el  => deleteServico(parseInt(el.dataset.idx)),
   'save-servico':            el  => saveServico(parseInt(el.dataset.idx)),
   'toggle-modelo-aprovacao': el  => toggleModeloAprovacao(parseInt(el.dataset.id)),
+  'cfg-col-add':             ()  => addKanbanColumn(),
+  'cfg-col-del':             el  => deleteKanbanColumn(el.dataset.id),
+  'cfg-col-up':              el  => moveKanbanColumn(el.dataset.id, -1),
+  'cfg-col-down':            el  => moveKanbanColumn(el.dataset.id, 1),
 
   // ── ÁREA DO CLIENTE ───────────────────────
   'set-client-tab':            el  => setClientTab(el.dataset.tab),

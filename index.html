@@ -14,6 +14,10 @@
   <!-- Tema: aplicar antes do render para evitar flash -->
   <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Exportação de relatórios (PDF / Excel) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Supabase SDK — carregado antes dos módulos JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -127,6 +131,12 @@
       </div>
       <div class="nav-section" id="nav-operacional">
         <span class="nav-section-title">Operacional</span>
+        <a class="nav-item" data-page="solicitar-artes" data-action="navigate" data-page="solicitar-artes">
+          <i class="fas fa-clipboard-list"></i><span>Solicitar Artes</span>
+        </a>
+        <a class="nav-item" data-page="planejamentos" data-action="navigate" data-page="planejamentos">
+          <i class="fas fa-calendar-plus"></i><span>Planejamentos</span>
+        </a>
         <a class="nav-item" data-page="tarefas" data-action="navigate" data-page="tarefas">
           <i class="fas fa-columns"></i><span>Gestão de Tarefas</span>
         </a>
@@ -160,6 +170,9 @@
       </div>
       <div class="nav-section" id="nav-relatorios">
         <span class="nav-section-title">Análise</span>
+        <a class="nav-item" data-page="dashboard-marketing" data-action="navigate" data-page="dashboard-marketing">
+          <i class="fas fa-bullhorn"></i><span>Dashboard de Marketing</span>
+        </a>
         <a class="nav-item" data-page="relatorios" data-action="navigate" data-page="relatorios">
           <i class="fas fa-chart-bar"></i><span>Relatórios</span>
         </a>
@@ -256,6 +269,9 @@
 <script src="js/crm.js"></script>
 <script src="js/cadastro.js"></script>
 <script src="js/tarefas.js"></script>
+<script src="js/solicitar-artes.js"></script>
+<script src="js/dashboard-marketing.js"></script>
+<script src="js/planejamentos.js"></script>
 <script src="js/calendario.js"></script>
 <script src="js/financeiro/index.js"></script>
 <script src="js/financeiro/visaoGeral.js"></script>

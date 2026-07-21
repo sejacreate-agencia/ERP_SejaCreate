@@ -6,6 +6,7 @@ let taskView = 'kanban';
 let taskFilters = { client: '', assignee: '', status: '', priority: '' };
 let draggedTaskId = null;
 let _taskData = [];
+let _kanbanCols = [];   // colunas dinâmicas (kanban_columns) carregadas do banco
 
 async function renderTarefas() {
   const pc = document.getElementById('page-content');
@@ -44,6 +45,7 @@ async function renderTarefas() {
 
   // Carrega dados
   _taskData = await Data.tasks();
+  _kanbanCols = await Data.kanbanColumns();
   const clients = await Data.clients();
   const profiles = await Data.profiles();
 
@@ -153,19 +155,24 @@ function renderTaskBoard() {
 
 function buildKanbanBoard() {
   const filtered = getFilteredTasks();
-  const cols = SC.kanbanCols.map(col => {
+  const colList = (_kanbanCols && _kanbanCols.length)
+    ? _kanbanCols
+    : (SC.kanbanCols || []).map((k, i) => ({ key: k, label: k, position: i + 1, color: getColColor(k) }));
+  const cols = colList.map(colObj => {
+    const col = colObj.key;
+    const label = colObj.label || col;
     const cards = filtered.filter(t => t.status === col);
-    const colColor = getColColor(col);
+    const colColor = colObj.color || getColColor(col);
     return `
       <div class="kanban-col" data-col="${col}">
         <div class="kanban-col-header" style="border-top:3px solid ${colColor}">
-          <div class="kanban-col-title" title="${col}">${col}</div>
+          <div class="kanban-col-title" title="${label}">${label}</div>
           <span class="kanban-col-count">${cards.length}</span>
         </div>
         <div class="kanban-col-body" data-col="${col}"
              ondragover="taskDragOver(event)"
              ondragleave="taskDragLeave(event)"
-             ondrop="taskDrop(event,'${col}')">
+             ondrop="taskDrop(event,'${col.replace(/'/g, "\\'")}')">
           ${cards.map(c => buildKanbanCard(c)).join('')}
           <button class="add-card-btn" data-action="open-card-modal" data-col="${col}">
             <i class="fas fa-plus"></i> Adicionar card
@@ -233,12 +240,16 @@ function buildKanbanCard(t) {
          ondragstart="taskDragStart(event,${JSON.stringify(t.id)})"
          ondragend="taskDragEnd(event)"
          data-action="open-task-modal">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:5px">
-        <div class="priority-dot p-${t.priority}"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="priority-dot p-${t.priority}"></div>
+          ${t.request_number ? `<span style="font-size:9px;font-weight:800;letter-spacing:.3px;color:var(--text-muted)">${t.request_number}</span>` : ''}
+        </div>
         ${overdue ? `<span style="font-size:9px;background:var(--danger-subtle);color:var(--danger);padding:1px 6px;border-radius:8px;font-weight:700">VENCIDO</span>` : ''}
       </div>
       <div class="kanban-card-title">${t.title}</div>
       <div class="kanban-card-client"><i class="fas fa-building" style="font-size:9px;margin-right:3px"></i>${clientName}</div>
+      ${t.origin === 'planejamento' ? `<div style="font-size:9px;color:var(--purple-light);margin-top:3px"><i class="fas fa-calendar-check" style="margin-right:3px"></i>Origem: Planejamento</div>` : ''}
       <div class="kanban-card-footer">
         <div class="kanban-card-date">
           <i class="fas fa-calendar" style="${overdue?'color:var(--danger)':''}"></i>
@@ -404,7 +415,8 @@ async function openCardModal(stage = 'Pauta') {
 
   const clientOpts = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   const empOpts = profiles.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
-  const stageOpts = SC.kanbanCols.map(s => `<option value="${s}" ${s === stage ? 'selected' : ''}>${s}</option>`).join('');
+  const _colKeys = (_kanbanCols && _kanbanCols.length) ? _kanbanCols.map(c => c.key) : (SC.kanbanCols || []);
+  const stageOpts = _colKeys.map(s => `<option value="${s}" ${s === stage ? 'selected' : ''}>${s}</option>`).join('');
 
   openModal(`
     <div class="modal-header">
@@ -539,7 +551,8 @@ async function openTaskModal(id) {
   if (t.client && typeof t.client === 'object') clientName = t.client.name || 'N/A';
   else clientName = SC.getClientName(t.client_id || t.client) || 'N/A';
 
-  const stageOpts = SC.kanbanCols.map(s => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${s}</option>`).join('');
+  const _colKeys2 = (_kanbanCols && _kanbanCols.length) ? _kanbanCols.map(c => c.key) : (SC.kanbanCols || []);
+  const stageOpts = _colKeys2.map(s => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${s}</option>`).join('');
   const checklists = t.task_checklists || t.checklist || [];
   const comments = t.task_comments || t.comments || [];
   const attachments = t.task_attachments || [];
@@ -570,20 +583,26 @@ async function openTaskModal(id) {
     </div>`;
   }).join('');
 
+  const _isImg = (a) => a.file_type?.startsWith('image/') || a.file_url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+  const _isDrive = (a) => /drive\.google|docs\.google/.test(a.file_url || '');
   const artHtml = (attachments.length > 0)
     ? attachments.map(a => `
-        <div style="background:var(--bg-input);border-radius:8px;overflow:hidden;margin-bottom:6px">
-          ${a.file_type?.startsWith('image/') || a.file_url?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
-            ? `<img src="${a.file_url}" alt="${a.file_name}" style="width:100%;max-height:200px;object-fit:cover">`
+        <div style="background:var(--bg-input);border-radius:8px;overflow:hidden;margin-bottom:6px;position:relative">
+          <button data-action="del-art" data-id="${a.id}" data-task="${id}" title="Remover"
+            style="position:absolute;top:6px;right:6px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px">&times;</button>
+          ${_isImg(a)
+            ? `<a href="${a.file_url}" target="_blank"><img src="${a.file_url}" alt="${a.file_name || 'arte'}" style="width:100%;max-height:200px;object-fit:cover;display:block"></a>`
             : `<div style="padding:12px;display:flex;align-items:center;gap:8px;font-size:12px">
-                 <i class="fas fa-file" style="color:var(--purple-light)"></i>
-                 <a href="${a.file_url}" target="_blank" style="color:var(--purple-light)">${a.file_name}</a>
+                 <i class="${_isDrive(a) ? 'fab fa-google-drive' : 'fas fa-file'}" style="color:var(--purple-light);font-size:16px"></i>
+                 <a href="${a.file_url}" target="_blank" style="color:var(--purple-light);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.file_name || (_isDrive(a) ? 'Abrir no Drive' : 'Abrir link')}</a>
+                 <i class="fas fa-external-link-alt" style="color:var(--text-muted);font-size:11px"></i>
                </div>`
           }
         </div>`).join('')
-    : `<div style="background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer" data-action="upload-art-modal" data-id="${id}">
-        <i class="fas fa-image" style="font-size:24px;color:var(--text-muted)"></i>
-        <span style="font-size:12px;color:var(--text-muted)">Clique para fazer upload da arte</span>
+    : `<div style="background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <i class="fas fa-image" style="font-size:22px;color:var(--text-muted)"></i>
+        <span style="font-size:12px;color:var(--text-muted)">Sem arte ainda</span>
+        <span style="font-size:11px;color:var(--text-muted)">Use <b>Upload</b> ou <b>Link do Drive</b> acima</span>
       </div>`;
 
   openModal(`
@@ -610,7 +629,10 @@ async function openTaskModal(id) {
           <div style="margin-bottom:16px">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase">
               Arte / Anexos
-              ${isSupabaseReady() ? `<button class="btn btn-sm btn-ghost" data-action="upload-art-modal" data-id="${id}" style="font-size:11px;margin-left:8px"><i class="fas fa-upload"></i> Upload</button>` : ''}
+              ${isSupabaseReady() ? `
+                <button class="btn btn-sm btn-ghost" data-action="upload-art-modal" data-id="${id}" style="font-size:11px;margin-left:8px"><i class="fas fa-upload"></i> Upload</button>
+                <button class="btn btn-sm btn-ghost" data-action="add-art-link" data-id="${id}" style="font-size:11px"><i class="fas fa-link"></i> Link do Drive</button>
+              ` : ''}
             </div>
             ${artHtml}
           </div>
@@ -674,6 +696,9 @@ async function openTaskModal(id) {
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:700;text-transform:uppercase">Ações Rápidas</div>
             <button class="btn btn-secondary btn-sm" style="width:100%" data-action="send-to-client" data-id="${id}">
               <i class="fas fa-share"></i> Enviar ao Cliente
+            </button>
+            <button class="btn btn-sm" style="width:100%;background:#25D366;color:#fff;border-color:#1da851" data-action="send-approval-whatsapp" data-id="${id}">
+              <i class="fab fa-whatsapp"></i> Enviar p/ aprovação (WhatsApp)
             </button>
             <button class="btn btn-success btn-sm" style="width:100%" data-action="approve-task" data-id="${id}">
               <i class="fas fa-check"></i> Aprovar
@@ -822,6 +847,63 @@ async function sendToClient(id) {
   await _changeTaskStatus(id, 'Enviado ao Cliente', '📤 Card enviado ao cliente!', 'success');
 }
 
+// Envia o conteúdo para aprovação do cliente via WhatsApp (Cloud API).
+// O cliente aprova / pede ajuste dentro da própria conversa.
+// Requer Supabase conectado, arte enviada (art_url) e telefone do cliente.
+async function sendApprovalWhatsApp(id) {
+  if (!isSupabaseReady()) {
+    showToast('Disponível apenas na versão conectada ao Supabase.', 'warning');
+    return;
+  }
+
+  const t = _taskData?.find(x => String(x.id) === String(id))
+        || SC.tasks.find(x => String(x.id) === String(id));
+  if (!t) return;
+
+  if (!t.art_url) {
+    showToast('Envie a arte do conteúdo antes de mandar para aprovação.', 'warning');
+    return;
+  }
+
+  const btn = event?.target?.closest('button');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+  const resetBtn = () => { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-whatsapp"></i> Enviar p/ aprovação (WhatsApp)'; } };
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke('wa-send', {
+      body: { task_id: id },
+    });
+
+    if (error || data?.error) {
+      const code = data?.error || error?.message || 'erro';
+      const msgs = {
+        client_phone_missing: 'O cliente não tem telefone cadastrado.',
+        art_url_missing: 'Envie a arte do conteúdo antes de mandar para aprovação.',
+        task_not_found: 'Tarefa não encontrada no banco.',
+        unauthorized: 'Sessão expirada. Faça login novamente.',
+        whatsapp_send_failed: 'Falha ao enviar pelo WhatsApp. Verifique a configuração da API.',
+      };
+      showToast(`Erro: ${msgs[code] || code}`, 'error');
+      resetBtn();
+      return;
+    }
+
+    // Reflete o novo status localmente (mesmo do fluxo web)
+    t.status = 'Enviado ao Cliente';
+    if (typeof _taskData !== 'undefined') {
+      const td = _taskData.find(x => String(x.id) === String(id));
+      if (td) td.status = 'Enviado ao Cliente';
+    }
+
+    showToast('✅ Enviado para aprovação no WhatsApp!', 'success');
+    closeModal();
+    renderTaskBoard();
+  } catch (e) {
+    showToast(`Erro inesperado: ${e.message || e}`, 'error');
+    resetBtn();
+  }
+}
+
 async function approveTask(id) {
   await _changeTaskStatus(id, 'Aprovado', '✅ Card aprovado!', 'success');
 }
@@ -915,7 +997,10 @@ async function handleArtUpload(taskId, input) {
     return;
   }
 
-  await DB.taskAttachments.add(taskId, url, file.name, file.type);
+  const { data: att } = await DB.taskAttachments.add(taskId, url, file.name, file.type, 'arte');
+  const tUp = _taskData.find(x => String(x.id) === String(taskId));
+  if (tUp && !tUp.art_url) await DB.tasks.update(taskId, { art_url: url });
+  _reflectAttachment(taskId, att || { id: `tmp-${Date.now()}`, file_url: url, file_name: file.name, file_type: file.type, kind: 'arte' }, url);
   if (status) status.textContent = 'Upload concluído!';
   showToast('Arte enviada com sucesso!', 'success');
 
@@ -923,6 +1008,75 @@ async function handleArtUpload(taskId, input) {
     closeModal();
     openTaskModal(taskId);
   }, 800);
+}
+
+// Atualiza o card em memória com o novo anexo (evita recarregar o board inteiro)
+function _reflectAttachment(taskId, att, artUrl) {
+  const t = _taskData.find(x => String(x.id) === String(taskId));
+  if (!t) return;
+  t.task_attachments = t.task_attachments || [];
+  if (att) t.task_attachments.push(att);
+  if (artUrl && !t.art_url) t.art_url = artUrl;
+}
+
+// Adicionar arte por LINK (Google Drive, etc.) — não depende de upload/bucket
+function addArtLinkModal(taskId) {
+  if (!isSupabaseReady()) { showToast('Disponível com Supabase configurado', 'info'); return; }
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title"><i class="fab fa-google-drive" style="color:var(--purple-light);margin-right:8px"></i>Link da Arte (Drive, etc.)</span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-col full">
+        <label>URL *</label>
+        <input class="input-field" id="art-link-url" placeholder="https://drive.google.com/...">
+      </div></div>
+      <div class="form-row"><div class="form-col full">
+        <label>Nome (opcional)</label>
+        <input class="input-field" id="art-link-name" placeholder="Ex.: Arte final - carrossel">
+      </div></div>
+      <p style="font-size:12px;color:var(--text-muted)"><i class="fas fa-info-circle"></i> Cole o link compartilhável do Google Drive (ou qualquer URL da arte).</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" id="art-link-save" data-action="save-art-link" data-id="${taskId}"><i class="fas fa-link"></i> Adicionar Link</button>
+    </div>
+  `);
+}
+
+async function saveArtLink(taskId) {
+  const url = document.getElementById('art-link-url')?.value.trim();
+  const name = document.getElementById('art-link-name')?.value.trim();
+  if (!url) { showToast('Cole a URL da arte.', 'warning'); return; }
+  if (!/^https?:\/\//i.test(url)) { showToast('URL inválida (comece com http).', 'error'); return; }
+
+  const btn = document.getElementById('art-link-save');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const label = name || (/drive\.google|docs\.google/.test(url) ? 'Link do Drive' : 'Link da arte');
+  const { data, error } = await DB.taskAttachments.add(taskId, url, label, 'uri', 'link');
+  if (error) {
+    showToast(`Erro: ${error.message}`, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-link"></i> Adicionar Link'; }
+    return;
+  }
+  const t = _taskData.find(x => String(x.id) === String(taskId));
+  if (t && !t.art_url) await DB.tasks.update(taskId, { art_url: url });
+  _reflectAttachment(taskId, data || { id: `tmp-${Date.now()}`, file_url: url, file_name: label, kind: 'link' }, url);
+
+  closeModal();
+  showToast('✅ Link adicionado!', 'success');
+  openTaskModal(taskId);
+}
+
+async function deleteArt(attId, taskId) {
+  if (!confirm('Remover este anexo?')) return;
+  await DB.taskAttachments.remove(attId);
+  const t = _taskData.find(x => String(x.id) === String(taskId));
+  if (t && t.task_attachments) t.task_attachments = t.task_attachments.filter(a => String(a.id) !== String(attId));
+  showToast('Anexo removido.', 'info');
+  openTaskModal(taskId);
 }
 
 Router.register('tarefas', renderTarefas, 'Gestão de Tarefas');
