@@ -131,6 +131,16 @@ const Actions = {
   'dm-export-pdf':        ()  => exportDmPdf(),
   'dm-export-xlsx':       ()  => exportDmXlsx(),
 
+  // ── ONBOARDING / WORKSPACE DO CLIENTE ─────
+  'ob-open':              el  => openClientWorkspace(el.dataset.id),
+  'ws-tab':               el  => wsSwitchTab(el.dataset.tab),
+  'ws-save-briefing':     ()  => saveBriefing(),
+  'ws-add-note':          ()  => wsAddNote(),
+  'ws-del-note':          el  => wsDelNote(el.dataset.id),
+  'ws-add-link':          el  => wsAddLink(el.dataset.kind),
+  'ws-del-link':          el  => wsDelLink(el.dataset.id),
+  'ws-del-file':          el  => wsDelFile(el.dataset.id),
+
   // ── PLANEJAMENTOS ─────────────────────────
   'pl-set-view':          el  => setPlView(el.dataset.view),
   'pl-change-month':      el  => changePlMonth(parseInt(el.dataset.dir)),

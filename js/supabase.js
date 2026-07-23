@@ -373,6 +373,62 @@ const DB = {
     async remove(id) { return SB.remove('kanban_columns', id); },
   },
 
+  // ── CLIENTE: ONBOARDING (checklist) ──
+  clientOnboarding: {
+    async get(clientId) {
+      const { data } = await SB.list('client_onboarding', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }], limit: 1
+      });
+      return (data && data[0]) || null;
+    },
+    async listAll() { return SB.list('client_onboarding', { limit: 2000 }); },
+    async create(clientId, steps) { return SB.insert('client_onboarding', { client_id: clientId, steps }); },
+    async save(id, steps) { return SB.update('client_onboarding', id, { steps }); },
+  },
+
+  // ── CLIENTE: ANOTAÇÕES ──
+  clientNotes: {
+    async listByClient(clientId) {
+      return SB.list('client_notes', {
+        select: '*, author:profiles!client_notes_created_by_fkey(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(data) { return SB.insert('client_notes', data); },
+    async update(id, data) { return SB.update('client_notes', id, data); },
+    async remove(id) { return SB.remove('client_notes', id); },
+  },
+
+  // ── CLIENTE: LINKS IMPORTANTES ──
+  clientLinks: {
+    async listByClient(clientId) {
+      return SB.list('client_links', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(data) { return SB.insert('client_links', data); },
+    async remove(id) { return SB.remove('client_links', id); },
+  },
+
+  // ── CLIENTE: ANEXOS ──
+  clientAttachments: {
+    async listByClient(clientId) {
+      return SB.list('client_attachments', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async add(clientId, fileUrl, fileName, fileType, kind, uploadedBy) {
+      return SB.insert('client_attachments', {
+        client_id: clientId, file_url: fileUrl, file_name: fileName,
+        file_type: fileType, kind, uploaded_by: uploadedBy || null
+      });
+    },
+    async remove(id) { return SB.remove('client_attachments', id); },
+  },
+
   // ── PLANEJAMENTOS (calendário editorial) ──
   plannings: {
     async list() {
