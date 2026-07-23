@@ -162,28 +162,39 @@ function wsRenderTab() {
   el.innerHTML = { onboarding: wsOnboardingHtml, dados: wsDadosHtml, notas: wsNotesHtml, links: wsLinksHtml }[_wsTab]();
 }
 
-// ── ABA: ONBOARDING ──
+// ── ABA: ONBOARDING (timeline com checkpoints) ──
 function wsOnboardingHtml() {
   const done = _wsData.steps.filter(s => s.done).length;
   const pct = Math.round((done / OB_STEPS.length) * 100);
+  const last = _wsData.steps.length - 1;
   return `
-    <div style="margin-bottom:14px">
+    <div style="margin-bottom:18px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
         <span style="font-weight:700">Progresso do onboarding</span>
-        <span style="font-weight:700">${done}/${OB_STEPS.length}</span>
+        <span style="font-weight:700;${done === OB_STEPS.length ? 'color:var(--success)' : ''}">${done}/${OB_STEPS.length}${done === OB_STEPS.length ? ' ✓' : ''}</span>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;${done === OB_STEPS.length ? 'background:var(--success)' : ''}"></div></div>
     </div>
-    ${_wsData.steps.map((s, i) => `
-      <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border-light)">
-        <input type="checkbox" id="ob-step-${i}" ${s.done ? 'checked' : ''} onchange="toggleObStep(${i}, this.checked)" style="margin-top:3px;width:18px;height:18px;cursor:pointer">
-        <div style="flex:1">
-          <label for="ob-step-${i}" style="font-size:13px;font-weight:600;cursor:pointer;${s.done ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${s.label}</label>
-          ${s.done && s.done_at ? `<span style="font-size:11px;color:var(--success);margin-left:8px"><i class="fas fa-check"></i> ${formatDateBR(s.done_at)}</span>` : ''}
-          <input class="input-field" style="margin-top:6px;font-size:12px" placeholder="Anotação da etapa (opcional)" value="${(s.note || '').replace(/"/g, '&quot;')}" onchange="saveObNote(${i}, this.value)">
-        </div>
-      </div>
-    `).join('')}
+    <div style="padding:4px 0">
+      ${_wsData.steps.map((s, i) => {
+        const doneColor = s.done ? 'var(--success)' : 'var(--border)';
+        return `
+        <div style="position:relative;padding-left:38px;padding-bottom:${i === last ? '4' : '20'}px">
+          ${i < last ? `<div style="position:absolute;left:12px;top:26px;bottom:0;width:2px;background:${s.done && _wsData.steps[i + 1].done ? 'var(--success)' : 'var(--border)'}"></div>` : ''}
+          <div onclick="toggleObStep(${i}, ${!s.done})" title="${s.done ? 'Desmarcar' : 'Marcar como concluída'}"
+               style="position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;border:2px solid ${doneColor};background:${s.done ? 'var(--success)' : 'var(--bg-input)'};color:${s.done ? '#fff' : 'var(--text-muted)'};font-size:12px;font-weight:700;transition:all .15s">
+            ${s.done ? '<i class="fas fa-check"></i>' : (i + 1)}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;${s.done ? 'color:var(--text-muted)' : ''}">
+              ${s.label}
+              ${s.done && s.done_at ? `<span style="font-size:11px;color:var(--success);font-weight:400;margin-left:6px"><i class="fas fa-calendar-check"></i> ${formatDateBR(s.done_at)}</span>` : ''}
+            </div>
+            <input class="input-field" style="margin-top:6px;font-size:12px" placeholder="Anotação (opcional)" value="${(s.note || '').replace(/"/g, '&quot;')}" onchange="saveObNote(${i}, this.value)">
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
   `;
 }
 

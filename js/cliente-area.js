@@ -4,7 +4,17 @@
 
 let clientTab = 'aprovacao';
 let clientCalView = 'mensal';
-let clientCalDate = new Date(2025, 2, 1); // Março 2025
+let clientCalDate = new Date(); // mês corrente
+
+// Resolve o cliente vinculado ao usuário logado (client_id oficial; fallback e-mail/nome)
+function _resolveClientLink(u) {
+  if (!u) return null;
+  if (u.client_id) {
+    const byId = SC.clients.find(c => String(c.id) === String(u.client_id));
+    if (byId) return byId;
+  }
+  return SC.clients.find(c => c.email === u.email || c.resp === u.name) || null;
+}
 
 function renderClienteArea() {
   // Se o usuário logado é cliente, filtra pelo cliente vinculado
@@ -74,8 +84,8 @@ function renderClientAprovacao() {
 
   // Se for cliente, filtrar pelo cliente vinculado
   if (u?.role === 'cliente') {
-    const clientLink = SC.clients.find(c => c.email === u.email || c.resp === u.name);
-    if (clientLink) tasks = tasks.filter(t => t.client === clientLink.id);
+    const clientLink = _resolveClientLink(u);
+    if (clientLink) tasks = tasks.filter(t => String(t.client_id ?? (t.client && t.client.id) ?? t.client) === String(clientLink.id));
   }
 
   const pendentes = tasks.filter(t => t.status === 'Enviado ao Cliente');
@@ -465,8 +475,8 @@ function renderClientCalendario() {
   let tasks = SC.tasks.filter(t => t.postDate && ['Aprovado','Programado','Publicado','Enviado ao Cliente'].includes(t.status));
 
   if (u?.role === 'cliente') {
-    const clientLink = SC.clients.find(c => c.email === u.email || c.resp === u.name);
-    if (clientLink) tasks = tasks.filter(t => t.client === clientLink.id);
+    const clientLink = _resolveClientLink(u);
+    if (clientLink) tasks = tasks.filter(t => String(t.client_id ?? (t.client && t.client.id) ?? t.client) === String(clientLink.id));
   }
 
   const header = `
@@ -698,8 +708,8 @@ function renderClientHistorico() {
   let tasks = SC.tasks.filter(t => ['Aprovado','Programado','Publicado','Ajuste Solicitado'].includes(t.status));
 
   if (u?.role === 'cliente') {
-    const clientLink = SC.clients.find(c => c.email === u.email || c.resp === u.name);
-    if (clientLink) tasks = tasks.filter(t => t.client === clientLink.id);
+    const clientLink = _resolveClientLink(u);
+    if (clientLink) tasks = tasks.filter(t => String(t.client_id ?? (t.client && t.client.id) ?? t.client) === String(clientLink.id));
   }
 
   const sorted = [...tasks].sort((a,b) => (b.postDate||'').localeCompare(a.postDate||''));

@@ -141,9 +141,9 @@ function buildPlTable() {
                 <td>${_plProdTag(p.production_status)}</td>
                 <td>${_plApprTag(p.approval_status)}</td>
                 <td style="white-space:nowrap" onclick="event.stopPropagation()">
-                  ${p.approval_status !== 'Aprovado'
-                    ? `<button class="btn btn-success btn-sm" data-action="pl-approve" data-id="${p.id}" title="Aprovar e gerar card"><i class="fas fa-check"></i></button>`
-                    : `<span class="tag tag-green" style="font-size:10px"><i class="fas fa-arrow-right"></i> Card gerado</span>`}
+                  ${(p.production_status === 'Em Produção' || p.production_status === 'Produzido')
+                    ? `<span class="tag tag-green" style="font-size:10px"><i class="fas fa-arrow-right"></i> Em produção</span>`
+                    : `<button class="btn btn-primary btn-sm" data-action="pl-approve" data-id="${p.id}" title="Enviar para produção"><i class="fas fa-paper-plane"></i> Produção</button>`}
                 </td>
               </tr>`;
           }).join('')}
@@ -287,13 +287,14 @@ async function deletePlanning(id) {
   await renderPlanejamentos();
 }
 
-// Aprovar → marca aprovado e gera card no Kanban
+// Enviar para produção → gera card no Kanban na coluna "Solicitado"
 async function approvePlanning(id) {
   const p = _plData.find(x => String(x.id) === String(id));
   if (!p) return;
 
+  // Alvo: coluna "Solicitado" (fallback: primeira coluna)
   const cols = await Data.kanbanColumns();
-  const firstCol = cols[0]?.key || 'Pauta';
+  const targetCol = cols.some(c => c.key === 'Solicitado') ? 'Solicitado' : (cols[0]?.key || 'Pauta');
 
   const { error: taskErr } = await DB.tasks.create({
     title: p.title,
@@ -302,18 +303,19 @@ async function approvePlanning(id) {
     assignee_id: p.assignee_id || null,
     art_type: p.format || null,
     content_type: p.format || 'Post Estático',
+    channels: p.channels || [],
     deadline: p.planned_date,
     post_date: p.planned_date,
-    status: firstCol,
+    status: targetCol,
     priority: _plPriorityFromDeadline(p.planned_date),
     origin: 'planejamento',
     planning_id: p.id,
   });
   if (taskErr) { showToast(`Erro ao gerar card: ${taskErr.message}`, 'error'); return; }
 
-  await DB.plannings.update(id, { approval_status: 'Aprovado' });
-  await logActivity('planning.approved', 'planning', id, JSON.stringify({ title: p.title }));
-  showToast('✅ Aprovado! Card gerado no Kanban.', 'success');
+  await DB.plannings.update(id, { production_status: 'Em Produção' });
+  await logActivity('planning.to_production', 'planning', id, JSON.stringify({ title: p.title }));
+  showToast('🚀 Enviado para produção! Card criado em "Solicitado".', 'success');
   await renderPlanejamentos();
 }
 

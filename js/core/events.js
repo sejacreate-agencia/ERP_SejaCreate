@@ -28,6 +28,8 @@ const Actions = {
 
   // ── AVISOS ────────────────────────────────
   'refresh-avisos':       ()  => renderAvisos(),
+  'notif-open':           el  => openNotification(el.dataset.id, el.dataset.task),
+  'notif-mark-all':       ()  => markAllNotifications(),
   'resolve-aviso':        el  => resolveAviso(parseInt(el.dataset.id)),
   'snooze-aviso':         el  => snoozeAviso(parseInt(el.dataset.id)),
 
@@ -120,12 +122,9 @@ const Actions = {
   'add-art-link':         el  => addArtLinkModal(el.dataset.id),
   'save-art-link':        el  => saveArtLink(el.dataset.id),
   'del-art':              el  => deleteArt(el.dataset.id, el.dataset.task),
+  'save-post-info':       el  => saveTaskPostInfo(el.dataset.id),
+  'add-task-link':        el  => addTaskLink(el.dataset.id),
   'trigger-art-upload':   ()  => { const fi = document.getElementById('art-file-input'); if (fi) fi.click(); },
-
-  // ── SOLICITAR ARTES ───────────────────────
-  'sa-open-new':          ()  => openNewSolicitacaoModal(),
-  'sa-save':              ()  => saveNovaSolicitacao(),
-  'sa-clear-filters':     ()  => clearSaFilters(),
 
   // ── DASHBOARD DE MARKETING ────────────────
   'dm-export-pdf':        ()  => exportDmPdf(),

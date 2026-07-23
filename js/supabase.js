@@ -450,9 +450,60 @@ const DB = {
     },
     async listByTask(taskId) {
       return SB.list('task_status_history', {
+        select: '*, changer:profiles!task_status_history_changed_by_fkey(full_name, avatar_initials)',
         filters: [{ op: 'eq', col: 'task_id', val: taskId }],
         order: { col: 'changed_at', asc: true }
       });
+    },
+  },
+
+  // ── TASK ASSIGNMENT HISTORY (atribuições) ──
+  taskAssignmentHistory: {
+    async listByTask(taskId) {
+      return SB.list('task_assignment_history', {
+        select: '*, to_user:profiles!task_assignment_history_to_assignee_fkey(full_name), changer:profiles!task_assignment_history_changed_by_fkey(full_name)',
+        filters: [{ op: 'eq', col: 'task_id', val: taskId }],
+        order: { col: 'changed_at', asc: true }
+      });
+    },
+  },
+
+  // ── TASK LINKS (links relacionados) ──
+  taskLinks: {
+    async listByTask(taskId) {
+      return SB.list('task_links', {
+        filters: [{ op: 'eq', col: 'task_id', val: taskId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(data) { return SB.insert('task_links', data); },
+    async remove(id) { return SB.remove('task_links', id); },
+  },
+
+  // ── NOTIFICATIONS (sino / @menção) ──
+  notifications: {
+    async listForUser(uid) {
+      return SB.list('notifications', {
+        select: '*, actor:profiles!notifications_actor_id_fkey(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'recipient_id', val: uid }],
+        order: { col: 'created_at', asc: false },
+        limit: 50
+      });
+    },
+    async unreadCount(uid) {
+      if (!isSupabaseReady()) return { count: 0 };
+      const { count, error } = await supabaseClient
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', uid).eq('read', false);
+      return { count: count || 0, error };
+    },
+    async create(data) { return SB.insert('notifications', data); },
+    async markRead(id) { return SB.update('notifications', id, { read: true }); },
+    async markAllRead(uid) {
+      if (!isSupabaseReady()) return {};
+      return supabaseClient.from('notifications').update({ read: true })
+        .eq('recipient_id', uid).eq('read', false);
     },
   },
 

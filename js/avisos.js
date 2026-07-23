@@ -90,6 +90,9 @@ function renderAvisos() {
       </div>
     </div>
 
+    <!-- MENÇÕES / NOTIFICAÇÕES -->
+    <div id="mentions-panel" style="margin-bottom:20px"></div>
+
     <!-- SUMMARY CHIPS -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
       <div class="tag tag-red" style="padding:8px 14px;font-size:13px">
@@ -126,6 +129,44 @@ function renderAvisos() {
       ${renderAvisosList(SC.avisos)}
     </div>
   `;
+
+  loadMentionsPanel();
+}
+
+// Painel de menções (@) do usuário logado
+async function loadMentionsPanel() {
+  const el = document.getElementById('mentions-panel');
+  if (!el || typeof NotificationService === 'undefined') return;
+  const items = await NotificationService.listMentions();
+  if (!items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-at" style="color:var(--purple-light);margin-right:8px"></i>Menções (${items.filter(i=>!i.read).length} não lidas)</span>
+        <button class="btn btn-ghost btn-sm" data-action="notif-mark-all"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>
+      </div>
+      ${items.map(n => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light);${n.read ? 'opacity:.6' : ''}">
+          <div class="avatar-sm">${(n.actor?.avatar_initials) || '@'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px">${(n.text || 'Você foi mencionado').replace(/</g,'&lt;')}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${formatDateBR(n.created_at) || ''}</div>
+          </div>
+          ${n.task_id ? `<button class="btn btn-secondary btn-sm" data-action="notif-open" data-id="${n.id}" data-task="${n.task_id}">Abrir card</button>` : ''}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+async function openNotification(notifId, taskId) {
+  if (typeof NotificationService !== 'undefined') { await DB.notifications.markRead(notifId); NotificationService.refreshBadge(); }
+  // openTaskModal recarrega _taskData sozinho se o card não estiver em memória
+  if (typeof openTaskModal === 'function') openTaskModal(taskId);
+}
+
+async function markAllNotifications() {
+  if (typeof NotificationService !== 'undefined') NotificationService.markAllRead();
+  loadMentionsPanel();
 }
 
 function renderAvisosList(avisos) {
