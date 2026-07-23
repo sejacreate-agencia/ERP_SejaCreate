@@ -31,8 +31,8 @@ async function renderOnboarding() {
     <div class="page-header">
       <div class="page-header-row">
         <div>
-          <h1 class="page-title">Onboarding</h1>
-          <p class="page-subtitle">Central de cada cliente — checklist, briefing, anotações e links</p>
+          <h1 class="page-title">Dossiê do Cliente</h1>
+          <p class="page-subtitle">Central de cada cliente — onboarding, briefing, anotações e links</p>
         </div>
         <div class="page-actions">
           <input class="filter-select" id="ob-search" placeholder="🔍 Buscar cliente..." style="min-width:220px" oninput="applyObSearch()" value="${_obSearch}">
@@ -402,4 +402,4 @@ async function wsDelFile(id) {
   await wsReload();
 }
 
-Router.register('onboarding', renderOnboarding, 'Onboarding');
+Router.register('onboarding', renderOnboarding, 'Dossiê do Cliente');
