@@ -690,7 +690,7 @@ async function openTaskModal(id) {
             <div style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap">${_escapeHtml(t.text) || '—'}</div>
           </div>
 
-          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px" open>
+          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
             <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">📣 Informações de postagem</summary>
             <div style="margin-top:10px">
               <div class="form-row">
@@ -722,28 +722,30 @@ async function openTaskModal(id) {
             ${artHtml}
           </div>
 
-          <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase">Links relacionados</div>
-            <div id="task-links-${id}">${_taskLinksHtml(t, id)}</div>
-            <div style="display:flex;gap:6px;margin-top:8px">
-              <input class="input-field" id="new-link-label-${id}" placeholder="Rótulo" style="width:110px">
-              <input class="input-field" id="new-link-url-${id}" placeholder="https://..." style="flex:1">
-              <button class="btn btn-secondary btn-sm" data-action="add-task-link" data-id="${id}"><i class="fas fa-plus"></i></button>
+          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
+            <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">🔗 Links relacionados</summary>
+            <div style="margin-top:10px">
+              <div id="task-links-${id}">${_taskLinksHtml(t, id)}</div>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <input class="input-field" id="new-link-label-${id}" placeholder="Rótulo" style="width:110px">
+                <input class="input-field" id="new-link-url-${id}" placeholder="https://..." style="flex:1">
+                <button class="btn btn-secondary btn-sm" data-action="add-task-link" data-id="${id}"><i class="fas fa-plus"></i></button>
+              </div>
             </div>
-          </div>
+          </details>
 
-          <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:700;text-transform:uppercase">
-              Checklist (${checklists.filter(c=>c.done).length}/${checklists.length})
+          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
+            <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">✅ Checklist (${checklists.filter(c=>c.done).length}/${checklists.length})</summary>
+            <div style="margin-top:10px">
+              <div id="checklist-${id}">
+                ${checklistHtml || '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nenhum item no checklist</div>'}
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <input class="input-field" id="new-check-${id}" placeholder="Novo item..." style="flex:1" onkeyup="if(event.key==='Enter')addCheckItem(${JSON.stringify(id)})" />
+                <button class="btn btn-secondary btn-sm" data-action="add-check-item" data-id="${id}"><i class="fas fa-plus"></i></button>
+              </div>
             </div>
-            <div id="checklist-${id}">
-              ${checklistHtml || '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nenhum item no checklist</div>'}
-            </div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <input class="input-field" id="new-check-${id}" placeholder="Novo item..." style="flex:1" onkeyup="if(event.key==='Enter')addCheckItem(${JSON.stringify(id)})" />
-              <button class="btn btn-secondary btn-sm" data-action="add-check-item" data-id="${id}"><i class="fas fa-plus"></i></button>
-            </div>
-          </div>
+          </details>
 
           <div style="margin-bottom:16px">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:700;text-transform:uppercase">Comentários (${comments.length})</div>
