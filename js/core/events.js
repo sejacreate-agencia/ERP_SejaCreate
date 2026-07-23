@@ -124,6 +124,11 @@ const Actions = {
   'del-art':              el  => deleteArt(el.dataset.id, el.dataset.task),
   'save-post-info':       el  => saveTaskPostInfo(el.dataset.id),
   'add-task-link':        el  => addTaskLink(el.dataset.id),
+  'manage-columns':       ()  => openColumnsModal(),
+  'kbcol-add':            ()  => kbAddColumn(),
+  'kbcol-del':            el  => kbDeleteColumn(el.dataset.id),
+  'kbcol-up':             el  => kbMoveColumn(el.dataset.id, -1),
+  'kbcol-down':           el  => kbMoveColumn(el.dataset.id, 1),
   'trigger-art-upload':   ()  => { const fi = document.getElementById('art-file-input'); if (fi) fi.click(); },
 
   // ── DASHBOARD DE MARKETING ────────────────

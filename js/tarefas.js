@@ -40,6 +40,7 @@ async function renderTarefas() {
             <button class="tab-btn ${taskView==='kanban'?'active':''}" data-action="set-task-view" data-view="kanban"><i class="fas fa-columns"></i> Kanban</button>
             <button class="tab-btn ${taskView==='lista'?'active':''}" data-action="set-task-view" data-view="lista"><i class="fas fa-list"></i> Lista</button>
           </div>
+          <button class="btn btn-secondary" data-action="manage-columns"><i class="fas fa-table-columns"></i> Colunas</button>
           <button class="btn btn-primary" data-action="open-card-modal"><i class="fas fa-plus"></i> Novo Card</button>
         </div>
       </div>
@@ -1371,6 +1372,95 @@ async function deleteArt(attId, taskId) {
   if (t && t.task_attachments) t.task_attachments = t.task_attachments.filter(a => String(a.id) !== String(attId));
   showToast('Anexo removido.', 'info');
   openTaskModal(taskId);
+}
+
+/* ─── GERENCIAR COLUNAS DO KANBAN (modal no board) ─── */
+let _colModalData = [];
+
+async function openColumnsModal() {
+  if (!isSupabaseReady()) { showToast('Gerenciar colunas requer Supabase.', 'info'); return; }
+  const { data } = await DB.kanbanColumns.list();
+  _colModalData = data || [];
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-table-columns" style="color:var(--purple-light);margin-right:8px"></i>Colunas do Kanban</span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Adicione, renomeie, reordene ou remova etapas. As de <b>sistema</b> <i class="fas fa-lock"></i> são usadas por integrações (WhatsApp/Meta/Área do Cliente) e não podem ser removidas.</p>
+      <div id="kbcol-list">${_colModalBody()}</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="form-col" style="flex:1"><label>Nova coluna</label><input class="input-field" id="kbcol-new-label" placeholder="Nome da etapa"></div>
+        <div class="form-col" style="width:64px"><label>Cor</label><input type="color" class="input-field" id="kbcol-new-color" value="#8b5cf6" style="padding:3px;height:38px"></div>
+        <button class="btn btn-primary" data-action="kbcol-add"><i class="fas fa-plus"></i> Adicionar</button>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" data-action="close-modal">Fechar</button></div>
+  `, 'modal-lg');
+}
+
+function _colModalBody() {
+  return _colModalData.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px">
+      <span style="width:14px;height:14px;border-radius:4px;background:${c.color || '#64748b'};flex-shrink:0"></span>
+      <input class="input-field" style="flex:1" value="${_escapeHtml(c.label || '')}" ${c.is_system ? 'disabled' : ''} onchange="kbRenameColumn('${c.id}', this.value)">
+      ${c.is_system ? '<span class="tag tag-gray" style="font-size:10px"><i class="fas fa-lock"></i> Sistema</span>' : ''}
+      <button class="btn btn-ghost btn-sm" ${i === 0 ? 'disabled' : ''} data-action="kbcol-up" data-id="${c.id}" title="Subir"><i class="fas fa-arrow-up"></i></button>
+      <button class="btn btn-ghost btn-sm" ${i === _colModalData.length - 1 ? 'disabled' : ''} data-action="kbcol-down" data-id="${c.id}" title="Descer"><i class="fas fa-arrow-down"></i></button>
+      ${c.is_system ? '' : `<button class="btn btn-ghost btn-sm" data-action="kbcol-del" data-id="${c.id}" title="Remover"><i class="fas fa-trash" style="color:var(--danger)"></i></button>`}
+    </div>`).join('');
+}
+
+async function _refreshColsAndBoard() {
+  const { data } = await DB.kanbanColumns.list();
+  _colModalData = data || [];
+  _kanbanCols = await Data.kanbanColumns();
+  const listEl = document.getElementById('kbcol-list');
+  if (listEl) listEl.innerHTML = _colModalBody();
+  renderTaskBoard();
+}
+
+async function kbRenameColumn(id, label) {
+  label = (label || '').trim();
+  if (!label) return;
+  await DB.kanbanColumns.update(id, { label });
+  showToast('Coluna atualizada.', 'success');
+  await _refreshColsAndBoard();
+}
+
+async function kbAddColumn() {
+  const label = document.getElementById('kbcol-new-label')?.value.trim();
+  const color = document.getElementById('kbcol-new-color')?.value || '#8b5cf6';
+  if (!label) { showToast('Informe o nome da coluna.', 'warning'); return; }
+  if (_colModalData.some(c => c.key === label)) { showToast('Já existe uma coluna com esse nome.', 'error'); return; }
+  const position = _colModalData.reduce((m, c) => Math.max(m, c.position || 0), 0) + 1;
+  const { error } = await DB.kanbanColumns.create({ key: label, label, position, color, is_system: false });
+  if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+  const inp = document.getElementById('kbcol-new-label'); if (inp) inp.value = '';
+  showToast('✅ Coluna adicionada!', 'success');
+  await _refreshColsAndBoard();
+}
+
+async function kbDeleteColumn(id) {
+  const col = _colModalData.find(c => c.id === id);
+  if (!col) return;
+  if (_taskData.some(t => t.status === col.key)) { showToast('Há cards nesta coluna. Mova-os antes de remover.', 'error'); return; }
+  if (!confirm(`Remover a coluna "${col.label}"?`)) return;
+  await DB.kanbanColumns.remove(id);
+  showToast('Coluna removida.', 'info');
+  await _refreshColsAndBoard();
+}
+
+async function kbMoveColumn(id, dir) {
+  const idx = _colModalData.findIndex(c => c.id === id);
+  const sw = idx + dir;
+  if (idx < 0 || sw < 0 || sw >= _colModalData.length) return;
+  const a = _colModalData[idx], b = _colModalData[sw];
+  await Promise.all([
+    DB.kanbanColumns.update(a.id, { position: b.position }),
+    DB.kanbanColumns.update(b.id, { position: a.position }),
+  ]);
+  await _refreshColsAndBoard();
 }
 
 Router.register('tarefas', renderTarefas, 'Gestão de Tarefas');
