@@ -433,7 +433,6 @@ async function openCardModal(stage = 'Solicitado') {
 
   const clientOpts = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   const empOpts = profiles.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
-  const canalOpts = CANAIS.map(c => `<option>${c}</option>`).join('');
   const _colKeys = (_kanbanCols && _kanbanCols.length) ? _kanbanCols.map(c => c.key) : (SC.kanbanCols || []);
   // Se 'Solicitado' ainda não existir nas colunas, cai na primeira disponível
   if (!_colKeys.includes(stage)) stage = _colKeys[0] || 'Pauta';
@@ -454,14 +453,10 @@ async function openCardModal(stage = 'Solicitado') {
       </div>
       <div class="form-row">
         <div class="form-col"><label>Tipo de Arte</label><select class="select-field" id="nc-type">${SC.tiposConteudo.map(t=>`<option>${t}</option>`).join('')}</select></div>
-        <div class="form-col"><label>Canal de Uso</label><select class="select-field" id="nc-channel">${canalOpts}</select></div>
-      </div>
-      <div class="form-row">
         <div class="form-col"><label>Responsável *</label><select class="select-field" id="nc-assignee">${empOpts}</select></div>
-        <div class="form-col"><label>Prazo</label><input type="date" class="input-field" id="nc-date" /></div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>Etapa Inicial</label><select class="select-field" id="nc-stage">${stageOpts}</select></div>
+        <div class="form-col"><label>Prazo</label><input type="date" class="input-field" id="nc-date" /></div>
         <div class="form-col"><label>Prioridade</label>
           <select class="select-field" id="nc-priority">
             <option value="media">🟡 Média</option>
@@ -471,10 +466,25 @@ async function openCardModal(stage = 'Solicitado') {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col full"><label>Qual arte será aprovada?</label><input class="input-field" id="nc-approval" placeholder="Ex.: arte final para o feed" /></div>
+        <div class="form-col full"><label>Etapa Inicial</label><select class="select-field" id="nc-stage">${stageOpts}</select></div>
       </div>
       <div class="form-row">
-        <div class="form-col full"><label>Descrição / Briefing *</label><textarea class="input-field" id="nc-text" rows="3" placeholder="Detalhe o que precisa ser criado..."></textarea></div>
+        <div class="form-col full">
+          <label>Canal de Uso <span style="color:var(--text-muted);font-weight:400">(pode marcar mais de um)</span></label>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;padding-top:6px">
+            ${CANAIS.map(c => `<label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400"><input type="checkbox" class="nc-channel" value="${c}"> ${c}</label>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full"><label>Descrição / Briefing *</label><textarea class="input-field" id="nc-text" rows="4" placeholder="Detalhe o que precisa ser criado..."></textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Anexos (referência / arte)</label>
+          <input type="file" id="nc-files" multiple accept="image/*,video/*,.pdf" class="input-field" style="padding:8px">
+          <p style="font-size:11px;color:var(--text-muted);margin-top:4px">Imagens, vídeos ou PDF (opcional). Você também pode anexar depois, dentro do card.</p>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -505,8 +515,7 @@ async function saveNewCard() {
     priority: document.getElementById('nc-priority').value,
     content_type: document.getElementById('nc-type')?.value || 'Post Estático',
     art_type: document.getElementById('nc-type')?.value || null,
-    channel: document.getElementById('nc-channel')?.value || null,
-    approval_target: document.getElementById('nc-approval')?.value.trim() || null,
+    channel: Array.from(document.querySelectorAll('.nc-channel:checked')).map(c => c.value).join(', ') || null,
     requester_id: (typeof SB !== 'undefined' && SB.profile?.id) || null,
     origin: 'solicitacao',
   };
@@ -517,6 +526,13 @@ async function saveNewCard() {
       showToast(`Erro ao criar card: ${error.message}`, 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Criar Card'; }
       return;
+    }
+    // Anexos escolhidos na criação
+    const files = document.getElementById('nc-files')?.files || [];
+    for (const file of files) {
+      const path = `tasks/${data.id}/${Date.now()}_${file.name}`;
+      const { data: url, error: upErr } = await SB.uploadFile('task-arts', path, file);
+      if (!upErr && url) await DB.taskAttachments.add(data.id, url, file.name, file.type, 'arte');
     }
     await logActivity('task.created', 'task', data.id, JSON.stringify({ title }));
     closeModal();
