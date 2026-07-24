@@ -55,7 +55,7 @@ function _renderCRMContent() {
   // KPIs
   const kpiEl = document.getElementById('crm-kpis');
   if (kpiEl) kpiEl.innerHTML = `
-    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+    <div class="kpi-grid kpi-grid-compact" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
       <div class="kpi-card">
         <div class="kpi-icon blue"><i class="fas fa-users"></i></div>
         <div class="kpi-value">${_leadData.length}</div>

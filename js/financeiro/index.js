@@ -20,7 +20,7 @@ let _payData        = [];
 let _recDataAll     = [];
 let _payDataAll     = [];
 let _finFilterYear  = new Date().getFullYear();
-let _finFilterMonth = 0;
+let _finFilterMonth = new Date().getMonth() + 1; // começa filtrado no mês atual
 
 const _CONTAS_BANCARIAS = ['Conta Corrente Principal', 'Conta Poupança', 'Caixa', 'Conta Digital', 'Conta Empresarial'];
 const _CENTROS_CUSTO    = ['Geral', 'Marketing', 'Operações', 'Comercial', 'RH', 'TI', 'Administrativo'];

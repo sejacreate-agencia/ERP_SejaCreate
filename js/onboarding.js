@@ -93,7 +93,7 @@ function buildObCard(c) {
         <span class="tag tag-${statusColor}" style="font-size:10px">${c.status || '—'}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:5px">
-        <span><i class="fas fa-clipboard-check"></i> Onboarding</span>
+        <span><i class="fas fa-clipboard-check"></i> Progresso</span>
         <span style="font-weight:700;color:${complete ? 'var(--success)' : 'var(--text-secondary)'}">${done}/${total}${complete ? ' ✓' : ''}</span>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;${complete ? 'background:var(--success)' : ''}"></div></div>

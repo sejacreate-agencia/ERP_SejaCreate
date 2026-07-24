@@ -464,6 +464,15 @@ input, select, textarea { font-family: var(--font); outline: none; }
 .kpi-value { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
 .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
 .kpi-change { font-size: 11px; margin-top: 6px; }
+
+/* Variante compacta — cards menores (usada no CRM) */
+.kpi-grid-compact { gap: 10px; }
+.kpi-grid-compact .kpi-card { padding: 12px 14px; }
+.kpi-grid-compact .kpi-icon { width: 30px; height: 30px; border-radius: 8px; font-size: 13px; margin-bottom: 8px; }
+.kpi-grid-compact .kpi-value { font-size: 19px; margin-bottom: 2px; }
+.kpi-grid-compact .kpi-value[style] { font-size: 15px !important; }
+.kpi-grid-compact .kpi-label { font-size: 10px; }
+.kpi-grid-compact .kpi-change { font-size: 10px; margin-top: 4px; }
 .kpi-change.up { color: var(--success); }
 .kpi-change.down { color: var(--danger); }
 
