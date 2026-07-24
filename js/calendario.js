@@ -47,7 +47,8 @@ function renderCalendario() {
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:6px;font-size:12px"><div style="width:10px;height:10px;border-radius:50%;background:var(--purple)"></div> Programado/Aprovado</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px"><div style="width:10px;height:10px;border-radius:50%;background:var(--success)"></div> Publicado</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px"><div style="width:10px;height:10px;border-radius:50%;background:var(--warning)"></div> Pendente</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px"><div style="width:10px;height:10px;border-radius:50%;background:var(--info)"></div> Aguardando cliente</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px"><div style="width:10px;height:10px;border-radius:50%;background:var(--warning)"></div> Pendente (produção)</div>
     </div>
 
     <div id="cal-grid-area">
@@ -106,7 +107,7 @@ function renderCalGrid() {
       <div class="cal-cell ${isToday ? 'today' : ''}">
         <div class="cal-day">${d}</div>
         ${dayTasks.slice(0,3).map(t => {
-          const cls = t.status === 'Publicado' ? 'published' : t.status === 'Aprovado' || t.status === 'Programado' ? '' : 'pending';
+          const cls = t.status === 'Publicado' ? 'published' : (t.status === 'Aprovado' || t.status === 'Programado') ? '' : t.status === 'Enviado ao Cliente' ? 'awaiting' : 'pending';
           return `<div class="cal-event ${cls}" title="${SC.getClientName(t.client)} — ${t.title}" data-action="open-task-modal" data-id="${t.id}">${t.title.slice(0,20)}${t.title.length>20?'…':''}</div>`;
         }).join('')}
         ${dayTasks.length > 3 ? `<div style="font-size:10px;color:var(--text-muted);padding:2px 4px">+${dayTasks.length-3} mais</div>` : ''}
@@ -196,7 +197,7 @@ function renderCalWeekGrid() {
     const isToday = d.toDateString() === today.toDateString();
     return `<div class="cal-cell" style="min-height:120px;${isToday ? 'background:rgba(139,92,246,.05)' : ''}">
       ${dayTasks.map(t => {
-        const cls = t.status === 'Publicado' ? 'published' : (t.status === 'Aprovado' || t.status === 'Programado') ? '' : 'pending';
+        const cls = t.status === 'Publicado' ? 'published' : (t.status === 'Aprovado' || t.status === 'Programado') ? '' : t.status === 'Enviado ao Cliente' ? 'awaiting' : 'pending';
         return `<div class="cal-event ${cls}" data-action="open-task-modal" data-id="${t.id}" title="${SC.getClientName(t.client)} — ${t.title}">
           <div style="font-size:10px;opacity:.75">${SC.getClientName(t.client).split(' ')[0]}</div>
           <div>${t.title.slice(0,24)}${t.title.length>24?'…':''}</div>

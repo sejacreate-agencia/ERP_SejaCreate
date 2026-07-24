@@ -816,6 +816,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .cal-event.published { background: var(--success-subtle); border-color: rgba(16,185,129,0.3); color: var(--success); }
 .cal-event.pending { background: var(--warning-subtle); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+.cal-event.awaiting { background: var(--info-subtle); border-color: rgba(59,130,246,0.3); color: var(--info); }
 
 /* FINANCIAL CARDS */
 .fin-summary {

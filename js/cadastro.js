@@ -77,7 +77,7 @@ function renderCadastro(tab) {
 
 function renderClientesTab() {
   const rows = SC.clients.map(c => `
-    <tr data-action="open-client-detail" data-id="${c.id}" style="cursor:pointer">
+    <tr data-action="open-client-detail" data-id="${c.id}" data-name="${(c.name||'').toLowerCase()}" data-status="${c.status||''}" data-plan="${c.plan||''}" style="cursor:pointer">
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="avatar-sm">${c.name.charAt(0)}</div>
@@ -520,18 +520,19 @@ function saveNewSupplier() {
   closeModal(); showToast('Fornecedor cadastrado!'); renderCadastro('fornecedores');
 }
 
-function filterClients(q) {
+const _clientFilters = { q: '', status: '', plan: '' };
+function _applyClientFilters() {
   const rows = document.querySelectorAll('#clients-table tbody tr');
-  rows.forEach(r => { r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; });
+  rows.forEach(r => {
+    const okQ      = !_clientFilters.q      || (r.dataset.name || '').includes(_clientFilters.q);
+    const okStatus = !_clientFilters.status || r.dataset.status === _clientFilters.status;
+    const okPlan   = !_clientFilters.plan   || r.dataset.plan   === _clientFilters.plan;
+    r.style.display = (okQ && okStatus && okPlan) ? '' : 'none';
+  });
 }
-function filterClientStatus(v) {
-  const rows = document.querySelectorAll('#clients-table tbody tr');
-  rows.forEach(r => { r.style.display = !v || r.textContent.toLowerCase().includes(v) ? '' : 'none'; });
-}
-function filterClientPlan(v) {
-  const rows = document.querySelectorAll('#clients-table tbody tr');
-  rows.forEach(r => { r.style.display = !v || r.textContent.includes(v) ? '' : 'none'; });
-}
+function filterClients(q)          { _clientFilters.q = (q || '').toLowerCase(); _applyClientFilters(); }
+function filterClientStatus(v)     { _clientFilters.status = v || ''; _applyClientFilters(); }
+function filterClientPlan(v)       { _clientFilters.plan = v || ''; _applyClientFilters(); }
 
 // ── EDITAR CLIENTE ────────────────────────────────────────────────────────────
 
