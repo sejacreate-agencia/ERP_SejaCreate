@@ -156,6 +156,7 @@ const Actions = {
   'ws-del-file':          el  => wsDelFile(el.dataset.id),
   'ws-gerar-briefing':    ()  => wsGerarBriefing(),
   'ws-copiar-briefing':   el  => wsCopiarBriefing(el.dataset.url),
+  'ws-select-link':       el  => el.select(),
   'ws-reabrir-briefing':  el  => wsReabrirBriefing(el.dataset.id),
   'ob-abrir-import':      ()  => openBriefingImport(),
   'ob-import-parse':      ()  => briefingImportParse(),

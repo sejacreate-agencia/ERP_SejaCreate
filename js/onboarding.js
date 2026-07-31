@@ -340,7 +340,7 @@ function wsBriefingHtml() {
       <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">
         Link do cliente
       </div>
-      <input class="input-field" readonly value="${_obEsc(url)}" onclick="this.select()"
+      <input class="input-field" readonly value="${_obEsc(url)}" data-action="ws-select-link"
              style="font-size:11px;margin-bottom:8px" />
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm btn-secondary" data-action="ws-copiar-briefing" data-url="${_obEsc(url)}">
