@@ -149,9 +149,8 @@ function renderLeadCard(l) {
   return `
     <div class="lead-card"
          draggable="true"
-         data-id="${l.id}"
-         ondragstart="crmDragStart(event,${JSON.stringify(l.id)})"
-         ondragend="crmDragEnd(event)"
+         style="cursor:pointer"
+         title="Clique para abrir os detalhes"
          data-action="open-lead-detail" data-id="${l.id}">
       <div class="lead-name">${l.name}</div>
       <div class="lead-company"><i class="fas fa-building" style="font-size:10px;margin-right:4px"></i>${l.company}</div>
@@ -181,9 +180,13 @@ function bindLeadDragEvents() {
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
+      // Evita que o clique sintético pós-drag abra o modal do lead
+      _dragEndedAt = Date.now();
     });
   });
 }
+
+let _dragEndedAt = 0;
 
 function crmDragStart(e, id) {
   draggedLeadId = String(id);
@@ -246,8 +249,14 @@ async function crmDrop(e, targetStage) {
 /* ─── MODAL LEAD DETAIL ─────────────────── */
 
 async function openLeadDetail(id) {
+  if (Date.now() - _dragEndedAt < 300) return; // clique residual do drag-and-drop
+
   const l = _leadData.find(x => String(x.id) === String(id));
-  if (!l) return;
+  if (!l) {
+    showToast('Lead não encontrado. Atualize a página e tente novamente.', 'error');
+    console.warn('openLeadDetail: id não encontrado em _leadData:', id);
+    return;
+  }
 
   const profiles = await Data.profiles();
   const empOpts = profiles.map(e => `<option value="${e.id}" ${String(e.id) === String(l.assignee_id || l.assignee) ? 'selected' : ''}>${e.full_name}</option>`).join('');
@@ -301,8 +310,24 @@ async function openLeadDetail(id) {
       </div>
 
       <div style="margin-bottom:14px">
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Observações</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Observações gerais</div>
         <textarea class="input-field" id="lead-notes-${id}" rows="3" style="resize:vertical">${l.notes || ''}</textarea>
+      </div>
+
+      <!-- ANOTAÇÕES DATADAS -->
+      <div style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:700;text-transform:uppercase">
+          <i class="fas fa-sticky-note"></i> Anotações
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input class="input-field" id="lead-new-note" placeholder="Registrar contato, follow-up, objeção..." style="flex:1" />
+          <button class="btn btn-sm btn-primary" data-action="lead-add-note" data-id="${id}">
+            <i class="fas fa-plus"></i> Anotar
+          </button>
+        </div>
+        <div id="lead-notes-list">
+          <div style="font-size:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+        </div>
       </div>
 
       <div style="margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -343,18 +368,33 @@ async function openLeadDetail(id) {
       </div>
       ` : ''}
 
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-top:12px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text-primary)"><i class="fas fa-file-contract"></i> Proposta Comercial</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="proposal-status-${id}">
-            ${l.proposal_url
-              ? `<a href="${l.proposal_url}" target="_blank" style="color:var(--primary)"><i class="fas fa-external-link-alt"></i> Ver proposta gerada</a>`
-              : 'Nenhuma proposta gerada ainda'}
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-primary)"><i class="fas fa-file-contract"></i> Proposta Comercial</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="proposal-status-${id}">
+              ${l.proposal_url
+                ? `<a href="${l.proposal_url}" target="_blank" style="color:var(--primary)"><i class="fas fa-external-link-alt"></i> Ver proposta gerada</a>`
+                : 'Nenhuma proposta gerada ainda'}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-secondary" data-action="lead-trigger-upload">
+              <i class="fas fa-paperclip"></i> Anexar arquivo
+            </button>
+            <button class="btn btn-sm btn-secondary" data-action="lead-add-proposal-link" data-id="${id}">
+              <i class="fas fa-link"></i> Anexar link
+            </button>
+            <button class="btn btn-sm" style="background:var(--primary);color:#fff" data-action="gerar-proposta-crm" data-id="${id}" data-name="${l.name}">
+              <i class="fas fa-magic"></i> ${l.proposal_url ? 'Regerar' : 'Gerar'}
+            </button>
           </div>
         </div>
-        <button class="btn btn-sm" style="background:var(--primary);color:#fff" data-action="gerar-proposta-crm" data-id="${id}" data-name="${l.name}">
-          <i class="fas fa-magic"></i> ${l.proposal_url ? 'Regerar Proposta' : 'Gerar Proposta'}
-        </button>
+        <input type="file" id="lead-file-input" style="display:none"
+               accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.xlsx,.csv" />
+        <div id="lead-files-list" style="margin-top:10px">
+          <div style="font-size:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Carregando anexos...</div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -373,6 +413,217 @@ async function openLeadDetail(id) {
       </button>
     </div>
   `, 'modal-lg');
+
+  _currentLeadId = String(id);
+  _leadRenderNotes(id);
+  _leadRenderFiles(id);
+
+  const fi = document.getElementById('lead-file-input');
+  if (fi) fi.addEventListener('change', e => _leadUploadFile(id, e.target.files?.[0]));
+}
+
+/* ─── ANOTAÇÕES DO LEAD ──────────────────── */
+
+let _currentLeadId = null;
+let _leadNotesCache = {};
+let _leadFilesCache = {};
+
+function _escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function _leadNotesHtml(leadId, notes) {
+  if (!notes.length) {
+    return `<div style="font-size:12px;color:var(--text-muted);padding:4px 0">Nenhuma anotação ainda.</div>`;
+  }
+  return notes.map(n => {
+    const who = n.author?.full_name || SC.getEmployeeName(n.user_id) || 'Equipe';
+    const when = n.created_at
+      ? new Date(n.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : '';
+    return `
+      <div style="border-left:2px solid var(--purple-light);padding:6px 0 6px 10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="font-size:10px;color:var(--text-muted)">${_escapeHtml(who)} · ${when}</div>
+          <button class="btn btn-ghost btn-icon" data-action="lead-del-note" data-id="${n.id}" data-lead="${leadId}" title="Excluir">
+            <i class="fas fa-times" style="font-size:10px"></i>
+          </button>
+        </div>
+        <div style="font-size:13px;white-space:pre-wrap">${_escapeHtml(n.text)}</div>
+      </div>`;
+  }).join('');
+}
+
+async function _leadRenderNotes(leadId) {
+  const box = document.getElementById('lead-notes-list');
+  if (!box) return;
+
+  let notes = _leadNotesCache[leadId] || [];
+  if (isSupabaseReady()) {
+    const { data, error } = await DB.leadNotes.list(leadId);
+    if (error) {
+      box.innerHTML = `<div style="font-size:12px;color:var(--danger)">Não foi possível carregar as anotações: ${_escapeHtml(error.message)}</div>`;
+      return;
+    }
+    notes = data || [];
+    _leadNotesCache[leadId] = notes;
+  }
+  box.innerHTML = _leadNotesHtml(leadId, notes);
+}
+
+async function leadAddNote(leadId) {
+  const input = document.getElementById('lead-new-note');
+  const text = input?.value?.trim();
+  if (!text) { showToast('Escreva a anotação antes de salvar.', 'warning'); return; }
+
+  const userId = SC.currentUser?.id || null;
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.leadNotes.create(leadId, text, userId);
+    if (error) { showToast(`Erro ao salvar anotação: ${error.message}`, 'error'); return; }
+  } else {
+    _leadNotesCache[leadId] = [
+      { id: Date.now(), text, user_id: userId, created_at: new Date().toISOString() },
+      ...(_leadNotesCache[leadId] || []),
+    ];
+  }
+
+  input.value = '';
+  showToast('📝 Anotação registrada!', 'success');
+  _leadRenderNotes(leadId);
+}
+
+async function leadDelNote(noteId, leadId) {
+  if (isSupabaseReady()) {
+    const { error } = await DB.leadNotes.remove(noteId);
+    if (error) { showToast(`Erro ao excluir: ${error.message}`, 'error'); return; }
+  } else {
+    _leadNotesCache[leadId] = (_leadNotesCache[leadId] || []).filter(n => String(n.id) !== String(noteId));
+  }
+  _leadRenderNotes(leadId);
+}
+
+/* ─── ANEXOS / PROPOSTA DO LEAD ──────────── */
+
+function _leadFilesHtml(leadId, files) {
+  if (!files.length) {
+    return `<div style="font-size:12px;color:var(--text-muted)">Nenhum anexo. Use “Anexar arquivo” para subir a proposta.</div>`;
+  }
+  return files.map(f => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;margin-bottom:6px">
+      <i class="fas fa-file-alt" style="color:var(--primary)"></i>
+      <a href="${f.file_url}" target="_blank" style="flex:1;font-size:12px;color:var(--text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        ${_escapeHtml(f.file_name || 'arquivo')}
+      </a>
+      <button class="btn btn-ghost btn-icon" data-action="lead-del-file" data-id="${f.id}" data-lead="${leadId}" title="Remover">
+        <i class="fas fa-trash" style="font-size:10px"></i>
+      </button>
+    </div>`).join('');
+}
+
+async function _leadRenderFiles(leadId) {
+  const box = document.getElementById('lead-files-list');
+  if (!box) return;
+
+  let files = _leadFilesCache[leadId] || [];
+  if (isSupabaseReady()) {
+    const { data, error } = await DB.leadFiles.list(leadId);
+    if (error) {
+      box.innerHTML = `<div style="font-size:12px;color:var(--danger)">Não foi possível carregar os anexos: ${_escapeHtml(error.message)}</div>`;
+      return;
+    }
+    files = data || [];
+    _leadFilesCache[leadId] = files;
+  }
+  box.innerHTML = _leadFilesHtml(leadId, files);
+}
+
+async function _leadUploadFile(leadId, file) {
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { showToast('Arquivo maior que 20MB.', 'error'); return; }
+
+  const box = document.getElementById('lead-files-list');
+  if (box) box.innerHTML = `<div style="font-size:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Enviando ${_escapeHtml(file.name)}...</div>`;
+
+  if (!isSupabaseReady()) {
+    _leadFilesCache[leadId] = [
+      { id: Date.now(), file_url: URL.createObjectURL(file), file_name: file.name, kind: 'proposta' },
+      ...(_leadFilesCache[leadId] || []),
+    ];
+    _leadRenderFiles(leadId);
+    return;
+  }
+
+  const safeName = file.name.replace(/[^\w.\-]/g, '_');
+  const path = `${leadId}/${Date.now()}-${safeName}`;
+  const { data: url, error: upErr } = await SB.uploadFile('crm-files', path, file);
+  if (upErr) {
+    showToast(`Erro no upload: ${upErr.message}`, 'error');
+    _leadRenderFiles(leadId);
+    return;
+  }
+
+  const { error } = await DB.leadFiles.create({
+    lead_id: leadId, file_url: url, file_name: file.name,
+    file_type: file.type || null, kind: 'proposta',
+    uploaded_by: SC.currentUser?.id || null,
+  });
+  if (error) { showToast(`Erro ao registrar anexo: ${error.message}`, 'error'); }
+  else {
+    showToast('📎 Proposta anexada!', 'success');
+    // Primeiro anexo vira a proposta oficial do lead
+    const lead = _leadData.find(x => String(x.id) === String(leadId));
+    if (lead && !lead.proposal_url) {
+      lead.proposal_url = url;
+      await DB.leads.update(leadId, { proposal_url: url });
+      const st = document.getElementById(`proposal-status-${leadId}`);
+      if (st) st.innerHTML = `<a href="${url}" target="_blank" style="color:var(--primary)"><i class="fas fa-external-link-alt"></i> Ver proposta anexada</a>`;
+    }
+  }
+  _leadRenderFiles(leadId);
+}
+
+async function leadAddProposalLink(leadId) {
+  const url = prompt('Cole o link da proposta (Canva, Drive, PDF...):');
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) { showToast('Informe uma URL válida (http/https).', 'error'); return; }
+
+  const label = prompt('Nome do anexo:', 'Proposta comercial') || 'Proposta comercial';
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.leadFiles.create({
+      lead_id: leadId, file_url: url, file_name: label, kind: 'proposta',
+      uploaded_by: SC.currentUser?.id || null,
+    });
+    if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+
+    const lead = _leadData.find(x => String(x.id) === String(leadId));
+    if (lead && !lead.proposal_url) {
+      lead.proposal_url = url;
+      await DB.leads.update(leadId, { proposal_url: url });
+      const st = document.getElementById(`proposal-status-${leadId}`);
+      if (st) st.innerHTML = `<a href="${url}" target="_blank" style="color:var(--primary)"><i class="fas fa-external-link-alt"></i> Ver proposta anexada</a>`;
+    }
+  } else {
+    _leadFilesCache[leadId] = [
+      { id: Date.now(), file_url: url, file_name: label, kind: 'proposta' },
+      ...(_leadFilesCache[leadId] || []),
+    ];
+  }
+
+  showToast('🔗 Link anexado!', 'success');
+  _leadRenderFiles(leadId);
+}
+
+async function leadDelFile(fileId, leadId) {
+  if (isSupabaseReady()) {
+    const { error } = await DB.leadFiles.remove(fileId);
+    if (error) { showToast(`Erro ao remover: ${error.message}`, 'error'); return; }
+  } else {
+    _leadFilesCache[leadId] = (_leadFilesCache[leadId] || []).filter(f => String(f.id) !== String(fileId));
+  }
+  _leadRenderFiles(leadId);
 }
 
 async function updateLeadStage(id) {

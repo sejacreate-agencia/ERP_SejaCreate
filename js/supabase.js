@@ -275,6 +275,33 @@ const DB = {
     },
   },
 
+  // ── LEAD NOTES (anotações do CRM) ───────
+  leadNotes: {
+    async list(leadId) {
+      return SB.list('lead_notes', {
+        select: '*, author:profiles(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'lead_id', val: leadId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(leadId, text, userId) {
+      return SB.insert('lead_notes', { lead_id: leadId, text, user_id: userId || null });
+    },
+    async remove(id) { return SB.remove('lead_notes', id); },
+  },
+
+  // ── LEAD ATTACHMENTS (proposta/contrato) ─
+  leadFiles: {
+    async list(leadId) {
+      return SB.list('lead_attachments', {
+        filters: [{ op: 'eq', col: 'lead_id', val: leadId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(payload) { return SB.insert('lead_attachments', payload); },
+    async remove(id) { return SB.remove('lead_attachments', id); },
+  },
+
   // ── TASKS ───────────────────────────────
   tasks: {
     async list(filters = {}) {
@@ -930,11 +957,17 @@ async function hydrateFromSupabase() {
     }));
 
     // Funcionários
-    SC.employees = (profiles.data || []).filter(p => p.role !== 'cliente').map(p => ({
+    const _mapProfileRow = p => ({
       id: p.id, name: p.full_name, avatar: p.avatar_initials || p.full_name?.slice(0,2) || '??',
       avatar_initials: p.avatar_initials || '', email: p.email || '', phone: p.phone || '',
-      role: p.role, cargo: p.cargo || '', status: p.status,
-    }));
+      role: p.role, cargo: p.cargo || '', status: p.status, client_id: p.client_id || null,
+    });
+    SC.employees = (profiles.data || []).filter(p => p.role !== 'cliente').map(_mapProfileRow);
+
+    // Usuários do portal (role=cliente). Ficam fora de SC.employees para não
+    // poluir os selects de responsável, mas precisam ser listados em
+    // Configurações para que o admin consiga vincular cada um ao seu cliente.
+    SC.clientUsers = (profiles.data || []).filter(p => p.role === 'cliente').map(_mapProfileRow);
 
     // Tarefas
     SC.tasks = (tasks.data || []).map(t => ({
