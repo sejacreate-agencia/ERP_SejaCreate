@@ -82,7 +82,6 @@ function renderAvisos() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">⚠️ Avisos Importantes</h1>
-          <p class="page-subtitle">Central de pendências operacionais da agência — ${SC.avisos.length} avisos ativos</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="refresh-avisos"><i class="fas fa-sync"></i> Atualizar</button>

@@ -49,13 +49,22 @@ const Actions = {
   // ── CRM ───────────────────────────────────
   'show-crm-list':        ()  => showCRMList(),
   'render-crm':           ()  => renderCRM(),
+  'set-crm-date-filter':  ()  => setCrmDateFilter(),
+  'set-crm-date-base':    el  => setCrmDateBase(el.value),
+  'clear-crm-date-filter':()  => clearCrmDateFilter(),
   'open-lead-modal':      el  => openLeadModal(el.dataset.stage || null),
-  'open-lead-detail':     el  => openLeadDetail(parseInt(el.dataset.id)),
-  'delete-lead':          el  => deleteLead(parseInt(el.dataset.id)),
-  'convert-lead':         el  => convertLead(parseInt(el.dataset.id)),
-  'update-lead-stage':    el  => updateLeadStage(parseInt(el.dataset.id)),
+  // IDs de lead são UUID no Supabase — nunca converter com parseInt
+  'open-lead-detail':     el  => openLeadDetail(el.dataset.id),
+  'delete-lead':          el  => deleteLead(el.dataset.id),
+  'convert-lead':         el  => convertLead(el.dataset.id),
+  'update-lead-stage':    el  => updateLeadStage(el.dataset.id),
   'save-new-lead':        ()  => saveNewLead(),
   'gerar-proposta-crm':   el  => gerarPropostaCRM(el.dataset.id, el.dataset.name),
+  'lead-add-note':        el  => leadAddNote(el.dataset.id),
+  'lead-del-note':        el  => leadDelNote(el.dataset.id, el.dataset.lead),
+  'lead-trigger-upload':  ()  => document.getElementById('lead-file-input')?.click(),
+  'lead-add-proposal-link': el => leadAddProposalLink(el.dataset.id),
+  'lead-del-file':        el  => leadDelFile(el.dataset.id, el.dataset.lead),
 
   // ── CADASTRO ──────────────────────────────
   'open-new-cadastro-modal': () => openNewCadastroModal(),
@@ -78,6 +87,7 @@ const Actions = {
   'switch-fin-tab':       el  => renderFinanceiro(el.dataset.tab),
   'navigate-fin':         el  => navigateFinTab(el.dataset.finTab),
   'switch-fin-filter':    ()  => switchFinFilter(),
+  'set-fin-status':       el  => setFinStatusFilter(el.dataset.status),
   'mark-paid':            el  => openMarkPaidModal(el.dataset.type, el.dataset.id),
   'save-mark-paid':       el  => saveMarkPaid(el.dataset.type, el.dataset.id),
   'switch-fin-regime':    el  => switchFinRegime(el.value),
@@ -144,6 +154,13 @@ const Actions = {
   'ws-add-link':          el  => wsAddLink(el.dataset.kind),
   'ws-del-link':          el  => wsDelLink(el.dataset.id),
   'ws-del-file':          el  => wsDelFile(el.dataset.id),
+  'ws-gerar-briefing':    ()  => wsGerarBriefing(),
+  'ws-copiar-briefing':   el  => wsCopiarBriefing(el.dataset.url),
+  'ws-select-link':       el  => el.select(),
+  'ws-reabrir-briefing':  el  => wsReabrirBriefing(el.dataset.id),
+  'ob-abrir-import':      ()  => openBriefingImport(),
+  'ob-import-parse':      ()  => briefingImportParse(),
+  'ob-import-salvar':     ()  => briefingImportSalvar(),
 
   // ── PLANEJAMENTOS ─────────────────────────
   'pl-set-view':          el  => setPlView(el.dataset.view),
@@ -180,17 +197,18 @@ const Actions = {
   'cfg-col-down':            el  => moveKanbanColumn(el.dataset.id, 1),
 
   // ── ÁREA DO CLIENTE ───────────────────────
+  // IDs de tarefa são UUID no Supabase — nunca converter com parseInt
   'set-client-tab':            el  => setClientTab(el.dataset.tab),
-  'open-client-content-modal': el  => openClientContentModal(parseInt(el.dataset.id)),
-  'client-approve-content':    el  => clientApproveContent(parseInt(el.dataset.id)),
-  'client-request-adjust':     el  => clientRequestAdjust(parseInt(el.dataset.id)),
-  'confirm-adjust':            el  => confirmAdjust(parseInt(el.dataset.id)),
-  'add-client-comment':        el  => addClientComment(parseInt(el.dataset.id)),
+  'open-client-content-modal': el  => openClientContentModal(el.dataset.id),
+  'client-approve-content':    el  => clientApproveContent(el.dataset.id),
+  'client-request-adjust':     el  => clientRequestAdjust(el.dataset.id),
+  'confirm-adjust':            el  => confirmAdjust(el.dataset.id),
+  'add-client-comment':        el  => addClientComment(el.dataset.id),
   'client-cal-prev':           ()  => clientCalPrev(),
   'client-cal-next':           ()  => clientCalNext(),
   'set-client-cal-view':       el  => setClientCalView(el.dataset.view),
-  'approve-and-close':         el  => { clientApproveContent(parseInt(el.dataset.id)); Modal.close(); },
-  'request-adjust-and-close':  el  => { Modal.close(); clientRequestAdjust(parseInt(el.dataset.id)); },
+  'approve-and-close':         el  => { clientApproveContent(el.dataset.id); Modal.close(); },
+  'request-adjust-and-close':  el  => { Modal.close(); clientRequestAdjust(el.dataset.id); },
 };
 
 // ─── LISTENER ÚNICO ──────────────────────────

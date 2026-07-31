@@ -23,7 +23,6 @@ function renderConfiguracoes(section) {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <h1 class="page-title">Configurações</h1>
-      <p class="page-subtitle">Administre usuários, permissões, funis e regras do sistema</p>
     </div>
     <div class="config-layout">
       <div class="config-sidebar-nav">
@@ -71,7 +70,20 @@ function renderConfigSection() {
 /* ─── USUÁRIOS ─────────────────────────── */
 
 function renderConfigUsuarios() {
-  const rows = SC.employees.map(e => `
+  // Usuários com role=cliente ficam fora de SC.employees, mas precisam aparecer
+  // aqui — é nesta tela que o admin vincula cada um ao seu cliente.
+  const allUsers = [...SC.employees, ...(SC.clientUsers || [])];
+  const semVinculo = allUsers.filter(e => e.role === 'cliente' && !e.client_id);
+
+  const rows = allUsers.map(e => {
+    const isCliente = e.role === 'cliente';
+    const vinculo = isCliente
+      ? (e.client_id
+          ? `<span class="tag tag-green" style="font-size:11px">${SC.getClientName(e.client_id) || 'Cliente'}</span>`
+          : `<span class="tag tag-red" style="font-size:11px" title="Sem vínculo o usuário não enxerga nenhum conteúdo"><i class="fas fa-exclamation-triangle"></i> Sem vínculo</span>`)
+      : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+
+    return `
     <tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
@@ -84,7 +96,8 @@ function renderConfigUsuarios() {
       </td>
       <td style="font-size:12px">${e.email}</td>
       <td style="font-size:12px">${e.cargo}</td>
-      <td><span class="tag tag-purple">${SC.roleLabels[e.role] || e.role}</span></td>
+      <td><span class="tag ${isCliente ? 'tag-gray' : 'tag-purple'}">${SC.roleLabels[e.role] || e.role}</span></td>
+      <td>${vinculo}</td>
       <td>
         <span class="tag ${e.status === 'ativo' ? 'tag-green' : 'tag-gray'}">
           <span class="status-dot ${e.status === 'ativo' ? 'dot-green' : 'dot-gray'}"></span>
@@ -107,7 +120,20 @@ function renderConfigUsuarios() {
           </button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+
+  const alerta = semVinculo.length ? `
+    <div style="background:var(--danger-subtle);border:1px solid var(--danger);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--danger)">
+        <i class="fas fa-exclamation-triangle"></i> ${semVinculo.length} usuário(s) cliente sem cliente vinculado
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">
+        ${semVinculo.map(u => u.name).join(', ')} — enquanto o vínculo não for feito, esses usuários
+        entram no sistema mas <strong>não enxergam nenhum conteúdo enviado para aprovação</strong>.
+        Clique em Editar e selecione o cliente correspondente.
+      </div>
+    </div>` : '';
 
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
@@ -116,10 +142,11 @@ function renderConfigUsuarios() {
         <i class="fas fa-plus"></i> Novo Usuário
       </button>
     </div>
+    ${alerta}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Usuário</th><th>E-mail</th><th>Cargo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
+          <tr><th>Usuário</th><th>E-mail</th><th>Cargo</th><th>Perfil</th><th>Cliente vinculado</th><th>Status</th><th>Ações</th></tr>
         </thead>
         <tbody id="users-table-body">${rows}</tbody>
       </table>
@@ -127,10 +154,14 @@ function renderConfigUsuarios() {
 }
 
 function openFuncModal(id) {
-  const e = id != null ? SC.employees.find(x => String(x.id) === String(id)) : null;
+  const pool = [...SC.employees, ...(SC.clientUsers || [])];
+  const e = id != null ? pool.find(x => String(x.id) === String(id)) : null;
   const isNew = !e;
   const roleOpts = Object.entries(SC.roleLabels).map(([k,v]) =>
     `<option value="${k}" ${e?.role===k?'selected':''}>${v}</option>`).join('');
+  const clientOpts = `<option value="">— Selecione o cliente —</option>` +
+    SC.clients.map(c =>
+      `<option value="${c.id}" ${String(c.id)===String(e?.client_id)?'selected':''}>${c.name}</option>`).join('');
 
   openModal(`
     <div class="modal-header">
@@ -152,7 +183,7 @@ function openFuncModal(id) {
       <div class="form-row">
         <div class="form-col">
           <label>Perfil de Acesso</label>
-          <select class="select-field" id="fu-role">${roleOpts}</select>
+          <select class="select-field" id="fu-role" onchange="_toggleFuClientLink()">${roleOpts}</select>
         </div>
         <div class="form-col">
           <label>Status</label>
@@ -160,6 +191,16 @@ function openFuncModal(id) {
             <option value="ativo" ${e?.status==='ativo'?'selected':''}>Ativo</option>
             <option value="inativo" ${e?.status==='inativo'?'selected':''}>Inativo</option>
           </select>
+        </div>
+      </div>
+      <div class="form-row" id="fu-client-row" style="display:${e?.role==='cliente'?'flex':'none'}">
+        <div class="form-col full">
+          <label>Cliente vinculado *</label>
+          <select class="select-field" id="fu-client">${clientOpts}</select>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+            <i class="fas fa-info-circle"></i> Obrigatório para o perfil Cliente. Sem esse vínculo o
+            usuário faz login mas a Área do Cliente aparece totalmente vazia.
+          </div>
         </div>
       </div>
       ${isNew ? `
@@ -177,10 +218,23 @@ function openFuncModal(id) {
   `);
 }
 
+function _toggleFuClientLink() {
+  const role = document.getElementById('fu-role')?.value;
+  const row  = document.getElementById('fu-client-row');
+  if (row) row.style.display = role === 'cliente' ? 'flex' : 'none';
+}
+
 async function saveFuncModal(id) {
   const name  = document.getElementById('fu-name').value.trim();
   const email = document.getElementById('fu-email').value.trim();
   if (!name || !email) { showToast('Nome e e-mail são obrigatórios!', 'error'); return; }
+
+  const role     = document.getElementById('fu-role').value;
+  const clientId = document.getElementById('fu-client')?.value || null;
+  if (role === 'cliente' && !clientId) {
+    showToast('Selecione o cliente vinculado — sem ele o usuário não vê conteúdo algum.', 'error');
+    return;
+  }
 
   const btn = event.target;
   btn.disabled = true;
@@ -196,9 +250,11 @@ async function saveFuncModal(id) {
     email,
     cargo:           document.getElementById('fu-cargo').value.trim() || 'Colaborador',
     phone:           document.getElementById('fu-phone').value.trim(),
-    role:            document.getElementById('fu-role').value,
+    role,
     status:          document.getElementById('fu-status').value,
     avatar_initials: name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+    // Só o perfil "cliente" carrega vínculo; trocar de perfil limpa o campo
+    client_id:       role === 'cliente' ? clientId : null,
   };
 
   if (isSupabaseReady()) {
@@ -279,12 +335,29 @@ async function saveFuncModal(id) {
     }
   }
 
+  await _refreshProfilesCache();
   closeModal();
   switchConfigSection('usuarios');
 }
 
+// Recarrega SC.employees / SC.clientUsers a partir do banco para que a tabela
+// reflita o vínculo recém-salvo sem exigir F5.
+async function _refreshProfilesCache() {
+  if (!isSupabaseReady()) return;
+  const { data, error } = await SB.list('profiles', { order: { col: 'full_name', asc: true } });
+  if (error || !data) return;
+
+  const map = p => ({
+    id: p.id, name: p.full_name, avatar: p.avatar_initials || p.full_name?.slice(0,2) || '??',
+    avatar_initials: p.avatar_initials || '', email: p.email || '', phone: p.phone || '',
+    role: p.role, cargo: p.cargo || '', status: p.status, client_id: p.client_id || null,
+  });
+  SC.employees   = data.filter(p => p.role !== 'cliente').map(map);
+  SC.clientUsers = data.filter(p => p.role === 'cliente').map(map);
+}
+
 async function deleteEmployee(id) {
-  const emp = SC.employees.find(e => String(e.id) === String(id));
+  const emp = [...SC.employees, ...(SC.clientUsers || [])].find(e => String(e.id) === String(id));
   if (!emp) return;
   if (String(emp.id) === String(SC.currentUser?.id)) { showToast('Você não pode excluir sua própria conta!', 'error'); return; }
   if (!confirm(`Excluir o usuário "${emp.name}"? Esta ação não pode ser desfeita.`)) return;
@@ -294,7 +367,8 @@ async function deleteEmployee(id) {
     if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
   }
 
-  SC.employees = SC.employees.filter(e => String(e.id) !== String(id));
+  SC.employees   = SC.employees.filter(e => String(e.id) !== String(id));
+  SC.clientUsers = (SC.clientUsers || []).filter(e => String(e.id) !== String(id));
   SC.users = SC.users.filter(u => String(u.id) !== String(id));
   showToast(`Usuário "${emp.name}" excluído.`, 'error');
   switchConfigSection('usuarios');

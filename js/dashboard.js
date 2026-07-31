@@ -99,7 +99,6 @@ function renderDashboard() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div>
           <h1 class="page-title">${greeting}, ${u.name.split(' ')[0]}! 👋</h1>
-          <p class="page-subtitle">Aqui está o resumo da sua operação — ${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="navigate" data-page="tarefas"><i class="fas fa-columns"></i> Ver Quadro</button>
