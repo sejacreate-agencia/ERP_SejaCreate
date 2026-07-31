@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Briefing — Seja Create</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Nunito:wght@800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="128x128" href="assets/logo-128.png" />
+  <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+
+  <style>
+    /* Página pública — não carrega o layout do app (sidebar/topbar). */
+    .bf-page   { min-height:100vh; display:flex; flex-direction:column; align-items:center;
+                 padding:20px 16px 48px; background:var(--bg-primary); }
+    .bf-shell  { width:100%; max-width:680px; }
+    .bf-logo   { display:flex; align-items:center; gap:10px; justify-content:center;
+                 margin-bottom:20px; font-family:'Nunito',sans-serif; font-weight:800; font-size:20px; }
+    .bf-card   { background:var(--bg-card); border:1px solid var(--border);
+                 border-radius:var(--border-radius); padding:22px; }
+    .bf-q      { margin-bottom:22px; }
+    .bf-label  { display:block; font-size:14px; font-weight:600; line-height:1.45; margin-bottom:8px; }
+    .bf-hint   { font-size:12px; color:var(--text-muted); margin-bottom:8px; }
+    .bf-req    { color:var(--danger); margin-left:2px; }
+    .bf-err    { border-color:var(--danger) !important; }
+    /* Alvos de toque grandes o suficiente para o dedo no celular. */
+    .bf-opt    { display:flex; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px;
+                 border:1px solid var(--border); border-radius:10px; cursor:pointer;
+                 font-size:14px; line-height:1.35; background:var(--bg-input); }
+    .bf-opt:hover        { border-color:var(--purple-light); }
+    .bf-opt input        { width:18px; height:18px; flex-shrink:0; accent-color:var(--purple); }
+    .bf-opt.sel          { border-color:var(--purple); background:var(--purple-subtle,rgba(139,92,246,.10)); }
+    .bf-nav    { display:flex; gap:10px; margin-top:24px; }
+    .bf-nav .btn { flex:1; justify-content:center; padding:14px; font-size:15px; }
+    .bf-steps  { display:flex; justify-content:space-between; font-size:12px;
+                 color:var(--text-muted); margin-bottom:6px; }
+    .bf-msg    { text-align:center; padding:56px 20px; }
+    .bf-msg i  { font-size:44px; margin-bottom:16px; display:block; }
+    textarea.input-field { resize:vertical; min-height:88px; }
+    @media (max-width:520px) {
+      .bf-card { padding:16px; }
+      .bf-label { font-size:15px; }
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<div class="bf-page">
+  <div class="bf-shell">
+    <div class="bf-logo">
+      <img src="assets/logo-128.png" alt="" width="30" height="30" style="border-radius:7px" />
+      <span>Seja <span style="color:var(--purple-light)">Create</span></span>
+    </div>
+    <div class="bf-card" id="bf-root">
+      <div class="bf-msg">
+        <i class="fas fa-spinner fa-spin" style="color:var(--purple-light)"></i>
+        <p>Carregando seu briefing...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.local.js" onerror="this.remove()"></script>
+<script src="js/config.js"></script>
+<script src="js/briefing-schema.js"></script>
+<script src="js/briefing-public.js"></script>
+</body>
+</html>
