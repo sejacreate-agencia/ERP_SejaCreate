@@ -21,6 +21,7 @@ let _recDataAll     = [];
 let _payDataAll     = [];
 let _finFilterYear  = new Date().getFullYear();
 let _finFilterMonth = new Date().getMonth() + 1; // começa filtrado no mês atual
+let _finFilterStatus = '';  // '' = todos | pago | pendente | atrasado | parcialmente_pago | cancelado | provisionado
 
 const _CONTAS_BANCARIAS = ['Conta Corrente Principal', 'Conta Poupança', 'Caixa', 'Conta Digital', 'Conta Empresarial'];
 const _CENTROS_CUSTO    = ['Geral', 'Marketing', 'Operações', 'Comercial', 'RH', 'TI', 'Administrativo'];
@@ -70,6 +71,61 @@ function switchFinFilter() {
   _recData = [..._recDataAll];
   _payData = [..._payDataAll];
   _renderFinContent();
+}
+
+/* ─── FILTRO DE STATUS ─────────────────────
+   Aplicado apenas às tabelas de A Receber / A Pagar.
+   Os cards de resumo continuam refletindo o mês inteiro. */
+
+// Status efetivo: 'pendente' com vencimento passado conta como 'atrasado',
+// que é o mesmo critério usado na coluna Status das tabelas.
+function _finEffStatus(r) {
+  const today   = new Date(new Date().toDateString());
+  const dueDate = r.due_date || r.due;
+  const vencido = r.status === 'pendente' && dueDate && new Date(String(dueDate).split('T')[0]) < today;
+  return vencido ? 'atrasado' : r.status;
+}
+
+function _applyFinStatusFilter(list) {
+  if (!_finFilterStatus) return list;
+  return list.filter(r => _finEffStatus(r) === _finFilterStatus);
+}
+
+function setFinStatusFilter(status) {
+  _finFilterStatus = status === _finFilterStatus ? '' : (status || '');
+  _renderFinContent();
+}
+
+// Barra de chips de status, com contagem por situação.
+function _finStatusFilterBar(list, statuses) {
+  const counts = {};
+  list.forEach(r => {
+    const s = _finEffStatus(r);
+    counts[s] = (counts[s] || 0) + 1;
+  });
+
+  const chip = (value, label, icon) => {
+    const active = _finFilterStatus === value;
+    const n = value === '' ? list.length : (counts[value] || 0);
+    return `
+      <button class="btn btn-sm ${active ? 'btn-primary' : 'btn-secondary'}"
+              data-action="set-fin-status" data-status="${value}"
+              style="font-size:11px;${active ? '' : 'opacity:' + (n ? '1' : '.5')}">
+        <i class="fas ${icon}"></i> ${label} <strong>${n}</strong>
+      </button>`;
+  };
+
+  return `
+    <div class="filters-bar" style="margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <span class="filter-label"><i class="fas fa-flag"></i> Status:</span>
+      ${chip('', 'Todos', 'fa-list')}
+      ${statuses.map(s => chip(s.value, s.label, s.icon)).join('')}
+      ${_finFilterStatus ? `
+        <button class="btn btn-sm btn-ghost" data-action="set-fin-status" data-status=""
+                style="font-size:11px;margin-left:auto">
+          <i class="fas fa-times"></i> Limpar filtro
+        </button>` : ''}
+    </div>`;
 }
 
 function _renderFinContent() {

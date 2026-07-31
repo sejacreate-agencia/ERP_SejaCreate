@@ -7,7 +7,9 @@ function renderFinReceber() {
   const waMsg   = encodeURIComponent('Olá, tudo bem? Identificamos um pagamento pendente referente ao seu contrato. Poderia verificar, por favor?');
   const isComp  = finRegime === 'competencia';
 
-  const rows = _recData.map(r => {
+  const visiveis = _applyFinStatusFilter(_recData);
+
+  const rows = visiveis.map(r => {
     const clientObj  = r.client;
     let phone = '', clientName = 'N/A';
     if (clientObj && typeof clientObj === 'object') {
@@ -69,6 +71,13 @@ function renderFinReceber() {
         <i class="fas fa-plus"></i> Novo Recebimento
       </button>
     </div>
+    ${_finStatusFilterBar(_recData, [
+      { value: 'pago',              label: 'Pago',      icon: 'fa-check-circle' },
+      { value: 'pendente',          label: 'Pendente',  icon: 'fa-hourglass-half' },
+      { value: 'atrasado',          label: 'Vencido',   icon: 'fa-exclamation-circle' },
+      { value: 'parcialmente_pago', label: 'Parcial',   icon: 'fa-adjust' },
+      { value: 'cancelado',         label: 'Cancelado', icon: 'fa-ban' },
+    ])}
     <div class="card">
       <div class="table-wrap">
         <table style="font-size:12px">
@@ -85,7 +94,9 @@ function renderFinReceber() {
               <th>Ações</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Nenhum lançamento encontrado</td></tr>'}</tbody>
+          <tbody>${rows || `<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">
+            Nenhum lançamento encontrado${_finFilterStatus ? ' para este status' : ''}.
+          </td></tr>`}</tbody>
         </table>
       </div>
     </div>`;

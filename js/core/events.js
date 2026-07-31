@@ -84,6 +84,7 @@ const Actions = {
   'switch-fin-tab':       el  => renderFinanceiro(el.dataset.tab),
   'navigate-fin':         el  => navigateFinTab(el.dataset.finTab),
   'switch-fin-filter':    ()  => switchFinFilter(),
+  'set-fin-status':       el  => setFinStatusFilter(el.dataset.status),
   'mark-paid':            el  => openMarkPaidModal(el.dataset.type, el.dataset.id),
   'save-mark-paid':       el  => saveMarkPaid(el.dataset.type, el.dataset.id),
   'switch-fin-regime':    el  => switchFinRegime(el.value),
