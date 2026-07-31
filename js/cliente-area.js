@@ -80,7 +80,6 @@ async function renderClienteArea() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title"><i class="fas fa-user-check" style="color:var(--purple-light);margin-right:10px"></i>Área do Cliente</h1>
-          <p class="page-subtitle">Aprove conteúdos, visualize seu calendário e acompanhe entregas</p>
         </div>
         ${!isCliente ? `
         <div class="page-actions">

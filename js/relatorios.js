@@ -14,7 +14,6 @@ async function renderRelatorios() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Relatórios</h1>
-          <p class="page-subtitle">Análise completa de desempenho da agência</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="export-report"><i class="fas fa-download"></i> Exportar</button>

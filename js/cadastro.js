@@ -56,7 +56,6 @@ function renderCadastro(tab) {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Cadastro</h1>
-          <p class="page-subtitle">Gestão de clientes, funcionários e fornecedores</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-primary" data-action="open-new-cadastro-modal"><i class="fas fa-plus"></i> Novo ${cadastroTab === 'clientes' ? 'Cliente' : cadastroTab === 'funcionarios' ? 'Funcionário' : 'Fornecedor'}</button>

@@ -33,7 +33,6 @@ async function renderTarefas() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Gestão de Tarefas</h1>
-          <p class="page-subtitle" id="task-subtitle">Carregando cards...</p>
         </div>
         <div class="page-actions">
           <div class="tabs" style="margin:0">
@@ -65,10 +64,6 @@ async function renderTarefas() {
   _kanbanCols = await Data.kanbanColumns();
   const clients = await Data.clients();
   const profiles = await Data.profiles();
-
-  // Atualiza subtítulo
-  const sub = document.getElementById('task-subtitle');
-  if (sub) sub.textContent = `Quadro kanban de produção de conteúdo — ${_taskData.length} cards ativos`;
 
   // Renderiza filtros
   const clientOpts = `<option value="">Todos os clientes</option>${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}`;

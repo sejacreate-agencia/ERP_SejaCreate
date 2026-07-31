@@ -23,7 +23,6 @@ function renderConfiguracoes(section) {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <h1 class="page-title">Configurações</h1>
-      <p class="page-subtitle">Administre usuários, permissões, funis e regras do sistema</p>
     </div>
     <div class="config-layout">
       <div class="config-sidebar-nav">

@@ -30,7 +30,6 @@ async function renderSolicitarArtes() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Solicitar Artes</h1>
-          <p class="page-subtitle" id="sa-subtitle">Carregando solicitações...</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-primary" data-action="sa-open-new"><i class="fas fa-plus"></i> Nova Solicitação</button>
@@ -44,9 +43,6 @@ async function renderSolicitarArtes() {
 
   _saData = await Data.tasks();
   const clients = await Data.clients();
-
-  const sub = document.getElementById('sa-subtitle');
-  if (sub) sub.textContent = `${_saData.length} solicitações registradas`;
 
   // Filtros
   const clientOpts = `<option value="">Todas as empresas</option>${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;

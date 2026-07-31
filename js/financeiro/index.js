@@ -35,7 +35,6 @@ async function renderFinanceiro(tab) {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Financeiro</h1>
-          <p class="page-subtitle">Controle financeiro completo da agência</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-primary" data-action="open-new-lanc-modal"><i class="fas fa-plus"></i> Novo Lançamento</button>
