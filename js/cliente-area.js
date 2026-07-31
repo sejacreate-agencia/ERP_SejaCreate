@@ -16,10 +16,64 @@ function _resolveClientLink(u) {
   return SC.clients.find(c => c.email === u.email || c.resp === u.name) || null;
 }
 
-function renderClienteArea() {
+// Recarrega as tarefas do banco. Sem isso a tela usava o snapshot feito no
+// login (SC.tasks), então um conteúdo enviado ao cliente depois disso só
+// aparecia após atualizar a página inteira.
+async function _refreshClientTasks() {
+  if (!isSupabaseReady()) return;
+  const { data, error } = await DB.tasks.list();
+  if (error || !data) {
+    console.warn('Área do Cliente: falha ao recarregar tarefas', error);
+    return;
+  }
+  SC.tasks = data.map(t => ({
+    id: t.id, title: t.title, text: t.text || '', status: t.status, priority: t.priority,
+    client: t.client_id, client_id: t.client_id,
+    assignee: t.assignee_id, assignee_id: t.assignee_id,
+    postDate: t.post_date, post_date: t.post_date,
+    created: t.created_at?.split('T')[0], created_at: t.created_at,
+    contentType: t.content_type, content_type: t.content_type,
+    art_url: t.art_url || null,
+    checklist: (t.task_checklists || []).map(c => ({ id: c.id, text: c.text, done: c.done })),
+    task_checklists: t.task_checklists || [],
+    comments: (t.task_comments || []).map(c => ({
+      id: c.id, text: c.text, date: c.created_at,
+      user: c.user?.full_name || c.user_id || null,
+    })),
+    task_comments: t.task_comments || [],
+    task_attachments: t.task_attachments || [],
+  }));
+}
+
+async function renderClienteArea() {
   // Se o usuário logado é cliente, filtra pelo cliente vinculado
   const u = SC.currentUser;
   const isCliente = u?.role === 'cliente';
+
+  const pcLoad = document.getElementById('page-content');
+  if (pcLoad) pcLoad.innerHTML = `<div class="loading-state" style="padding:60px 0"><i class="fas fa-spinner fa-spin"></i> Carregando conteúdos...</div>`;
+
+  await _refreshClientTasks();
+
+  // Usuário cliente sem vínculo não enxerga nada — avisa em vez de mostrar
+  // uma tela vazia que parece "nenhum conteúdo enviado".
+  if (isCliente && !_resolveClientLink(u)) {
+    document.getElementById('page-content').innerHTML = `
+      <div class="page-header">
+        <div class="page-header-row"><div>
+          <h1 class="page-title"><i class="fas fa-user-check" style="color:var(--purple-light);margin-right:10px"></i>Área do Cliente</h1>
+        </div></div>
+      </div>
+      <div class="empty-state" style="padding:48px;background:var(--bg-card);border:1px solid var(--danger);border-radius:var(--border-radius)">
+        <i class="fas fa-unlink" style="color:var(--danger);font-size:32px"></i>
+        <p style="margin-top:12px;font-weight:600">Seu usuário ainda não está vinculado a um cliente</p>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:6px">
+          Por isso nenhum conteúdo aparece aqui. Peça à equipe da Seja Create para vincular
+          seu acesso em <strong>Configurações → Usuários</strong>.
+        </p>
+      </div>`;
+    return;
+  }
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">

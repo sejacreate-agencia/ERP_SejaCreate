@@ -354,11 +354,13 @@ async function _saveTaskStatus(id, newStatus, prevStatus) {
       return;
     }
     await logActivity('task.status_changed', 'task', String(id), JSON.stringify({ from: prevStatus, to: newStatus }));
-  } else {
-    // Atualiza mock
-    const scTask = SC.tasks.find(t => String(t.id) === String(id));
-    if (scTask) scTask.status = newStatus;
   }
+
+  // Espelha em SC.tasks nos DOIS modos. A Área do Cliente e o calendário leem
+  // de SC.tasks; sem isso o card "Enviado ao Cliente" só aparecia após F5.
+  const scTask = SC.tasks.find(t => String(t.id) === String(id));
+  if (scTask) scTask.status = newStatus;
+
   showToast(`✅ Card movido para "${newStatus}"`, 'success');
 }
 
