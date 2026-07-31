@@ -13,6 +13,11 @@
   <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
 
   <style>
+    /* O style.css trava o body (height:100vh; overflow:hidden) porque no
+       dashboard o scroll fica nos containers internos. Esta página rola no
+       documento, então precisa destravar. */
+    html, body { height:auto; min-height:100%; overflow:visible; }
+
     /* Página pública — não carrega o layout do app (sidebar/topbar). */
     .bf-page   { min-height:100vh; display:flex; flex-direction:column; align-items:center;
                  padding:20px 16px 48px; background:var(--bg-primary); }
