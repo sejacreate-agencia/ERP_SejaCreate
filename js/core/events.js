@@ -154,6 +154,12 @@ const Actions = {
   'ws-add-link':          el  => wsAddLink(el.dataset.kind),
   'ws-del-link':          el  => wsDelLink(el.dataset.id),
   'ws-del-file':          el  => wsDelFile(el.dataset.id),
+  'ws-gerar-briefing':    ()  => wsGerarBriefing(),
+  'ws-copiar-briefing':   el  => wsCopiarBriefing(el.dataset.url),
+  'ws-reabrir-briefing':  el  => wsReabrirBriefing(el.dataset.id),
+  'ob-abrir-import':      ()  => openBriefingImport(),
+  'ob-import-parse':      ()  => briefingImportParse(),
+  'ob-import-salvar':     ()  => briefingImportSalvar(),
 
   // ── PLANEJAMENTOS ─────────────────────────
   'pl-set-view':          el  => setPlView(el.dataset.view),

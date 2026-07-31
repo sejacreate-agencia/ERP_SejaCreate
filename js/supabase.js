@@ -275,6 +275,35 @@ const DB = {
     },
   },
 
+  // ── BRIEFINGS (formulário do cliente) ───
+  clientBriefings: {
+    async get(clientId) {
+      const { data, error } = await SB.list('client_briefings', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }, limit: 1
+      });
+      return { data: (data || [])[0] || null, error };
+    },
+    async listAll() {
+      return SB.list('client_briefings', { order: { col: 'created_at', asc: false } });
+    },
+    async create(clientId, token) {
+      return SB.insert('client_briefings', { client_id: clientId, token, status: 'pendente' });
+    },
+    // Usado pelo importador do CSV — já entra respondido.
+    async importar(clientId, token, answers, submittedAt) {
+      return SB.insert('client_briefings', {
+        client_id: clientId, token, answers,
+        status: 'respondido', source: 'import',
+        submitted_at: submittedAt || new Date().toISOString(),
+      });
+    },
+    async reabrir(id) {
+      return SB.update('client_briefings', id, { status: 'pendente', submitted_at: null });
+    },
+    async remove(id) { return SB.remove('client_briefings', id); },
+  },
+
   // ── LEAD NOTES (anotações do CRM) ───────
   leadNotes: {
     async list(leadId) {
