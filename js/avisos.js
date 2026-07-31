@@ -2,7 +2,68 @@
 // SEJA CREATE — AVISOS IMPORTANTES
 // =============================================
 
+function generateAvisosFromData() {
+  if (!isSupabaseReady()) return; // mantém SC.avisos demo intacto em modo demo
+  const avisos = [];
+  const today = new Date(new Date().toDateString());
+  let id = 1;
+
+  // Financeiro: recebíveis em atraso
+  (SC.finances.receivable || []).forEach(r => {
+    const due = r.due_date || r.due;
+    const isAtrasado = r.status === 'atrasado' ||
+      (r.status === 'pendente' && due && new Date(due.split('T')[0]) < today);
+    if (isAtrasado) {
+      const clientName = SC.getClientName(r.client_id || r.client) || 'Cliente';
+      avisos.push({
+        id: id++, type: 'pagamento-aberto',
+        title: `${clientName} — ${r.description || r.desc || 'fatura'} em atraso`,
+        priority: 'alta', assignee: null, client: r.client_id || r.client,
+        deadline: due, action: 'financeiro', icon: '💸',
+      });
+    }
+  });
+
+  // Tarefas: ajuste solicitado
+  (SC.tasks || []).filter(t => t.status === 'Ajuste Solicitado').forEach(t => {
+    avisos.push({
+      id: id++, type: 'ajuste-solicitado',
+      title: `Ajuste solicitado: ${t.title}`,
+      priority: 'alta', assignee: t.assignee, client: t.client,
+      deadline: t.postDate, action: 'tarefas', icon: '🔄',
+    });
+  });
+
+  // Tarefas: aguardando aprovação do cliente
+  (SC.tasks || []).filter(t => t.status === 'Enviado ao Cliente').forEach(t => {
+    avisos.push({
+      id: id++, type: 'aprovacao-pendente',
+      title: `Aguardando aprovação: ${t.title}`,
+      priority: 'media', assignee: t.assignee, client: t.client,
+      deadline: t.postDate, action: 'tarefas', icon: '✅',
+    });
+  });
+
+  // Contratos vencendo nos próximos 30 dias
+  (SC.clients || []).forEach(c => {
+    if (!c.expiry) return;
+    const expiry = new Date(c.expiry);
+    const diff = Math.round((expiry - today) / 86400000);
+    if (diff >= 0 && diff <= 30) {
+      avisos.push({
+        id: id++, type: 'contrato-vencendo',
+        title: `${c.name} — contrato vence em ${diff} dia${diff !== 1 ? 's' : ''}`,
+        priority: diff <= 7 ? 'alta' : 'media', assignee: null, client: c.id,
+        deadline: c.expiry, action: 'cadastro', icon: '📋',
+      });
+    }
+  });
+
+  SC.avisos = avisos;
+}
+
 function renderAvisos() {
+  generateAvisosFromData();
   const types = [
     { value: '', label: 'Todos os tipos' },
     { value: 'tarefa-vencida', label: 'Tarefas Vencidas' },
@@ -21,13 +82,15 @@ function renderAvisos() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">⚠️ Avisos Importantes</h1>
-          <p class="page-subtitle">Central de pendências operacionais da agência — ${SC.avisos.length} avisos ativos</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="refresh-avisos"><i class="fas fa-sync"></i> Atualizar</button>
         </div>
       </div>
     </div>
+
+    <!-- MENÇÕES / NOTIFICAÇÕES -->
+    <div id="mentions-panel" style="margin-bottom:20px"></div>
 
     <!-- SUMMARY CHIPS -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
@@ -65,6 +128,44 @@ function renderAvisos() {
       ${renderAvisosList(SC.avisos)}
     </div>
   `;
+
+  loadMentionsPanel();
+}
+
+// Painel de menções (@) do usuário logado
+async function loadMentionsPanel() {
+  const el = document.getElementById('mentions-panel');
+  if (!el || typeof NotificationService === 'undefined') return;
+  const items = await NotificationService.listMentions();
+  if (!items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-at" style="color:var(--purple-light);margin-right:8px"></i>Menções (${items.filter(i=>!i.read).length} não lidas)</span>
+        <button class="btn btn-ghost btn-sm" data-action="notif-mark-all"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>
+      </div>
+      ${items.map(n => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light);${n.read ? 'opacity:.6' : ''}">
+          <div class="avatar-sm">${(n.actor?.avatar_initials) || '@'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px">${(n.text || 'Você foi mencionado').replace(/</g,'&lt;')}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${formatDateBR(n.created_at) || ''}</div>
+          </div>
+          ${n.task_id ? `<button class="btn btn-secondary btn-sm" data-action="notif-open" data-id="${n.id}" data-task="${n.task_id}">Abrir card</button>` : ''}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+async function openNotification(notifId, taskId) {
+  if (typeof NotificationService !== 'undefined') { await DB.notifications.markRead(notifId); NotificationService.refreshBadge(); }
+  // openTaskModal recarrega _taskData sozinho se o card não estiver em memória
+  if (typeof openTaskModal === 'function') openTaskModal(taskId);
+}
+
+async function markAllNotifications() {
+  if (typeof NotificationService !== 'undefined') NotificationService.markAllRead();
+  loadMentionsPanel();
 }
 
 function renderAvisosList(avisos) {
@@ -129,7 +230,7 @@ function filterAvisos() {
   let filtered = SC.avisos;
   if (type) filtered = filtered.filter(a => a.type === type);
   if (priority) filtered = filtered.filter(a => a.priority === priority);
-  if (client) filtered = filtered.filter(a => a.client === parseInt(client));
+  if (client) filtered = filtered.filter(a => String(a.client) === String(client));
 
   document.getElementById('avisos-list').innerHTML = renderAvisosList(filtered);
 }

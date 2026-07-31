@@ -30,6 +30,9 @@ const SC = {
     { id: 6, name: 'Pharma Saúde Total', resp: 'Dra. Beatriz Faria', email: 'beatriz@pharmasaude.com', phone: '(41) 9 3210-9876', cnpj: '45.678.901/0001-23', services: ['Social Media', 'Consultoria'], plan: 'Padrão', start: '2024-09-01', expiry: '2025-09-01', status: 'ativo', revenue: 4100 },
   ],
 
+  // Usuários com role='cliente' (portal do cliente). Preenchido pelo Supabase.
+  clientUsers: [],
+
   employees: [
     { id: 1, name: 'Ana Paula Silva', cargo: 'Administradora', email: 'ana@sejacreate.com', phone: '(11) 9 9999-0001', role: 'admin', status: 'ativo' },
     { id: 2, name: 'Bruno Carvalho', cargo: 'Gestor de Projetos', email: 'bruno@sejacreate.com', phone: '(11) 9 9999-0002', role: 'gestor', status: 'ativo' },
@@ -75,6 +78,17 @@ const SC = {
     comercial: { visualizar:1, criar:1, editar:1, comentar:0, aprovar:0, programar:0, publicar:0, financeiro:0, relatorios:1 },
     financeiro:{ visualizar:1, criar:0, editar:0, comentar:0, aprovar:0, programar:0, publicar:0, financeiro:1, relatorios:1 },
     cliente:   { visualizar:1, criar:0, editar:0, comentar:1, aprovar:1, programar:0, publicar:0, financeiro:0, relatorios:0 },
+  },
+
+  // Acesso por módulo (quais seções do menu cada perfil vê) — editável via Configurações > Perfis
+  modulePermissions: {
+    admin:     { comercial:1, operacional:1, financeiro:1, relatorios:1, config:1, clienteArea:1, avisos:1 },
+    gestor:    { comercial:1, operacional:1, financeiro:0, relatorios:1, config:1, clienteArea:1, avisos:1 },
+    social:    { comercial:0, operacional:1, financeiro:0, relatorios:0, config:1, clienteArea:1, avisos:1 },
+    designer:  { comercial:0, operacional:1, financeiro:0, relatorios:0, config:0, clienteArea:0, avisos:1 },
+    comercial: { comercial:1, operacional:0, financeiro:0, relatorios:1, config:1, clienteArea:1, avisos:1 },
+    financeiro:{ comercial:0, operacional:0, financeiro:1, relatorios:1, config:0, clienteArea:0, avisos:1 },
+    cliente:   { comercial:0, operacional:0, financeiro:0, relatorios:0, config:0, clienteArea:1, avisos:0 },
   },
 
   hasPermission(action) {

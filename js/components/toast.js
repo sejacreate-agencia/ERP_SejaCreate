@@ -4,7 +4,7 @@
 
 const Toast = {
 
-  _colors: { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#7c3aed' },
+  _colors: { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#79009d' },
   _icons:  { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' },
 
   show(msg, type = 'success') {

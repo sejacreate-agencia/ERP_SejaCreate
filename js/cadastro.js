@@ -4,6 +4,44 @@
 
 let cadastroTab = 'clientes';
 
+// ── MÁSCARAS DE INPUT ────────────────────────────────────────────────────────
+
+function _maskPhone(v) {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (!d) return '';
+  if (d.length <= 2)  return `(${d}`;
+  if (d.length <= 6)  return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
+
+function _maskCnpjCpf(v) {
+  const d = v.replace(/\D/g, '').slice(0, 14);
+  if (!d) return '';
+  if (d.length <= 3)  return d;
+  if (d.length <= 6)  return `${d.slice(0,3)}.${d.slice(3)}`;
+  if (d.length <= 9)  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+  if (d.length <= 11) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+  if (d.length <= 12) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8)}`;
+  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
+}
+
+function _attachInputMasks(phoneId, cnpjId) {
+  const attach = (el, maskFn) => {
+    if (!el) return;
+    el.value = maskFn(el.value);
+    el.addEventListener('input', e => {
+      const pos    = e.target.selectionStart;
+      const before = e.target.value.length;
+      e.target.value = maskFn(e.target.value);
+      const delta  = e.target.value.length - before;
+      try { e.target.setSelectionRange(pos + delta, pos + delta); } catch (_) {}
+    });
+  };
+  attach(document.getElementById(phoneId),  _maskPhone);
+  attach(document.getElementById(cnpjId),   _maskCnpjCpf);
+}
+
 function renderCadastro(tab) {
   if (tab) cadastroTab = tab;
 
@@ -18,7 +56,6 @@ function renderCadastro(tab) {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Cadastro</h1>
-          <p class="page-subtitle">Gestão de clientes, funcionários e fornecedores</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-primary" data-action="open-new-cadastro-modal"><i class="fas fa-plus"></i> Novo ${cadastroTab === 'clientes' ? 'Cliente' : cadastroTab === 'funcionarios' ? 'Funcionário' : 'Fornecedor'}</button>
@@ -39,7 +76,7 @@ function renderCadastro(tab) {
 
 function renderClientesTab() {
   const rows = SC.clients.map(c => `
-    <tr data-action="open-client-detail" data-id="${c.id}" style="cursor:pointer">
+    <tr data-action="open-client-detail" data-id="${c.id}" data-name="${(c.name||'').toLowerCase()}" data-status="${c.status||''}" data-plan="${c.plan||''}" style="cursor:pointer">
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="avatar-sm">${c.name.charAt(0)}</div>
@@ -64,6 +101,7 @@ function renderClientesTab() {
       </td>
       <td>
         <button class="btn btn-sm btn-ghost" data-action="open-client-detail" data-id="${c.id}" data-stop-propagation="1"><i class="fas fa-eye"></i></button>
+        <button class="btn btn-sm btn-ghost" data-action="open-edit-client" data-id="${c.id}" data-stop-propagation="1" title="Editar cliente"><i class="fas fa-edit"></i></button>
         <button class="btn btn-sm btn-ghost" data-action="toggle-client-status" data-id="${c.id}" data-stop-propagation="1"><i class="fas fa-power-off"></i></button>
       </td>
     </tr>
@@ -128,11 +166,15 @@ function renderFornecedoresTab() {
   const rows = SC.suppliers.map(s => `
     <tr>
       <td><strong>${s.name}</strong></td>
-      <td style="font-size:12px">${s.contact}</td>
-      <td style="font-size:12px">${s.phone}</td>
-      <td><span class="tag tag-blue">${s.service}</span></td>
+      <td style="font-size:12px">${s.contact || '—'}</td>
+      <td style="font-size:12px">${s.phone || '—'}</td>
+      <td><span class="tag tag-blue">${s.service || '—'}</span></td>
       <td><span class="tag ${s.status === 'ativo' ? 'tag-green' : 'tag-gray'}">${s.status}</span></td>
-      <td><button class="btn btn-sm btn-ghost"><i class="fas fa-edit"></i></button></td>
+      <td>
+        <button class="btn btn-sm btn-ghost" data-action="open-edit-supplier" data-id="${s.id}">
+          <i class="fas fa-edit"></i>
+        </button>
+      </td>
     </tr>
   `).join('');
   return `
@@ -140,18 +182,64 @@ function renderFornecedoresTab() {
       <div class="table-wrap">
         <table>
           <thead><tr><th>Fornecedor</th><th>Contato</th><th>Telefone</th><th>Serviço</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Nenhum fornecedor cadastrado</td></tr>'}</tbody>
         </table>
       </div>
     </div>
   `;
 }
 
+function openEditSupplierModal(id) {
+  const s = SC.suppliers.find(x => String(x.id) === String(id));
+  if (!s) return;
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-truck" style="color:var(--purple-light);margin-right:8px"></i>Editar Fornecedor</span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-col full"><label>Nome *</label><input class="input-field" id="es-name" value="${s.name}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Contato</label><input class="input-field" id="es-contact" value="${s.contact || ''}" /></div>
+        <div class="form-col"><label>Telefone</label><input class="input-field" id="es-phone" value="${s.phone || ''}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Serviço Prestado</label><input class="input-field" id="es-service" value="${s.service || ''}" /></div>
+        <div class="form-col"><label>Status</label>
+          <select class="select-field" id="es-status">
+            <option value="ativo" ${s.status === 'ativo' ? 'selected' : ''}>Ativo</option>
+            <option value="inativo" ${s.status === 'inativo' ? 'selected' : ''}>Inativo</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-edit-supplier" data-id="${id}"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  `);
+}
+
+function saveEditSupplier(id) {
+  const s = SC.suppliers.find(x => String(x.id) === String(id));
+  if (!s) return;
+  const name = document.getElementById('es-name').value.trim();
+  if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
+  s.name    = name;
+  s.contact = document.getElementById('es-contact').value;
+  s.phone   = document.getElementById('es-phone').value;
+  s.service = document.getElementById('es-service').value;
+  s.status  = document.getElementById('es-status').value;
+  closeModal(); showToast('Fornecedor atualizado!'); renderCadastro('fornecedores');
+}
+
 function openClientDetail(id) {
-  const c = SC.clients.find(x => x.id === id);
+  const c = SC.clients.find(x => String(x.id) === String(id));
   if (!c) return;
-  const tasks = SC.tasks.filter(t => t.client === id);
-  const financials = SC.finances.receivable.filter(f => f.client === id);
+  const tasks = SC.tasks.filter(t => String(t.client) === String(id) || String(t.client_id) === String(id));
+  const financials = SC.finances.receivable.filter(f => String(f.client) === String(id) || String(f.client_id) === String(id));
 
   openModal(`
     <div class="modal-header">
@@ -231,7 +319,7 @@ function switchClientTab(n) {
 }
 
 function toggleClientStatus(id) {
-  const c = SC.clients.find(x => x.id === id);
+  const c = SC.clients.find(x => String(x.id) === String(id));
   if (c) { c.status = c.status === 'ativo' ? 'inativo' : 'ativo'; renderCadastro('clientes'); showToast('Status atualizado!'); }
 }
 
@@ -250,11 +338,17 @@ function openNewClientModal() {
     <div class="modal-body">
       <div class="form-row">
         <div class="form-col"><label>Nome da Empresa *</label><input class="input-field" id="nc-name" placeholder="Ex: TechVision Soluções" /></div>
-        <div class="form-col"><label>Responsável *</label><input class="input-field" id="nc-resp" placeholder="Nome do responsável" /></div>
+        <div class="form-col"><label>Responsável</label><input class="input-field" id="nc-resp" placeholder="Nome do responsável" /></div>
       </div>
       <div class="form-row">
         <div class="form-col"><label>E-mail</label><input class="input-field" id="nc-email" type="email" /></div>
         <div class="form-col"><label>Telefone</label><input class="input-field" id="nc-phone" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Serviços Contratados <span style="font-size:11px;color:var(--text-secondary)">(separados por vírgula)</span></label>
+          <input class="input-field" id="nc-services" placeholder="Ex: Social Media, Design, Tráfego Pago" />
+        </div>
       </div>
       <div class="form-row">
         <div class="form-col"><label>CNPJ / CPF</label><input class="input-field" id="nc-cnpj" /></div>
@@ -263,32 +357,91 @@ function openNewClientModal() {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>Mensalidade (R$)</label><input class="input-field" id="nc-revenue" type="number" /></div>
+        <div class="form-col"><label>Mensalidade (R$)</label><input class="input-field" id="nc-revenue" type="number" step="0.01" /></div>
+        <div class="form-col"><label>Dia de Vencimento</label><input class="input-field" id="nc-diaVenc" type="number" min="1" max="31" placeholder="Ex: 10" /></div>
+      </div>
+      <div class="form-row">
         <div class="form-col"><label>Data de Início</label><input class="input-field" id="nc-start" type="date" /></div>
+        <div class="form-col"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
       <button class="btn btn-primary" data-action="save-new-client"><i class="fas fa-save"></i> Salvar</button>
     </div>
-  `);
+  `, 'modal-lg');
+  _attachInputMasks('nc-phone', 'nc-cnpj');
 }
 
-function saveNewClient() {
-  const name = document.getElementById('nc-name').value;
+async function saveNewClient() {
+  const name = document.getElementById('nc-name').value.trim();
   if (!name) { showToast('Nome da empresa é obrigatório!', 'error'); return; }
-  SC.clients.push({
-    id: SC.clients.length + 1, name,
-    resp: document.getElementById('nc-resp').value,
-    email: document.getElementById('nc-email').value,
-    phone: document.getElementById('nc-phone').value,
-    cnpj: document.getElementById('nc-cnpj').value,
-    services: [], plan: document.getElementById('nc-plan').value,
-    start: document.getElementById('nc-start').value,
-    expiry: '', status: 'ativo',
-    revenue: parseFloat(document.getElementById('nc-revenue').value) || 0,
-  });
-  closeModal(); showToast('Cliente cadastrado!'); renderCadastro('clientes');
+
+  const btn = document.querySelector('[data-action="save-new-client"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const servicesRaw = document.getElementById('nc-services')?.value || '';
+  const services    = servicesRaw ? servicesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const diaVenc     = parseInt(document.getElementById('nc-diaVenc')?.value) || null;
+  const revenue     = parseFloat(document.getElementById('nc-revenue')?.value) || 0;
+  const startDate   = document.getElementById('nc-start')?.value || null;
+
+  const payload = {
+    name,
+    contact_name:    document.getElementById('nc-resp').value,
+    email:           document.getElementById('nc-email').value,
+    phone:           document.getElementById('nc-phone').value,
+    cnpj:            document.getElementById('nc-cnpj').value,
+    services,
+    plan:            document.getElementById('nc-plan').value,
+    start_date:      startDate,
+    status:          'ativo',
+    monthly_revenue: revenue,
+    dia_vencimento:  diaVenc,
+  };
+
+  let clientId;
+
+  if (isSupabaseReady()) {
+    let { data, error } = await DB.clients.create(payload);
+    if (error && (error.message.includes('dia_vencimento') || error.message.includes('services') || error.message.includes('schema cache'))) {
+      const fallback = { ...payload };
+      delete fallback.dia_vencimento;
+      delete fallback.services;
+      const res = await DB.clients.create(fallback);
+      data = res.data; error = res.error;
+      if (!error) showToast('⚠️ Cliente salvo sem dia_vencimento/serviços — execute a migration-002.sql no Supabase.', 'warning');
+    }
+    if (error) {
+      showToast(`Erro ao criar cliente: ${error.message}`, 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; }
+      return;
+    }
+    clientId = data.id;
+    SC.clients.push({
+      id: data.id, name: data.name, resp: data.contact_name || '', email: data.email || '',
+      phone: data.phone || '', cnpj: data.cnpj || '', services: data.services || [],
+      plan: data.plan, start: data.start_date || '', expiry: data.expiry_date || '',
+      status: data.status, revenue: data.monthly_revenue || 0, diaVenc: data.dia_vencimento,
+    });
+    await logActivity('client.created', 'client', data.id, JSON.stringify({ name }));
+  } else {
+    clientId = Date.now();
+    SC.clients.push({
+      id: clientId, name, resp: payload.contact_name, email: payload.email,
+      phone: payload.phone, cnpj: payload.cnpj, services, plan: payload.plan,
+      start: startDate || '', expiry: '', status: 'ativo', revenue, diaVenc,
+    });
+  }
+
+  closeModal();
+  showToast('✅ Cliente cadastrado com sucesso!', 'success');
+  renderCadastro('clientes');
+
+  if (revenue > 0 && diaVenc) {
+    const count = await _autoGerarRecebimentos(clientId, name, revenue, diaVenc, startDate, false);
+    if (count > 0) showToast(`📅 ${count} recebimentos futuros gerados automaticamente!`, 'success');
+  }
 }
 
 function openFuncModal(id) {
@@ -366,17 +519,257 @@ function saveNewSupplier() {
   closeModal(); showToast('Fornecedor cadastrado!'); renderCadastro('fornecedores');
 }
 
-function filterClients(q) {
+const _clientFilters = { q: '', status: '', plan: '' };
+function _applyClientFilters() {
   const rows = document.querySelectorAll('#clients-table tbody tr');
-  rows.forEach(r => { r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; });
+  rows.forEach(r => {
+    const okQ      = !_clientFilters.q      || (r.dataset.name || '').includes(_clientFilters.q);
+    const okStatus = !_clientFilters.status || r.dataset.status === _clientFilters.status;
+    const okPlan   = !_clientFilters.plan   || r.dataset.plan   === _clientFilters.plan;
+    r.style.display = (okQ && okStatus && okPlan) ? '' : 'none';
+  });
 }
-function filterClientStatus(v) {
-  const rows = document.querySelectorAll('#clients-table tbody tr');
-  rows.forEach(r => { r.style.display = !v || r.textContent.toLowerCase().includes(v) ? '' : 'none'; });
+function filterClients(q)          { _clientFilters.q = (q || '').toLowerCase(); _applyClientFilters(); }
+function filterClientStatus(v)     { _clientFilters.status = v || ''; _applyClientFilters(); }
+function filterClientPlan(v)       { _clientFilters.plan = v || ''; _applyClientFilters(); }
+
+// ── EDITAR CLIENTE ────────────────────────────────────────────────────────────
+
+function openEditClientModal(id) {
+  const c = SC.clients.find(x => String(x.id) === String(id));
+  if (!c) return;
+
+  const servicesStr = (c.services || []).join(', ');
+  const planOpts    = ['Basic','Starter','Padrão','Premium'].map(p =>
+    `<option ${c.plan === p ? 'selected' : ''}>${p}</option>`
+  ).join('');
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-building" style="color:var(--purple-light);margin-right:8px"></i>
+        Editar Cliente: ${c.name}
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-col"><label>Nome da Empresa *</label><input class="input-field" id="ec-name" value="${c.name}" /></div>
+        <div class="form-col"><label>Responsável</label><input class="input-field" id="ec-resp" value="${c.resp || ''}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>E-mail</label><input class="input-field" id="ec-email" type="email" value="${c.email || ''}" /></div>
+        <div class="form-col"><label>Telefone</label><input class="input-field" id="ec-phone" value="${c.phone || ''}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Serviços Contratados <span style="font-size:11px;color:var(--text-secondary)">(separados por vírgula)</span></label>
+          <input class="input-field" id="ec-services" value="${servicesStr}" placeholder="Ex: Social Media, Design, Tráfego Pago" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Plano</label><select class="select-field" id="ec-plan">${planOpts}</select></div>
+        <div class="form-col"><label>Status</label>
+          <select class="select-field" id="ec-status">
+            <option value="ativo"        ${c.status === 'ativo'        ? 'selected' : ''}>Ativo</option>
+            <option value="inativo"      ${c.status === 'inativo'      ? 'selected' : ''}>Inativo</option>
+            <option value="inadimplente" ${c.status === 'inadimplente' ? 'selected' : ''}>Inadimplente</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Mensalidade (R$)</label><input class="input-field" id="ec-revenue" type="number" value="${c.revenue || ''}" step="0.01" /></div>
+        <div class="form-col"><label>Dia de Vencimento</label><input class="input-field" id="ec-diaVenc" type="number" min="1" max="31" value="${c.diaVenc || ''}" placeholder="Ex: 10" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>Data de Início</label><input class="input-field" id="ec-start" type="date" value="${c.start || ''}" /></div>
+        <div class="form-col"><label>CNPJ / CPF</label><input class="input-field" id="ec-cnpj" value="${c.cnpj || ''}" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-edit-client" data-id="${id}">
+        <i class="fas fa-save"></i> Salvar Alterações
+      </button>
+    </div>
+  `, 'modal-lg');
+  _attachInputMasks('ec-phone', 'ec-cnpj');
 }
-function filterClientPlan(v) {
-  const rows = document.querySelectorAll('#clients-table tbody tr');
-  rows.forEach(r => { r.style.display = !v || r.textContent.includes(v) ? '' : 'none'; });
+
+async function saveEditClient(id) {
+  const name = document.getElementById('ec-name').value.trim();
+  if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
+
+  const btn = document.querySelector('[data-action="save-edit-client"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const servicesRaw = document.getElementById('ec-services').value;
+  const services    = servicesRaw ? servicesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const diaVenc     = parseInt(document.getElementById('ec-diaVenc').value) || null;
+  const newRevenue  = parseFloat(document.getElementById('ec-revenue').value) || 0;
+  const newStart    = document.getElementById('ec-start').value || null;
+
+  // Captura valores financeiros antigos ANTES de qualquer atualização
+  const c = SC.clients.find(x => String(x.id) === String(id));
+  const oldRevenue = c?.revenue   || 0;
+  const oldDiaVenc = c?.diaVenc   || null;
+  const oldStart   = c?.start     || null;
+
+  const payload = {
+    name,
+    contact_name:    document.getElementById('ec-resp').value,
+    email:           document.getElementById('ec-email').value,
+    phone:           document.getElementById('ec-phone').value,
+    cnpj:            document.getElementById('ec-cnpj').value,
+    services,
+    plan:            document.getElementById('ec-plan').value,
+    status:          document.getElementById('ec-status').value,
+    start_date:      newStart,
+    monthly_revenue: newRevenue,
+    dia_vencimento:  diaVenc,
+  };
+
+  if (isSupabaseReady()) {
+    let { error } = await DB.clients.update(id, payload);
+    if (error && (error.message.includes('dia_vencimento') || error.message.includes('services') || error.message.includes('schema cache'))) {
+      const fallback = { ...payload };
+      delete fallback.dia_vencimento;
+      delete fallback.services;
+      const res = await DB.clients.update(id, fallback);
+      error = res.error;
+      if (!error) showToast('⚠️ Salvo sem dia_vencimento/serviços — execute a migration-002.sql no Supabase.', 'warning');
+    }
+    if (error) {
+      showToast(`Erro ao atualizar cliente: ${error.message}`, 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações'; }
+      return;
+    }
+  }
+
+  if (c) {
+    c.name    = payload.name;    c.resp    = payload.contact_name;
+    c.email   = payload.email;   c.phone   = payload.phone;
+    c.cnpj    = payload.cnpj;    c.services = payload.services;
+    c.plan    = payload.plan;    c.status  = payload.status;
+    c.start   = newStart || '';  c.revenue = newRevenue;
+    c.diaVenc = diaVenc;
+  }
+
+  closeModal();
+  showToast('✅ Cliente atualizado com sucesso!', 'success');
+  renderCadastro('clientes');
+
+  // Auto-atualiza contas a receber se dados financeiros mudaram
+  const financialChanged = newRevenue !== oldRevenue ||
+                           diaVenc !== oldDiaVenc ||
+                           (newStart || '') !== (oldStart || '');
+  if (financialChanged) {
+    const count = await _autoGerarRecebimentos(id, name, newRevenue, diaVenc, newStart, true);
+    if (count > 0) showToast(`📅 ${count} recebimentos futuros atualizados!`, 'success');
+  }
+}
+
+// ── GERAÇÃO DE PARCELAS ───────────────────────────────────────────────────────
+
+function _calcVencimento(mes, ano, dia) {
+  const maxDay = new Date(ano, mes, 0).getDate();
+  const d      = new Date(ano, mes - 1, Math.min(dia, maxDay));
+  return d.toISOString().slice(0, 10);
+}
+
+async function _autoGerarRecebimentos(clientId, clientName, valor, diaVenc, startDate, isEdit = false) {
+  const hoje     = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const todayStr = hoje.toISOString().slice(0, 10);
+
+  // 1. Remover recebimentos futuros pendentes ao editar
+  if (isEdit) {
+    if (isSupabaseReady()) {
+      await SB.removeWhere('financial_receivables', [
+        { op: 'eq',  col: 'client_id', val: clientId },
+        { op: 'eq',  col: 'status',    val: 'pendente' },
+        { op: 'gte', col: 'due_date',  val: todayStr },
+      ]);
+    }
+    const pred = r => !(String(r.client_id) === String(clientId) &&
+                        r.status === 'pendente' &&
+                        (r.due_date || r.due || '') >= todayStr);
+    _recData    = _recData.filter(pred);
+    _recDataAll = _recDataAll.filter(pred);
+    SC.finances.receivable = SC.finances.receivable.filter(r =>
+      !(String(r.client || r.client_id) === String(clientId) &&
+        r.status === 'pendente' &&
+        (r.due || r.due_date || '') >= todayStr)
+    );
+  }
+
+  if (!valor || !diaVenc) return 0;
+
+  // 2. Determinar mês de início (data de início do contrato ou mês atual)
+  let inicioMes, inicioAno;
+  if (startDate) {
+    const sd    = new Date(startDate + 'T12:00:00');
+    const sdMs  = new Date(sd.getFullYear(), sd.getMonth(), 1).getTime();
+    const nowMs = new Date(hoje.getFullYear(), hoje.getMonth(), 1).getTime();
+    inicioMes = sdMs >= nowMs ? sd.getMonth() + 1 : hoje.getMonth() + 1;
+    inicioAno = sdMs >= nowMs ? sd.getFullYear()  : hoje.getFullYear();
+  } else {
+    inicioMes = hoje.getMonth() + 1;
+    inicioAno = hoje.getFullYear();
+  }
+
+  // 3. Gerar 12 meses
+  const MESES = 12;
+  let created = 0;
+
+  for (let i = 0; i < MESES; i++) {
+    const parcelaMes = ((inicioMes - 1 + i) % 12) + 1;
+    const parcelaAno = inicioAno + Math.floor((inicioMes - 1 + i) / 12);
+    const dueDate    = _calcVencimento(parcelaMes, parcelaAno, diaVenc);
+
+    const payload = {
+      client_id:      clientId,
+      description:    `Mensalidade ${clientName}`,
+      value:          valor,
+      due_date:       dueDate,
+      status:         'pendente',
+      parcela_numero: i + 1,
+      parcela_total:  MESES,
+    };
+
+    if (isSupabaseReady()) {
+      let { data, error } = await DB.receivables.create(payload);
+      if (error && (error.message.includes('schema cache') || error.message.includes('parcela'))) {
+        const fallback = { client_id: payload.client_id, description: payload.description, value: payload.value, due_date: payload.due_date, status: payload.status };
+        const res = await DB.receivables.create(fallback);
+        data = res.data; error = res.error;
+      }
+      if (!error && data) {
+        const item = { ...data, client: { name: clientName } };
+        _recData.push(item);
+        _recDataAll.push(item);
+        SC.finances.receivable.push({
+          id: data.id, client: clientId, client_id: clientId,
+          desc: payload.description, description: payload.description,
+          value: valor, due: dueDate, due_date: dueDate, status: 'pendente',
+        });
+        created++;
+      }
+    } else {
+      const item = {
+        id: Date.now() + i, client_id: clientId, client: { name: clientName },
+        description: payload.description, desc: payload.description,
+        value: valor, due_date: dueDate, due: dueDate,
+        status: 'pendente', parcela_numero: i + 1, parcela_total: MESES,
+      };
+      SC.finances.receivable.push({ ...item, client: clientId });
+      _recData.push(item);
+      _recDataAll.push(item);
+      created++;
+    }
+  }
+
+  return created;
 }
 
 Router.register('cadastro', renderCadastro, 'Cadastro');

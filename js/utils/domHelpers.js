@@ -97,3 +97,24 @@ const Dom = {
 // Alias global curto para uso em templates HTML gerados por JS
 const $ = (sel, ctx) => Dom.$(sel, ctx);
 const $$ = (sel, ctx) => Dom.$$(sel, ctx);
+
+// ─── THEME ───────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('sc-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  _updateThemeIcon(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('sc-theme', next);
+  _updateThemeIcon(next);
+}
+
+function _updateThemeIcon(theme) {
+  const icon = document.getElementById('theme-icon');
+  if (!icon) return;
+  icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+}

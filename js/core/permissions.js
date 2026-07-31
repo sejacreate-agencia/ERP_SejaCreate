@@ -12,52 +12,31 @@ function applyPermissions(role) {
   ['nav-comercial','nav-operacional','nav-financeiro','nav-relatorios','nav-config'].forEach(show);
   document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
 
-  const hideFinancial = () => {
+  const mods = (SC.modulePermissions && SC.modulePermissions[role]) || {};
+
+  if (!mods.comercial) hide('nav-comercial');
+
+  if (!mods.operacional) hide('nav-operacional');
+
+  if (!mods.financeiro) {
     hide('nav-financeiro');
     document.querySelectorAll('[data-perm="financial"]').forEach(el => el.style.display = 'none');
-  };
-
-  switch (role) {
-    case 'cliente':
-      hide('nav-comercial');
-      hide('nav-operacional');
-      hide('nav-financeiro');
-      hide('nav-relatorios');
-      hide('nav-config');
-      document.querySelectorAll('[data-page="avisos"]').forEach(el => el.style.display = 'none');
-      break;
-
-    case 'designer':
-      hideFinancial();
-      hide('nav-comercial');
-      break;
-
-    case 'social':
-      hideFinancial();
-      hide('nav-comercial');
-      break;
-
-    case 'comercial':
-      hideFinancial();
-      hide('nav-operacional');
-      break;
-
-    case 'financeiro':
-      hide('nav-config');
-      ['[data-page="tarefas"]','[data-page="calendario"]'].forEach(sel => {
-        document.querySelectorAll(sel).forEach(el => el && (el.style.display = 'none'));
-      });
-      break;
-
-    case 'gestor':
-      hideFinancial();
-      break;
-
-    case 'admin':
-    default:
-      // Admin vê tudo
-      break;
   }
+
+  if (!mods.relatorios) hide('nav-relatorios');
+
+  if (!mods.avisos) {
+    document.querySelectorAll('[data-page="avisos"]').forEach(el => el.style.display = 'none');
+  }
+
+  // nav-config contém dois itens independentes: Configurações e Área do Cliente
+  if (!mods.config) {
+    document.querySelectorAll('[data-page="configuracoes"]').forEach(el => el.style.display = 'none');
+  }
+  if (!mods.clienteArea) {
+    document.querySelectorAll('[data-page="cliente-area"]').forEach(el => el.style.display = 'none');
+  }
+  if (!mods.config && !mods.clienteArea) hide('nav-config');
 }
 
 function requirePermission(action) {

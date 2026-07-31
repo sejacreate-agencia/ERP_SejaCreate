@@ -13,15 +13,16 @@ function renderConfiguracoes(section) {
     { id: 'perfis',     icon: 'fa-shield-alt',    label: 'Perfis de Acesso' },
     { id: 'permissoes', icon: 'fa-lock',          label: 'Permissões' },
     { id: 'funil',      icon: 'fa-columns',       label: 'Etapas do Funil' },
+    { id: 'colunas',    icon: 'fa-table-columns', label: 'Colunas do Kanban' },
     { id: 'tipos',      icon: 'fa-tag',           label: 'Tipos de Conteúdo' },
     { id: 'servicos',   icon: 'fa-briefcase',     label: 'Serviços' },
-    { id: 'aprovacao',  icon: 'fa-check-double',  label: 'Aprovação' },
+    { id: 'aprovacao',    icon: 'fa-check-double',  label: 'Aprovação' },
+    { id: 'integracoes', icon: 'fa-plug',           label: 'Integrações' },
   ];
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <h1 class="page-title">Configurações</h1>
-      <p class="page-subtitle">Administre usuários, permissões, funis e regras do sistema</p>
     </div>
     <div class="config-layout">
       <div class="config-sidebar-nav">
@@ -57,9 +58,11 @@ function renderConfigSection() {
     case 'perfis':     return renderConfigPerfis();
     case 'permissoes': return renderConfigPermissoes();
     case 'funil':      return renderConfigFunil();
+    case 'colunas':    return renderConfigColunas();
     case 'tipos':      return renderConfigTipos();
     case 'servicos':   return renderConfigServicos();
-    case 'aprovacao':  return renderConfigAprovacao();
+    case 'aprovacao':    return renderConfigAprovacao();
+    case 'integracoes':  return renderConfigIntegracoes();
     default: return '<p style="color:var(--text-muted)">Selecione uma seção</p>';
   }
 }
@@ -67,7 +70,20 @@ function renderConfigSection() {
 /* ─── USUÁRIOS ─────────────────────────── */
 
 function renderConfigUsuarios() {
-  const rows = SC.employees.map(e => `
+  // Usuários com role=cliente ficam fora de SC.employees, mas precisam aparecer
+  // aqui — é nesta tela que o admin vincula cada um ao seu cliente.
+  const allUsers = [...SC.employees, ...(SC.clientUsers || [])];
+  const semVinculo = allUsers.filter(e => e.role === 'cliente' && !e.client_id);
+
+  const rows = allUsers.map(e => {
+    const isCliente = e.role === 'cliente';
+    const vinculo = isCliente
+      ? (e.client_id
+          ? `<span class="tag tag-green" style="font-size:11px">${SC.getClientName(e.client_id) || 'Cliente'}</span>`
+          : `<span class="tag tag-red" style="font-size:11px" title="Sem vínculo o usuário não enxerga nenhum conteúdo"><i class="fas fa-exclamation-triangle"></i> Sem vínculo</span>`)
+      : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+
+    return `
     <tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
@@ -80,7 +96,8 @@ function renderConfigUsuarios() {
       </td>
       <td style="font-size:12px">${e.email}</td>
       <td style="font-size:12px">${e.cargo}</td>
-      <td><span class="tag tag-purple">${SC.roleLabels[e.role] || e.role}</span></td>
+      <td><span class="tag ${isCliente ? 'tag-gray' : 'tag-purple'}">${SC.roleLabels[e.role] || e.role}</span></td>
+      <td>${vinculo}</td>
       <td>
         <span class="tag ${e.status === 'ativo' ? 'tag-green' : 'tag-gray'}">
           <span class="status-dot ${e.status === 'ativo' ? 'dot-green' : 'dot-gray'}"></span>
@@ -92,13 +109,31 @@ function renderConfigUsuarios() {
           <button class="btn btn-sm btn-secondary" data-action="open-func-modal" data-id="${e.id}">
             <i class="fas fa-edit"></i> Editar
           </button>
+          <button class="btn btn-sm" style="background:var(--warning-subtle,#fff8e1);color:var(--warning,#f59e0b)"
+                  data-action="open-reset-pass-modal" data-email="${e.email}" data-name="${e.name}"
+                  title="Redefinir senha">
+            <i class="fas fa-key"></i>
+          </button>
           <button class="btn btn-sm" style="background:var(--danger-subtle);color:var(--danger)"
                   data-action="delete-employee" data-id="${e.id}">
             <i class="fas fa-trash"></i>
           </button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+
+  const alerta = semVinculo.length ? `
+    <div style="background:var(--danger-subtle);border:1px solid var(--danger);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--danger)">
+        <i class="fas fa-exclamation-triangle"></i> ${semVinculo.length} usuário(s) cliente sem cliente vinculado
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">
+        ${semVinculo.map(u => u.name).join(', ')} — enquanto o vínculo não for feito, esses usuários
+        entram no sistema mas <strong>não enxergam nenhum conteúdo enviado para aprovação</strong>.
+        Clique em Editar e selecione o cliente correspondente.
+      </div>
+    </div>` : '';
 
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
@@ -107,10 +142,11 @@ function renderConfigUsuarios() {
         <i class="fas fa-plus"></i> Novo Usuário
       </button>
     </div>
+    ${alerta}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Usuário</th><th>E-mail</th><th>Cargo</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
+          <tr><th>Usuário</th><th>E-mail</th><th>Cargo</th><th>Perfil</th><th>Cliente vinculado</th><th>Status</th><th>Ações</th></tr>
         </thead>
         <tbody id="users-table-body">${rows}</tbody>
       </table>
@@ -118,10 +154,14 @@ function renderConfigUsuarios() {
 }
 
 function openFuncModal(id) {
-  const e = id !== null ? SC.employees.find(x => x.id === id) : null;
+  const pool = [...SC.employees, ...(SC.clientUsers || [])];
+  const e = id != null ? pool.find(x => String(x.id) === String(id)) : null;
   const isNew = !e;
   const roleOpts = Object.entries(SC.roleLabels).map(([k,v]) =>
     `<option value="${k}" ${e?.role===k?'selected':''}>${v}</option>`).join('');
+  const clientOpts = `<option value="">— Selecione o cliente —</option>` +
+    SC.clients.map(c =>
+      `<option value="${c.id}" ${String(c.id)===String(e?.client_id)?'selected':''}>${c.name}</option>`).join('');
 
   openModal(`
     <div class="modal-header">
@@ -143,7 +183,7 @@ function openFuncModal(id) {
       <div class="form-row">
         <div class="form-col">
           <label>Perfil de Acesso</label>
-          <select class="select-field" id="fu-role">${roleOpts}</select>
+          <select class="select-field" id="fu-role" onchange="_toggleFuClientLink()">${roleOpts}</select>
         </div>
         <div class="form-col">
           <label>Status</label>
@@ -151,6 +191,16 @@ function openFuncModal(id) {
             <option value="ativo" ${e?.status==='ativo'?'selected':''}>Ativo</option>
             <option value="inativo" ${e?.status==='inativo'?'selected':''}>Inativo</option>
           </select>
+        </div>
+      </div>
+      <div class="form-row" id="fu-client-row" style="display:${e?.role==='cliente'?'flex':'none'}">
+        <div class="form-col full">
+          <label>Cliente vinculado *</label>
+          <select class="select-field" id="fu-client">${clientOpts}</select>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+            <i class="fas fa-info-circle"></i> Obrigatório para o perfil Cliente. Sem esse vínculo o
+            usuário faz login mas a Área do Cliente aparece totalmente vazia.
+          </div>
         </div>
       </div>
       ${isNew ? `
@@ -161,11 +211,17 @@ function openFuncModal(id) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="save-func-modal" data-id="${id}">
+      <button class="btn btn-primary" data-action="save-func-modal" data-id="${id ?? ''}">
         <i class="fas fa-save"></i> ${isNew ? 'Criar Usuário' : 'Salvar Alterações'}
       </button>
     </div>
   `);
+}
+
+function _toggleFuClientLink() {
+  const role = document.getElementById('fu-role')?.value;
+  const row  = document.getElementById('fu-client-row');
+  if (row) row.style.display = role === 'cliente' ? 'flex' : 'none';
 }
 
 async function saveFuncModal(id) {
@@ -173,58 +229,135 @@ async function saveFuncModal(id) {
   const email = document.getElementById('fu-email').value.trim();
   if (!name || !email) { showToast('Nome e e-mail são obrigatórios!', 'error'); return; }
 
+  const role     = document.getElementById('fu-role').value;
+  const clientId = document.getElementById('fu-client')?.value || null;
+  if (role === 'cliente' && !clientId) {
+    showToast('Selecione o cliente vinculado — sem ele o usuário não vê conteúdo algum.', 'error');
+    return;
+  }
+
   const btn = event.target;
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
 
-  const payload = {
-    full_name: name, email,
-    cargo:  document.getElementById('fu-cargo').value.trim() || 'Colaborador',
-    phone:  document.getElementById('fu-phone').value.trim(),
-    role:   document.getElementById('fu-role').value,
-    status: document.getElementById('fu-status').value,
-    avatar_initials: name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+  const resetBtn = (label = 'Salvar Alterações') => {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fas fa-save"></i> ${label}`;
+  };
+
+  const profilePayload = {
+    full_name: name,
+    email,
+    cargo:           document.getElementById('fu-cargo').value.trim() || 'Colaborador',
+    phone:           document.getElementById('fu-phone').value.trim(),
+    role,
+    status:          document.getElementById('fu-status').value,
+    avatar_initials: name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+    // Só o perfil "cliente" carrega vínculo; trocar de perfil limpa o campo
+    client_id:       role === 'cliente' ? clientId : null,
   };
 
   if (isSupabaseReady()) {
     if (!id) {
-      // Criar no Supabase Auth + profile
-      const pass = document.getElementById('fu-pass')?.value;
-      if (!pass) { showToast('Senha é obrigatória para criar usuário!', 'error'); btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Criar Usuário'; return; }
-      // Nota: criação de user Auth requer service role key no backend
-      // Para demo, apenas cria o profile diretamente
-      const { data, error } = await DB.profiles.create(payload);
-      if (error) { showToast(`Erro: ${error.message}`, 'error'); btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Criar Usuário'; return; }
-      showToast(`✅ Perfil "${name}" criado no Supabase!`, 'success');
+      // ── 1. CRIAR USUÁRIO ────────────────────────────────────────────
+      const pass = document.getElementById('fu-pass')?.value?.trim();
+      if (!pass || pass.length < 6) {
+        showToast('Senha obrigatória com no mínimo 6 caracteres!', 'error');
+        resetBtn('Criar Usuário');
+        return;
+      }
+
+      // Salva sessão do admin para restaurar após o signUp
+      const { data: { session: adminSession } } = await supabaseClient.auth.getSession();
+
+      // Passo 1: cria o usuário no Auth
+      const { data: signUpData, error: authError } = await supabaseClient.auth.signUp({
+        email,
+        password: pass,
+        options: { data: { full_name: name, role: profilePayload.role } },
+      });
+
+      // Restaura sessão do admin (signUp pode criar nova sessão se confirmação de e-mail estiver desligada)
+      if (adminSession) {
+        await supabaseClient.auth.setSession({
+          access_token:  adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+
+      if (authError || !signUpData?.user?.id) {
+        showToast(`Erro ao criar usuário: ${authError?.message || 'ID não retornado pelo Auth'}`, 'error');
+        resetBtn('Criar Usuário');
+        return;
+      }
+
+      const userId = signUpData.user.id;
+
+      // Passo 2: upsert em profiles com o id retornado pelo Auth
+      const { error: profileError } = await SB.upsert('profiles', { id: userId, ...profilePayload });
+
+      if (profileError) {
+        showToast(`Usuário criado, mas erro ao salvar perfil: ${profileError.message}`, 'warning');
+      } else {
+        showToast(`✅ Usuário "${name}" criado com sucesso!`, 'success');
+      }
+
     } else {
-      const { error } = await DB.profiles.update(id, payload);
-      if (error) { showToast(`Erro: ${error.message}`, 'error'); btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Salvar'; return; }
-      showToast(`✅ Usuário "${name}" atualizado no Supabase!`, 'success');
+      // ── 2. EDITAR USUÁRIO EXISTENTE ─────────────────────────────────
+      const { error } = await DB.profiles.update(id, profilePayload);
+      if (error) {
+        showToast(`Erro ao atualizar usuário: ${error.message}`, 'error');
+        resetBtn();
+        return;
+      }
+      showToast(`✅ Usuário "${name}" atualizado com sucesso!`, 'success');
     }
+
   } else {
-    // Fallback mock
+    // ── MODO DEMO (sem Supabase) ────────────────────────────────────
     await new Promise(r => setTimeout(r, 350));
-    const legacyData = { name, email, cargo: payload.cargo, phone: payload.phone, role: payload.role, status: payload.status };
+    const legacyData = {
+      name, email,
+      cargo: profilePayload.cargo, phone: profilePayload.phone,
+      role: profilePayload.role, status: profilePayload.status,
+    };
     if (!id) {
       const newEmp = { id: Date.now(), ...legacyData };
       SC.employees.push(newEmp);
-      SC.users.push({ id: newEmp.id, name, role: payload.role, avatar: payload.avatar_initials, email, cargo: payload.cargo });
+      SC.users.push({ id: newEmp.id, name, role: profilePayload.role, avatar: profilePayload.avatar_initials, email, cargo: profilePayload.cargo });
       showToast(`✅ Usuário "${name}" criado!`, 'success');
     } else {
-      const emp = SC.employees.find(e => e.id === id);
+      const emp = SC.employees.find(e => String(e.id) === String(id));
       if (emp) Object.assign(emp, legacyData);
-      const user = SC.users.find(u => u.id === id);
-      if (user) { user.name = name; user.role = payload.role; user.email = email; user.cargo = payload.cargo; }
+      const usr = SC.users.find(u => String(u.id) === String(id));
+      if (usr) { usr.name = name; usr.role = profilePayload.role; usr.email = email; usr.cargo = profilePayload.cargo; }
       showToast(`✅ Usuário "${name}" atualizado!`, 'success');
     }
   }
 
+  await _refreshProfilesCache();
   closeModal();
   switchConfigSection('usuarios');
 }
 
+// Recarrega SC.employees / SC.clientUsers a partir do banco para que a tabela
+// reflita o vínculo recém-salvo sem exigir F5.
+async function _refreshProfilesCache() {
+  if (!isSupabaseReady()) return;
+  const { data, error } = await SB.list('profiles', { order: { col: 'full_name', asc: true } });
+  if (error || !data) return;
+
+  const map = p => ({
+    id: p.id, name: p.full_name, avatar: p.avatar_initials || p.full_name?.slice(0,2) || '??',
+    avatar_initials: p.avatar_initials || '', email: p.email || '', phone: p.phone || '',
+    role: p.role, cargo: p.cargo || '', status: p.status, client_id: p.client_id || null,
+  });
+  SC.employees   = data.filter(p => p.role !== 'cliente').map(map);
+  SC.clientUsers = data.filter(p => p.role === 'cliente').map(map);
+}
+
 async function deleteEmployee(id) {
-  const emp = SC.employees.find(e => e.id === id);
+  const emp = [...SC.employees, ...(SC.clientUsers || [])].find(e => String(e.id) === String(id));
   if (!emp) return;
   if (String(emp.id) === String(SC.currentUser?.id)) { showToast('Você não pode excluir sua própria conta!', 'error'); return; }
   if (!confirm(`Excluir o usuário "${emp.name}"? Esta ação não pode ser desfeita.`)) return;
@@ -234,7 +367,8 @@ async function deleteEmployee(id) {
     if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
   }
 
-  SC.employees = SC.employees.filter(e => String(e.id) !== String(id));
+  SC.employees   = SC.employees.filter(e => String(e.id) !== String(id));
+  SC.clientUsers = (SC.clientUsers || []).filter(e => String(e.id) !== String(id));
   SC.users = SC.users.filter(u => String(u.id) !== String(id));
   showToast(`Usuário "${emp.name}" excluído.`, 'error');
   switchConfigSection('usuarios');
@@ -243,7 +377,7 @@ async function deleteEmployee(id) {
 /* ─── EQUIPES ──────────────────────────── */
 
 function renderConfigEquipes() {
-  const colorMap = { purple:'#7c3aed', blue:'#3b82f6', green:'#10b981', yellow:'#f59e0b', red:'#ef4444', gray:'#6b7280' };
+  const colorMap = { purple:'#79009d', blue:'#3b82f6', green:'#10b981', yellow:'#f59e0b', red:'#ef4444', gray:'#6b7280' };
 
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
@@ -254,7 +388,7 @@ function renderConfigEquipes() {
     </div>
     <div id="equipes-list">
       ${SC.equipes.map(eq => {
-        const color = colorMap[eq.color] || '#7c3aed';
+        const color = colorMap[eq.color] || '#79009d';
         return `
           <div class="team-card">
             <div class="team-color-badge" style="background:${color}"></div>
@@ -417,36 +551,66 @@ function renderConfigPerfis() {
 function openPerfilModal(role) {
   const label = SC.roleLabels[role] || role;
   const perms = SC.permissoes[role] || {};
+  const mods  = (SC.modulePermissions && SC.modulePermissions[role]) || {};
+
+  const modLabels = {
+    comercial:   { icon:'fa-funnel-dollar', label:'Comercial',              desc:'CRM + Cadastro' },
+    operacional: { icon:'fa-columns',       label:'Operacional',            desc:'Tarefas + Calendário' },
+    financeiro:  { icon:'fa-chart-line',    label:'Financeiro',             desc:'Contas, Fluxo, DRE' },
+    relatorios:  { icon:'fa-chart-bar',     label:'Análise / Relatórios',   desc:'Relatórios gerenciais e Meta' },
+    config:      { icon:'fa-cog',           label:'Configurações',          desc:'Usuários, perfis, integrações' },
+    clienteArea: { icon:'fa-user-check',    label:'Área do Cliente',        desc:'Portal de aprovação do cliente' },
+    avisos:      { icon:'fa-bell',          label:'Avisos Importantes',     desc:'Notificações e alertas' },
+  };
+
   const permLabels = {
     visualizar: 'Visualizar conteúdos',
-    criar: 'Criar cards/conteúdos',
-    editar: 'Editar conteúdos',
-    comentar: 'Comentar',
-    aprovar: 'Aprovar conteúdos',
-    programar: 'Programar publicações',
-    publicar: 'Publicar posts',
+    criar:      'Criar cards/conteúdos',
+    editar:     'Editar conteúdos',
+    comentar:   'Comentar',
+    aprovar:    'Aprovar conteúdos',
+    programar:  'Programar publicações',
+    publicar:   'Publicar posts',
     financeiro: 'Acessar financeiro',
     relatorios: 'Acessar relatórios',
   };
+
+  const checkboxRow = (id, checked, icon, labelText, desc) => `
+    <label style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+                  background:var(--bg-input);border-radius:8px;cursor:pointer;
+                  border:1px solid var(--border);transition:var(--transition)"
+           onmouseenter="this.style.borderColor='var(--purple-border)'"
+           onmouseleave="this.style.borderColor='var(--border)'">
+      <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}
+             style="accent-color:var(--purple);width:15px;height:15px;flex-shrink:0">
+      <i class="fas ${icon}" style="color:var(--purple-light);width:14px;text-align:center;font-size:12px"></i>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${labelText}</div>
+        ${desc ? `<div style="font-size:11px;color:var(--text-muted)">${desc}</div>` : ''}
+      </div>
+    </label>`;
+
+  const sectionTitle = (text) =>
+    `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 8px">${text}</div>`;
 
   openModal(`
     <div class="modal-header">
       <span class="modal-title"><i class="fas fa-shield-alt" style="color:var(--purple-light);margin-right:8px"></i>Perfil: ${label}</span>
       <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
-        Defina o que o perfil <strong>${label}</strong> pode fazer no sistema.
-      </p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${Object.entries(permLabels).map(([key, label_]) => `
-          <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
-                        background:var(--bg-input);border-radius:8px;cursor:pointer;
-                        border:1px solid var(--border)">
-            <span style="font-size:13px">${label_}</span>
-            <input type="checkbox" id="perm-${key}" ${perms[key] ? 'checked' : ''}
-                   style="accent-color:var(--purple);width:16px;height:16px">
-          </label>`).join('')}
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+      ${sectionTitle('Módulos com Acesso')}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${Object.entries(modLabels).map(([key, m]) =>
+          checkboxRow(`mod-${key}`, mods[key], m.icon, m.label, m.desc)
+        ).join('')}
+      </div>
+      <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+      ${sectionTitle('Ações Permitidas')}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${Object.entries(permLabels).map(([key, label_]) =>
+          checkboxRow(`perm-${key}`, perms[key], 'fa-check', label_, '')
+        ).join('')}
       </div>
     </div>
     <div class="modal-footer">
@@ -462,10 +626,20 @@ function savePerfilPerms(role) {
   const permKeys = ['visualizar','criar','editar','comentar','aprovar','programar','publicar','financeiro','relatorios'];
   permKeys.forEach(key => {
     const cb = document.getElementById(`perm-${key}`);
-    if (cb && SC.permissoes[role]) {
-      SC.permissoes[role][key] = cb.checked ? 1 : 0;
-    }
+    if (cb && SC.permissoes[role]) SC.permissoes[role][key] = cb.checked ? 1 : 0;
   });
+
+  const modKeys = ['comercial','operacional','financeiro','relatorios','config','clienteArea','avisos'];
+  if (!SC.modulePermissions) SC.modulePermissions = {};
+  if (!SC.modulePermissions[role]) SC.modulePermissions[role] = {};
+  modKeys.forEach(key => {
+    const cb = document.getElementById(`mod-${key}`);
+    if (cb) SC.modulePermissions[role][key] = cb.checked ? 1 : 0;
+  });
+
+  // Reflete imediatamente se o perfil editado é o do usuário logado
+  if (SC.currentUser?.role === role) applyPermissions(role);
+
   closeModal();
   showToast(`✅ Permissões do perfil "${SC.roleLabels[role]}" salvas!`, 'success');
   switchConfigSection('perfis');
@@ -797,6 +971,398 @@ function toggleModeloAprovacao(id) {
   if (isActivating) m.ativo = true;
   showToast(isActivating ? `✅ Modelo "${m.name}" ativado!` : 'Modelo desativado.', isActivating ? 'success' : 'info');
   switchConfigSection('aprovacao');
+}
+
+/* ─── INTEGRAÇÕES ───────────────────────── */
+
+function renderConfigIntegracoes() {
+  const rows = SC.clients.map(c => {
+    const cfg        = MetaService.getClientConfig(c.id);
+    const configured = !!(cfg && cfg.page_token && cfg.page_id);
+    return `
+      <tr>
+        <td>
+          <div style="font-weight:600">${c.name}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${c.services?.join(', ') || ''}</div>
+        </td>
+        <td>
+          ${configured
+            ? `<span class="tag tag-green"><i class="fab fa-facebook" style="margin-right:4px"></i>Conectado${cfg.ig_account_id ? ' + IG' : ''}</span>`
+            : `<span class="tag tag-gray">Não configurado</span>`}
+        </td>
+        <td style="font-size:12px;color:var(--text-muted)">${cfg?.page_name || (configured ? cfg.page_id : '—')}</td>
+        <td style="text-align:right">
+          <button class="btn btn-sm" data-action="open-meta-config" data-client-id="${c.id}">
+            <i class="fas fa-${configured ? 'edit' : 'plug'}"></i> ${configured ? 'Editar' : 'Configurar'}
+          </button>
+          ${configured ? `<button class="btn btn-sm btn-danger" style="margin-left:4px" data-action="remove-meta-config" data-client-id="${c.id}" title="Remover integração"><i class="fas fa-unlink"></i></button>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div>
+          <h3 style="margin:0 0 4px;font-size:15px">Integrações Meta (Facebook & Instagram)</h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0">Configure o Page Access Token de cada cliente para programar publicações direto no painel.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <span class="card-title"><i class="fab fa-facebook" style="color:#1877f2;margin-right:6px"></i>Contas Meta por Cliente</span>
+        </div>
+        <div class="table-wrap">
+          <table style="font-size:13px">
+            <thead><tr><th>Cliente</th><th>Status</th><th>Página</th><th style="text-align:right">Ações</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title"><i class="fas fa-question-circle" style="color:var(--purple-light);margin-right:6px"></i>Como obter o Page Access Token</span></div>
+        <div style="padding:12px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+          <div style="padding:12px;background:rgba(24,119,242,.07);border-radius:8px;border:1px solid rgba(24,119,242,.15)">
+            <div style="font-weight:600;margin-bottom:6px;font-size:13px"><i class="fas fa-code" style="color:#60a5fa;margin-right:6px"></i>1. Graph Explorer</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:0">Acesse <strong>developers.facebook.com/tools/explorer</strong>, selecione sua App e Page, e gere um token com <code>pages_manage_posts</code>.</p>
+          </div>
+          <div style="padding:12px;background:rgba(24,119,242,.07);border-radius:8px;border:1px solid rgba(24,119,242,.15)">
+            <div style="font-weight:600;margin-bottom:6px;font-size:13px"><i class="fas fa-key" style="color:#60a5fa;margin-right:6px"></i>2. Token de Longa Duração</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:0">Converta para long-lived token (60 dias) usando o endpoint <code>/oauth/access_token?grant_type=fb_exchange_token</code>.</p>
+          </div>
+          <div style="padding:12px;background:rgba(24,119,242,.07);border-radius:8px;border:1px solid rgba(24,119,242,.15)">
+            <div style="font-weight:600;margin-bottom:6px;font-size:13px"><i class="fab fa-instagram" style="color:#e1306c;margin-right:6px"></i>3. Instagram Business</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:0">A conta Instagram deve ser Business/Creator e vinculada à Página. O Account ID está em Configurações → Conta Profissional.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openMetaConfigModal(clientId) {
+  const client = SC.clients.find(c => String(c.id) === String(clientId));
+  if (!client) return;
+  const cfg = MetaService.getClientConfig(clientId) || {};
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fab fa-facebook" style="color:#1877f2;margin-right:6px"></i>
+        Meta — ${client.name}
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-row">
+          <div class="form-col full">
+            <label>Page Access Token *</label>
+            <input class="input-field" id="mc-token" type="password" placeholder="EAAxxxxx..." value="${cfg.page_token || ''}" />
+            <span style="font-size:11px;color:var(--text-muted)">Token com permissão <code>pages_manage_posts</code> e <code>pages_read_engagement</code></span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-col">
+            <label>Facebook Page ID *</label>
+            <input class="input-field" id="mc-page-id" placeholder="123456789" value="${cfg.page_id || ''}" />
+          </div>
+          <div class="form-col" style="display:flex;align-items:flex-end">
+            <button class="btn btn-secondary" style="width:100%" data-action="verify-meta-page" data-client-id="${clientId}">
+              <i class="fas fa-search"></i> Verificar página
+            </button>
+          </div>
+        </div>
+        <div id="mc-page-name-row" style="${cfg.page_name ? '' : 'display:none'}">
+          <div style="padding:8px 12px;background:rgba(24,119,242,.08);border-radius:6px;font-size:12px;color:#93c5fd">
+            <i class="fab fa-facebook" style="margin-right:6px"></i>
+            <span id="mc-page-name-label">${cfg.page_name ? `Página: <strong>${cfg.page_name}</strong>` : ''}</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-col full">
+            <label>Instagram Business Account ID <span style="font-size:11px;color:var(--text-muted)">(opcional)</span></label>
+            <input class="input-field" id="mc-ig-id" placeholder="987654321" value="${cfg.ig_account_id || ''}" />
+            <span style="font-size:11px;color:var(--text-muted)">Encontre em: IG → Configurações → Conta Profissional → ID da conta</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-meta-config" data-client-id="${clientId}">
+        <i class="fas fa-save"></i> Salvar
+      </button>
+    </div>
+  `);
+}
+
+async function verifyMetaPage(clientId) {
+  const token  = document.getElementById('mc-token')?.value?.trim();
+  const pageId = document.getElementById('mc-page-id')?.value?.trim();
+  if (!token || !pageId) { showToast('Preencha o Token e o Page ID primeiro.', 'warning'); return; }
+
+  const btn = document.querySelector('[data-action="verify-meta-page"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+  const result = await MetaService.fetchPageName(pageId, token);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> Verificar página'; }
+
+  if (result.error) {
+    showToast(`Erro: ${result.error.message}`, 'error');
+  } else {
+    const row   = document.getElementById('mc-page-name-row');
+    const label = document.getElementById('mc-page-name-label');
+    if (row)   row.style.display   = '';
+    if (label) label.innerHTML = `Página encontrada: <strong>${result.name}</strong>`;
+    showToast(`✅ Página "${result.name}" verificada!`, 'success');
+  }
+}
+
+function saveMetaConfig(clientId) {
+  const token      = document.getElementById('mc-token')?.value?.trim();
+  const pageId     = document.getElementById('mc-page-id')?.value?.trim();
+  const igId       = document.getElementById('mc-ig-id')?.value?.trim();
+  const nameLabel  = document.getElementById('mc-page-name-label');
+  const pageNameMatch = nameLabel?.innerHTML?.match(/<strong>(.*?)<\/strong>/);
+  const pageName   = pageNameMatch ? pageNameMatch[1] : '';
+
+  if (!token || !pageId) { showToast('Token e Page ID são obrigatórios!', 'error'); return; }
+
+  MetaService.saveClientConfig(clientId, {
+    page_token:    token,
+    page_id:       pageId,
+    page_name:     pageName,
+    ig_account_id: igId || null,
+  });
+
+  closeModal();
+  showToast('✅ Integração Meta salva!', 'success');
+  switchConfigSection('integracoes');
+}
+
+function removeMetaConfig(clientId) {
+  if (!confirm('Remover a integração Meta deste cliente?')) return;
+  MetaService.removeClientConfig(clientId);
+  showToast('Integração removida.', 'info');
+  switchConfigSection('integracoes');
+}
+
+/* ─── ALTERAR SENHA ──────────────────────── */
+
+function openChangePasswordModal() {
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-key" style="color:var(--purple-light);margin-right:8px"></i>
+        Alterar Senha
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Nova Senha *</label>
+          <input class="input-field" id="cp-new" type="password" placeholder="Mínimo 6 caracteres" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-col full">
+          <label>Confirmar Nova Senha *</label>
+          <input class="input-field" id="cp-confirm" type="password" placeholder="Repita a nova senha" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="save-change-password">
+        <i class="fas fa-save"></i> Salvar Nova Senha
+      </button>
+    </div>
+  `);
+}
+
+async function saveChangePassword() {
+  const newPass  = document.getElementById('cp-new')?.value?.trim();
+  const confirm_ = document.getElementById('cp-confirm')?.value?.trim();
+  const btn = document.querySelector('[data-action="save-change-password"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+
+  const ok = await AuthService.changePassword(newPass, confirm_);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Nova Senha'; }
+  if (ok) closeModal();
+}
+
+/* ─── RESET DE SENHA (ADMIN) ──────────────── */
+
+function openResetPassModal(name, email) {
+  if (!email) { Toast.show('E-mail do usuário não encontrado.', 'error'); return; }
+
+  const tempPass = AuthService.generatePassword();
+  const sql = `UPDATE auth.users\nSET encrypted_password = crypt('${tempPass}', gen_salt('bf'))\nWHERE email = '${email}';`;
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-key" style="color:var(--purple-light);margin-right:8px"></i>
+        Redefinir Senha — ${name}
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Opção 1: link por e-mail -->
+      <div style="background:var(--purple-subtle);border-radius:10px;padding:16px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 6px">Opção 1 — Link de redefinição por e-mail</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px">
+          Supabase envia um link para <strong>${email}</strong>. O usuário clica e define a própria senha.
+        </p>
+        <button class="btn btn-primary" data-action="send-reset-email" data-email="${email}">
+          <i class="fas fa-envelope"></i> Enviar Link por E-mail
+        </button>
+      </div>
+
+      <!-- Opção 2: senha temporária -->
+      <div style="background:var(--bg-secondary);border-radius:10px;padding:16px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 6px">Opção 2 — Senha temporária gerada</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px">
+          Copie a senha e informe ao usuário. Para ativá-la, use o SQL abaixo no Supabase.
+        </p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <code id="temp-pass-val" style="flex:1;font-size:15px;font-weight:700;letter-spacing:1px;
+                background:var(--bg-primary);padding:10px 14px;border-radius:6px;
+                border:1px solid var(--border)">${tempPass}</code>
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('temp-pass-val').textContent).then(()=>Toast.show('✅ Senha copiada!','success'))">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+        <details style="font-size:12px">
+          <summary style="cursor:pointer;color:var(--text-secondary);margin-bottom:6px">Ver SQL para ativar esta senha</summary>
+          <div style="display:flex;align-items:flex-start;gap:6px;margin-top:6px">
+            <pre id="reset-sql" style="flex:1;background:var(--bg-primary);border:1px solid var(--border);
+                 border-radius:6px;padding:10px;font-size:11px;margin:0;white-space:pre-wrap;word-break:break-all">${sql}</pre>
+            <button class="btn btn-secondary" style="flex-shrink:0" onclick="navigator.clipboard.writeText(document.getElementById('reset-sql').textContent).then(()=>Toast.show('✅ SQL copiado!','success'))">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          <p style="color:var(--text-muted);margin:8px 0 0">Cole e execute no <strong>SQL Editor</strong> do Supabase.</p>
+        </details>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
+    </div>
+  `);
+}
+
+/* ─── COLUNAS DO KANBAN ────────────────────── */
+
+let _cfgColunas = [];
+
+function renderConfigColunas() {
+  // Carrega assíncrono (renderConfigSection é síncrono).
+  setTimeout(loadConfigColunas, 0);
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <h3 style="margin:0">Colunas do Kanban</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">
+          Personalize as etapas do quadro de produção. Colunas de sistema
+          <i class="fas fa-lock" style="font-size:10px"></i> são usadas por integrações e não podem ser removidas.
+        </p>
+      </div>
+    </div>
+    <div id="cfg-colunas-list"><div class="loading-state" style="padding:30px 0"><i class="fas fa-spinner fa-spin"></i></div></div>
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-col" style="flex:1;min-width:180px">
+          <label>Nova coluna</label>
+          <input class="input-field" id="cfg-col-new-label" placeholder="Nome da etapa">
+        </div>
+        <div class="form-col" style="width:70px">
+          <label>Cor</label>
+          <input type="color" class="input-field" id="cfg-col-new-color" value="#8b5cf6" style="padding:4px;height:40px">
+        </div>
+        <button class="btn btn-primary" data-action="cfg-col-add"><i class="fas fa-plus"></i> Adicionar</button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadConfigColunas() {
+  if (!isSupabaseReady()) {
+    const el = document.getElementById('cfg-colunas-list');
+    if (el) el.innerHTML = `<div class="empty-state"><i class="fas fa-plug"></i><p>Disponível apenas com Supabase conectado.</p></div>`;
+    return;
+  }
+  const { data } = await DB.kanbanColumns.list();
+  _cfgColunas = data || [];
+  const el = document.getElementById('cfg-colunas-list');
+  if (!el) return;
+  el.innerHTML = _cfgColunas.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-secondary);border-radius:8px;margin-bottom:8px">
+      <span style="width:14px;height:14px;border-radius:4px;background:${c.color || '#64748b'};flex-shrink:0"></span>
+      <input class="input-field" style="flex:1" value="${(c.label || '').replace(/"/g, '&quot;')}"
+             ${c.is_system ? 'disabled' : ''}
+             onchange="saveKanbanColLabel('${c.id}', this.value)">
+      ${c.is_system ? '<span class="tag tag-gray" style="font-size:10px"><i class="fas fa-lock"></i> Sistema</span>' : ''}
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-ghost btn-sm" ${i === 0 ? 'disabled' : ''} data-action="cfg-col-up" data-id="${c.id}" title="Subir"><i class="fas fa-arrow-up"></i></button>
+        <button class="btn btn-ghost btn-sm" ${i === _cfgColunas.length - 1 ? 'disabled' : ''} data-action="cfg-col-down" data-id="${c.id}" title="Descer"><i class="fas fa-arrow-down"></i></button>
+        ${c.is_system ? '' : `<button class="btn btn-ghost btn-sm" data-action="cfg-col-del" data-id="${c.id}" title="Remover"><i class="fas fa-trash" style="color:var(--danger)"></i></button>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveKanbanColLabel(id, label) {
+  label = (label || '').trim();
+  if (!label) return;
+  await DB.kanbanColumns.update(id, { label });
+  showToast('Coluna atualizada.', 'success');
+}
+
+async function addKanbanColumn() {
+  const label = document.getElementById('cfg-col-new-label')?.value.trim();
+  const color = document.getElementById('cfg-col-new-color')?.value || '#8b5cf6';
+  if (!label) { showToast('Informe o nome da coluna.', 'warning'); return; }
+  if (_cfgColunas.some(c => c.key === label)) { showToast('Já existe uma coluna com esse nome.', 'error'); return; }
+  const position = (_cfgColunas.reduce((m, c) => Math.max(m, c.position || 0), 0)) + 1;
+  const { error } = await DB.kanbanColumns.create({ key: label, label, position, color, is_system: false });
+  if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+  showToast('✅ Coluna adicionada!', 'success');
+  loadConfigColunas();
+}
+
+async function deleteKanbanColumn(id) {
+  const col = _cfgColunas.find(c => c.id === id);
+  if (!col) return;
+  const tasks = await Data.tasks();
+  if (tasks.some(t => t.status === col.key)) {
+    showToast('Há cards nesta coluna. Mova-os antes de remover.', 'error');
+    return;
+  }
+  if (!confirm(`Remover a coluna "${col.label}"?`)) return;
+  await DB.kanbanColumns.remove(id);
+  showToast('Coluna removida.', 'info');
+  loadConfigColunas();
+}
+
+async function moveKanbanColumn(id, dir) {
+  const idx = _cfgColunas.findIndex(c => c.id === id);
+  const swap = idx + dir;
+  if (idx < 0 || swap < 0 || swap >= _cfgColunas.length) return;
+  const a = _cfgColunas[idx], b = _cfgColunas[swap];
+  await Promise.all([
+    DB.kanbanColumns.update(a.id, { position: b.position }),
+    DB.kanbanColumns.update(b.id, { position: a.position }),
+  ]);
+  loadConfigColunas();
 }
 
 Router.register('configuracoes', renderConfiguracoes, 'Configurações');

@@ -16,6 +16,16 @@ function renderDashboard() {
   const activeClients = SC.clients.filter(c => c.status === 'ativo').length;
   const inProgress = SC.tasks.filter(t => t.status !== 'Publicado').length;
 
+  // Leads em aberto sem contato há mais de 3 dias
+  const threeDaysAgo = Date.now() - 3 * 86400000;
+  const semRetorno = (SC.leads || []).filter(l => {
+    if (l.stage === 'Fechado' || l.stage === 'Perdido') return false;
+    const lc = l.last_contact || l.lastContact;
+    if (!lc) return true;
+    const d = new Date(lc);
+    return !isNaN(d) && d.getTime() < threeDaysAgo;
+  }).length;
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
@@ -89,7 +99,6 @@ function renderDashboard() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div>
           <h1 class="page-title">${greeting}, ${u.name.split(' ')[0]}! 👋</h1>
-          <p class="page-subtitle">Aqui está o resumo da sua operação — ${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="navigate" data-page="tarefas"><i class="fas fa-columns"></i> Ver Quadro</button>
@@ -132,28 +141,8 @@ function renderDashboard() {
           <div class="card-header">
             <span class="card-title"><i class="fas fa-stream" style="color:var(--purple-light);margin-right:8px"></i>Atividade Recente</span>
           </div>
-          <div class="timeline">
-            <div class="timeline-item">
-              <div class="timeline-date">Há 15 min</div>
-              <div class="timeline-text">Camila moveu <strong>"Post Saúde"</strong> para Aprovação Interna</div>
-            </div>
-            <div class="timeline-item">
-              <div class="timeline-date">Há 1h</div>
-              <div class="timeline-text">Cliente <strong>Café Aroma</strong> solicitou ajuste no card #4</div>
-            </div>
-            <div class="timeline-item">
-              <div class="timeline-date">Há 2h</div>
-              <div class="timeline-text">Lead <strong>Juliana — Clínica Glow</strong> entrou em negociação</div>
-            </div>
-            ${hasFinanceiro ? `
-            <div class="timeline-item">
-              <div class="timeline-date">Hoje, 09:30</div>
-              <div class="timeline-text"><strong>R$ 5.200</strong> recebido — Bella Moda Store</div>
-            </div>` : ''}
-            <div class="timeline-item">
-              <div class="timeline-date">Ontem, 17:45</div>
-              <div class="timeline-text">Diego publicou <strong>"Story Verão"</strong> para Imobiliária Horizonte</div>
-            </div>
+          <div class="timeline" id="dash-activity-feed">
+            <div class="loading-state" style="padding:20px 0;border:none"><i class="fas fa-spinner fa-spin"></i> Carregando atividades...</div>
           </div>
         </div>
       </div>
@@ -173,10 +162,11 @@ function renderDashboard() {
             <span class="insight-icon" style="color:var(--warning)">✅</span>
             <div class="insight-text"><strong>${pendingApproval.length} conteúdos</strong> <span>aguardam aprovação do cliente</span></div>
           </div>
+          ${semRetorno ? `
           <div class="insight-box" style="border-color:var(--info-subtle)">
             <span class="insight-icon" style="color:var(--info)">📞</span>
-            <div class="insight-text"><strong>2 clientes</strong> <span>estão sem retorno há mais de 3 dias</span></div>
-          </div>
+            <div class="insight-text"><strong>${semRetorno} lead${semRetorno !== 1 ? 's' : ''}</strong> <span>sem retorno há mais de 3 dias</span></div>
+          </div>` : ''}
           <div class="insight-box" style="border-color:var(--purple-border)">
             <span class="insight-icon" style="color:var(--purple-light)">📅</span>
             <div class="insight-text"><strong>${scheduled.length} posts</strong> <span>estão programados para esta semana</span></div>
@@ -224,6 +214,74 @@ function renderDashboard() {
       </div>
     </div>
   `;
+
+  loadDashboardActivity();
+}
+
+// ── ATIVIDADE RECENTE (log real) ──────────────────────────────────────────────
+async function loadDashboardActivity() {
+  const feed = document.getElementById('dash-activity-feed');
+  if (!feed) return;
+  let activities = [];
+  try {
+    activities = await DataService.getRecentActivity(6);
+  } catch (e) {
+    activities = [];
+  }
+  if (!feed.isConnected) return; // usuário já navegou para outra página
+
+  if (!activities.length) {
+    feed.innerHTML = `<div class="empty-state" style="padding:20px 0"><i class="fas fa-stream"></i><p>Nenhuma atividade recente</p></div>`;
+    return;
+  }
+
+  feed.innerHTML = activities.map(a => `
+    <div class="timeline-item">
+      <div class="timeline-date">${formatRelativeTime(a.created_at)}</div>
+      <div class="timeline-text">${describeActivity(a)}</div>
+    </div>
+  `).join('');
+}
+
+function describeActivity(a) {
+  const who = a.user?.full_name ? `<strong>${a.user.full_name}</strong>` : 'Alguém';
+  let details = {};
+  try { details = a.details ? JSON.parse(a.details) : {}; } catch (e) { details = { _raw: a.details }; }
+  const label = details.title || details.name || details._raw || '';
+  const labelTag = label ? ` <strong>"${label}"</strong>` : '';
+
+  switch (a.action) {
+    case 'task.created':
+    case 'create':               return `${who} criou a tarefa${labelTag}`;
+    case 'task.status_changed':  return `${who} moveu uma tarefa para <strong>${details.to || '—'}</strong>`;
+    case 'lead.created':         return `${who} cadastrou o lead${labelTag}`;
+    case 'lead.stage_changed':   return `${who} moveu um lead para <strong>${details.to || '—'}</strong>`;
+    case 'client.created':       return `${who} cadastrou o cliente${labelTag}`;
+    case 'approval.approved':    return `${who} aprovou um conteúdo`;
+    case 'approval.adjust_requested': return `${who} solicitou ajuste em um conteúdo`;
+    case 'update':               return `${who} atualizou ${resourceLabel(a.resource_type)}${labelTag}`;
+    default:                     return `${who} atualizou ${resourceLabel(a.resource_type)}${labelTag}`;
+  }
+}
+
+function resourceLabel(type) {
+  return ({ task: 'uma tarefa', lead: 'um lead', client: 'um cliente' })[type] || 'um item';
+}
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return '—';
+  const diffMs = Date.now() - d.getTime();
+  const min = Math.round(diffMs / 60000);
+  if (min < 1) return 'Agora mesmo';
+  if (min < 60) return `Há ${min} min`;
+  const hrs = Math.round(min / 60);
+  if (hrs < 24) return `Há ${hrs}h`;
+  const days = Math.round(hrs / 24);
+  if (days === 1) return `Ontem, ${d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+  if (days < 7) return `Há ${days} dias`;
+  return d.toLocaleDateString('pt-BR', {day:'numeric', month:'short'});
 }
 
 function renderTaskCard(t) {

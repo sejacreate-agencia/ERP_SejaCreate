@@ -41,6 +41,20 @@ function toggleSidebar() {
 // ─── INIT ─────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => checkExistingSession(), 100);
+  // Esconde seletor de perfil demo quando Supabase está configurado
+  if (isSupabaseReady()) {
+    const demoRow = document.querySelector('.login-roles');
+    if (demoRow) demoRow.style.display = 'none';
+    const emailInput = document.getElementById('login-email');
+    if (emailInput) emailInput.value = '';
+    const passInput = document.getElementById('login-pass');
+    if (passInput) passInput.value = '';
+  }
+
+  // Não faz auto-login se o usuário chegou via link de reset de senha (hash contém type=recovery)
+  const _hashParams = new URLSearchParams(window.location.hash.slice(1));
+  if (_hashParams.get('type') !== 'recovery') {
+    setTimeout(() => checkExistingSession(), 100);
+  }
   NotificationService.refreshBadge();
 });

@@ -138,6 +138,18 @@ const SB = {
     return await supabaseClient.from(table).delete().eq('id', id);
   },
 
+  async removeWhere(table, filters) {
+    if (!isSupabaseReady()) return { error: null };
+    let q = supabaseClient.from(table).delete();
+    filters.forEach(f => {
+      if (f.op === 'eq')  q = q.eq(f.col, f.val);
+      if (f.op === 'neq') q = q.neq(f.col, f.val);
+      if (f.op === 'gte') q = q.gte(f.col, f.val);
+      if (f.op === 'lte') q = q.lte(f.col, f.val);
+    });
+    return await q;
+  },
+
   async upsert(table, payload, conflictCol = 'id') {
     if (!isSupabaseReady()) return { data: null, error: { message: 'offline' } };
     return await supabaseClient.from(table).upsert(payload, { onConflict: conflictCol }).select().single();
@@ -263,6 +275,62 @@ const DB = {
     },
   },
 
+  // ── BRIEFINGS (formulário do cliente) ───
+  clientBriefings: {
+    async get(clientId) {
+      const { data, error } = await SB.list('client_briefings', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }, limit: 1
+      });
+      return { data: (data || [])[0] || null, error };
+    },
+    async listAll() {
+      return SB.list('client_briefings', { order: { col: 'created_at', asc: false } });
+    },
+    async create(clientId, token) {
+      return SB.insert('client_briefings', { client_id: clientId, token, status: 'pendente' });
+    },
+    // Usado pelo importador do CSV — já entra respondido.
+    async importar(clientId, token, answers, submittedAt) {
+      return SB.insert('client_briefings', {
+        client_id: clientId, token, answers,
+        status: 'respondido', source: 'import',
+        submitted_at: submittedAt || new Date().toISOString(),
+      });
+    },
+    async reabrir(id) {
+      return SB.update('client_briefings', id, { status: 'pendente', submitted_at: null });
+    },
+    async remove(id) { return SB.remove('client_briefings', id); },
+  },
+
+  // ── LEAD NOTES (anotações do CRM) ───────
+  leadNotes: {
+    async list(leadId) {
+      return SB.list('lead_notes', {
+        select: '*, author:profiles(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'lead_id', val: leadId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(leadId, text, userId) {
+      return SB.insert('lead_notes', { lead_id: leadId, text, user_id: userId || null });
+    },
+    async remove(id) { return SB.remove('lead_notes', id); },
+  },
+
+  // ── LEAD ATTACHMENTS (proposta/contrato) ─
+  leadFiles: {
+    async list(leadId) {
+      return SB.list('lead_attachments', {
+        filters: [{ op: 'eq', col: 'lead_id', val: leadId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(payload) { return SB.insert('lead_attachments', payload); },
+    async remove(id) { return SB.remove('lead_attachments', id); },
+  },
+
   // ── TASKS ───────────────────────────────
   tasks: {
     async list(filters = {}) {
@@ -274,7 +342,8 @@ const DB = {
       return SB.list('tasks', {
         select: `*, client:clients(id, name), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_initials),
                  task_checklists(id, text, done, sort_order),
-                 task_comments(id, text, created_at, user:profiles!task_comments_user_id_fkey(full_name, avatar_initials))`,
+                 task_comments(id, text, created_at, user:profiles!task_comments_user_id_fkey(full_name, avatar_initials)),
+                 task_attachments(id, file_url, file_name, file_type, kind, created_at)`,
         filters: sbFilters,
         order: { col: 'created_at', asc: false }
       });
@@ -333,9 +402,9 @@ const DB = {
 
   // ── TASK ATTACHMENTS ────────────────────
   taskAttachments: {
-    async add(taskId, fileUrl, fileName, fileType) {
+    async add(taskId, fileUrl, fileName, fileType, kind = 'arte') {
       return SB.insert('task_attachments', {
-        task_id: taskId, file_url: fileUrl, file_name: fileName, file_type: fileType
+        task_id: taskId, file_url: fileUrl, file_name: fileName, file_type: fileType, kind
       });
     },
     async list(taskId) {
@@ -345,6 +414,153 @@ const DB = {
       });
     },
     async remove(id) { return SB.remove('task_attachments', id); },
+  },
+
+  // ── KANBAN COLUMNS (colunas customizáveis) ──
+  kanbanColumns: {
+    async list() {
+      return SB.list('kanban_columns', {
+        filters: [{ op: 'eq', col: 'is_active', val: true }],
+        order: { col: 'position', asc: true }
+      });
+    },
+    async create(data) { return SB.insert('kanban_columns', data); },
+    async update(id, data) { return SB.update('kanban_columns', id, data); },
+    async remove(id) { return SB.remove('kanban_columns', id); },
+  },
+
+  // ── CLIENTE: ONBOARDING (checklist) ──
+  clientOnboarding: {
+    async get(clientId) {
+      const { data } = await SB.list('client_onboarding', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }], limit: 1
+      });
+      return (data && data[0]) || null;
+    },
+    async listAll() { return SB.list('client_onboarding', { limit: 2000 }); },
+    async create(clientId, steps) { return SB.insert('client_onboarding', { client_id: clientId, steps }); },
+    async save(id, steps) { return SB.update('client_onboarding', id, { steps }); },
+  },
+
+  // ── CLIENTE: ANOTAÇÕES ──
+  clientNotes: {
+    async listByClient(clientId) {
+      return SB.list('client_notes', {
+        select: '*, author:profiles!client_notes_created_by_fkey(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(data) { return SB.insert('client_notes', data); },
+    async update(id, data) { return SB.update('client_notes', id, data); },
+    async remove(id) { return SB.remove('client_notes', id); },
+  },
+
+  // ── CLIENTE: LINKS IMPORTANTES ──
+  clientLinks: {
+    async listByClient(clientId) {
+      return SB.list('client_links', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(data) { return SB.insert('client_links', data); },
+    async remove(id) { return SB.remove('client_links', id); },
+  },
+
+  // ── CLIENTE: ANEXOS ──
+  clientAttachments: {
+    async listByClient(clientId) {
+      return SB.list('client_attachments', {
+        filters: [{ op: 'eq', col: 'client_id', val: clientId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async add(clientId, fileUrl, fileName, fileType, kind, uploadedBy) {
+      return SB.insert('client_attachments', {
+        client_id: clientId, file_url: fileUrl, file_name: fileName,
+        file_type: fileType, kind, uploaded_by: uploadedBy || null
+      });
+    },
+    async remove(id) { return SB.remove('client_attachments', id); },
+  },
+
+  // ── PLANEJAMENTOS (calendário editorial) ──
+  plannings: {
+    async list() {
+      return SB.list('marketing_plannings', {
+        select: '*, client:clients(id, name), assignee:profiles!marketing_plannings_assignee_id_fkey(id, full_name, avatar_initials)',
+        order: { col: 'planned_date', asc: true }
+      });
+    },
+    async get(id) { return SB.get('marketing_plannings', id); },
+    async create(data) { return SB.insert('marketing_plannings', data); },
+    async update(id, data) { return SB.update('marketing_plannings', id, data); },
+    async remove(id) { return SB.remove('marketing_plannings', id); },
+  },
+
+  // ── TASK STATUS HISTORY (movimentações) ──
+  taskStatusHistory: {
+    async listAll() {
+      return SB.list('task_status_history', { order: { col: 'changed_at', asc: true }, limit: 5000 });
+    },
+    async listByTask(taskId) {
+      return SB.list('task_status_history', {
+        select: '*, changer:profiles!task_status_history_changed_by_fkey(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'task_id', val: taskId }],
+        order: { col: 'changed_at', asc: true }
+      });
+    },
+  },
+
+  // ── TASK ASSIGNMENT HISTORY (atribuições) ──
+  taskAssignmentHistory: {
+    async listByTask(taskId) {
+      return SB.list('task_assignment_history', {
+        select: '*, to_user:profiles!task_assignment_history_to_assignee_fkey(full_name), changer:profiles!task_assignment_history_changed_by_fkey(full_name)',
+        filters: [{ op: 'eq', col: 'task_id', val: taskId }],
+        order: { col: 'changed_at', asc: true }
+      });
+    },
+  },
+
+  // ── TASK LINKS (links relacionados) ──
+  taskLinks: {
+    async listByTask(taskId) {
+      return SB.list('task_links', {
+        filters: [{ op: 'eq', col: 'task_id', val: taskId }],
+        order: { col: 'created_at', asc: false }
+      });
+    },
+    async create(data) { return SB.insert('task_links', data); },
+    async remove(id) { return SB.remove('task_links', id); },
+  },
+
+  // ── NOTIFICATIONS (sino / @menção) ──
+  notifications: {
+    async listForUser(uid) {
+      return SB.list('notifications', {
+        select: '*, actor:profiles!notifications_actor_id_fkey(full_name, avatar_initials)',
+        filters: [{ op: 'eq', col: 'recipient_id', val: uid }],
+        order: { col: 'created_at', asc: false },
+        limit: 50
+      });
+    },
+    async unreadCount(uid) {
+      if (!isSupabaseReady()) return { count: 0 };
+      const { count, error } = await supabaseClient
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', uid).eq('read', false);
+      return { count: count || 0, error };
+    },
+    async create(data) { return SB.insert('notifications', data); },
+    async markRead(id) { return SB.update('notifications', id, { read: true }); },
+    async markAllRead(uid) {
+      if (!isSupabaseReady()) return {};
+      return supabaseClient.from('notifications').update({ read: true })
+        .eq('recipient_id', uid).eq('read', false);
+    },
   },
 
   // ── APPROVALS ───────────────────────────
@@ -399,6 +615,7 @@ const DB = {
         order: { col: 'due_date', asc: true }
       });
     },
+    async remove(id) { return SB.remove('financial_receivables', id); },
   },
 
   // ── FINANCIAL: PAYABLES ─────────────────
@@ -413,6 +630,7 @@ const DB = {
         status: 'pago', paid_at: new Date().toISOString()
       });
     },
+    async remove(id) { return SB.remove('financial_payables', id); },
   },
 
   // ── ACTIVITY LOGS ───────────────────────
@@ -643,6 +861,28 @@ const Data = {
     return SCAdapter.profiles();
   },
 
+  // Planejamentos de conteúdo. Sem mock (feature nova, só Supabase).
+  async plannings() {
+    if (isSupabaseReady()) {
+      const { data, error } = await DB.plannings.list();
+      if (!error) return data || [];
+    }
+    return [];
+  },
+
+  // Colunas do Kanban (customizáveis). Fallback: SC.kanbanCols (mock/offline).
+  async kanbanColumns() {
+    if (isSupabaseReady()) {
+      const { data, error } = await DB.kanbanColumns.list();
+      if (!error && data?.length) return data;
+    }
+    const reserved = ['Enviado ao Cliente', 'Ajuste Solicitado', 'Aprovado', 'Programado', 'Publicado'];
+    return (SC.kanbanCols || []).map((key, i) => ({
+      id: `col-${i}`, key, label: key, position: i + 1,
+      color: '#64748b', is_system: reserved.includes(key), is_active: true
+    }));
+  },
+
   async receivables() {
     if (isSupabaseReady()) {
       const { data, error } = await DB.receivables.list();
@@ -668,6 +908,155 @@ const Data = {
   },
 };
 
+// ─── HELPERS DE CÁLCULO FINANCEIRO ───────────
+
+function _computeCashflowFromRealData(receivables, payables) {
+  const today = new Date();
+  const result = [];
+  const mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  for (let i = 5; i >= 0; i--) {
+    const d   = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const inVal  = receivables.filter(r => (r.due_date || r.due || '').startsWith(key))
+                              .reduce((s, r) => s + (r.value || 0), 0);
+    const outVal = payables.filter(p => (p.due_date || p.due || '').startsWith(key) && p.status !== 'cancelado')
+                           .reduce((s, p) => s + (p.value || 0), 0);
+    result.push({ month: mNames[d.getMonth()], in: inVal, out: outVal });
+  }
+  return result;
+}
+
+function _computeDREFromRealData(receivables, payables) {
+  const today = new Date();
+  const result = [];
+  const mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  for (let i = 5; i >= 0; i--) {
+    const d      = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const key    = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label  = `${mNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+    const receita = receivables.filter(r => (r.due_date || r.due || '').startsWith(key))
+                               .reduce((s, r) => s + (r.value || 0), 0);
+    const custos  = payables.filter(p => (p.due_date || p.due || '').startsWith(key) && p.status !== 'cancelado')
+                            .reduce((s, p) => s + (p.value || 0), 0);
+    result.push({
+      month: label,
+      receita,
+      impostos: Math.round(receita * 0.06),
+      custos_diretos: custos,
+      folha: 0,
+      despesas_op: 0,
+    });
+  }
+  return result;
+}
+
+// ─── HYDRATE SC FROM SUPABASE ────────────────
+// Carrega dados reais do Supabase nos arrays SC.*
+// para que módulos legados (dashboard, etc.) funcionem com dados reais.
+// Se o banco estiver vazio, SC.* fica vazio → sem dados demo.
+async function hydrateFromSupabase() {
+  if (!isSupabaseReady()) return;
+
+  try {
+    const [clients, profiles, tasks, leads, receivables, payables] = await Promise.all([
+      SB.list('clients', { order: { col: 'name', asc: true } }),
+      SB.list('profiles', { order: { col: 'full_name', asc: true } }),
+      SB.list('tasks', {
+        select: '*, client:clients(id,name), assignee:profiles!tasks_assignee_id_fkey(id,full_name,avatar_initials), task_checklists(id,text,done,sort_order), task_comments(id,text,created_at,user_id)',
+        order: { col: 'created_at', asc: false }
+      }),
+      SB.list('leads', {
+        select: '*, assignee:profiles!leads_assignee_id_fkey(full_name,avatar_initials)',
+        order: { col: 'created_at', asc: false }
+      }),
+      SB.list('financial_receivables', {
+        select: '*, client:clients(id,name,phone)',
+        order: { col: 'due_date', asc: true }
+      }),
+      SB.list('financial_payables', { order: { col: 'due_date', asc: true } }),
+    ]);
+
+    // Clientes
+    SC.clients = (clients.data || []).map(c => ({
+      id: c.id, name: c.name, resp: c.contact_name || '', email: c.email || '',
+      phone: c.phone || '', cnpj: c.cnpj || '', services: c.services || [],
+      plan: c.plan || 'Padrão', start: c.start_date || '', expiry: c.expiry_date || '',
+      status: c.status, revenue: c.monthly_revenue || 0, notes: c.notes || '',
+      diaVenc: c.dia_vencimento || null,
+    }));
+
+    // Funcionários
+    const _mapProfileRow = p => ({
+      id: p.id, name: p.full_name, avatar: p.avatar_initials || p.full_name?.slice(0,2) || '??',
+      avatar_initials: p.avatar_initials || '', email: p.email || '', phone: p.phone || '',
+      role: p.role, cargo: p.cargo || '', status: p.status, client_id: p.client_id || null,
+    });
+    SC.employees = (profiles.data || []).filter(p => p.role !== 'cliente').map(_mapProfileRow);
+
+    // Usuários do portal (role=cliente). Ficam fora de SC.employees para não
+    // poluir os selects de responsável, mas precisam ser listados em
+    // Configurações para que o admin consiga vincular cada um ao seu cliente.
+    SC.clientUsers = (profiles.data || []).filter(p => p.role === 'cliente').map(_mapProfileRow);
+
+    // Tarefas
+    SC.tasks = (tasks.data || []).map(t => ({
+      id: t.id, title: t.title, text: t.text || '', status: t.status, priority: t.priority,
+      client: t.client_id, client_id: t.client_id,
+      assignee: t.assignee_id, assignee_id: t.assignee_id,
+      postDate: t.post_date, post_date: t.post_date,
+      created: t.created_at?.split('T')[0], created_at: t.created_at,
+      contentType: t.content_type, content_type: t.content_type,
+      art_url: t.art_url || null,
+      checklist: (t.task_checklists || []).map(c => ({ id: c.id, text: c.text, done: c.done })),
+      task_checklists: t.task_checklists || [],
+      comments: (t.task_comments || []).map(c => ({ id: c.id, text: c.text, date: c.created_at, user: c.user_id })),
+      task_comments: t.task_comments || [],
+    }));
+
+    // Leads
+    SC.leads = (leads.data || []).map(l => ({
+      id: l.id, name: l.name, company: l.company, email: l.email || '',
+      phone: l.phone || '', origin: l.origin, service: l.service || '',
+      stage: l.stage, value: l.value || 0, notes: l.notes || '',
+      assignee: l.assignee_id, assignee_id: l.assignee_id,
+      lastContact: l.last_contact, last_contact: l.last_contact,
+    }));
+
+    // Financeiro
+    SC.finances.receivable = (receivables.data || []).map(r => ({
+      id: r.id, client: r.client_id, client_id: r.client_id,
+      desc: r.description, description: r.description,
+      value: r.value, due: r.due_date, due_date: r.due_date,
+      status: r.status, paid_at: r.paid_at || null,
+    }));
+
+    SC.finances.payable = (payables.data || []).map(p => ({
+      id: p.id, supplier: p.supplier_name, supplier_name: p.supplier_name,
+      desc: p.description, description: p.description,
+      value: p.value, due: p.due_date, due_date: p.due_date,
+      status: p.status, paid_at: p.paid_at || null,
+      provisao_grupo: p.provisao_grupo || null,
+      provisao_mes: p.provisao_mes || null,
+      provisao_total: p.provisao_total || null,
+    }));
+
+    // Limpa demo data
+    SC.suppliers = [];
+    SC.avisos    = [];
+
+    // Recalcula Fluxo de Caixa e DRE a partir dos dados reais
+    SC.finances.cashflow = _computeCashflowFromRealData(SC.finances.receivable, SC.finances.payable);
+    SC.finances.dre      = _computeDREFromRealData(SC.finances.receivable, SC.finances.payable);
+
+    // Gera avisos dinâmicos e atualiza badge
+    if (typeof generateAvisosFromData === 'function') generateAvisosFromData();
+    NotificationService.refreshBadge();
+
+  } catch (err) {
+    console.warn('hydrateFromSupabase error:', err);
+  }
+}
+
 // ─── INICIALIZAÇÃO ───────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initSupabase();
@@ -675,10 +1064,26 @@ document.addEventListener('DOMContentLoaded', () => {
     SB.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         SC.currentUser = null;
+        SB._recoveryMode = false;
         const app = document.getElementById('app');
         const login = document.getElementById('login-screen');
         if (app) app.classList.add('hidden');
         if (login) login.classList.remove('hidden');
+      }
+
+      // Usuário abriu o link de reset do e-mail — mostra formulário de nova senha
+      if (event === 'PASSWORD_RECOVERY') {
+        SB._recoveryMode = true;
+        SB.session = session;
+        if (typeof AuthService !== 'undefined') {
+          AuthService._showRecoveryForm();
+        }
+        return;
+      }
+
+      // Bloqueia auto-login pelo evento SIGNED_IN quando estamos em modo de recovery
+      if (event === 'SIGNED_IN' && SB._recoveryMode) {
+        return;
       }
     });
   }

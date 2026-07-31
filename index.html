@@ -5,10 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seja Create — Plataforma de Gestão</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Nunito:wght@800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="128x128" href="assets/logo-128.png" />
+  <!-- Tema: aplicar antes do render para evitar flash -->
+  <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Exportação de relatórios (PDF / Excel) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Supabase SDK — carregado antes dos módulos JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -20,11 +29,7 @@
   <div class="login-box">
     <div class="login-logo">
       <span class="logo-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff" opacity="0.9"/>
-          <path d="M2 17l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-          <path d="M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <img src="assets/logo-128.png" alt="Seja Create" class="logo-img" width="40" height="40" />
       </span>
       <span class="logo-text">Seja <strong>Create</strong></span>
     </div>
@@ -51,6 +56,29 @@
         </select>
       </div>
       <button class="btn-login" data-action="login"><i class="fas fa-sign-in-alt"></i> Entrar na plataforma</button>
+      <div style="text-align:center;margin-top:14px">
+        <a class="link-forgot-pass" data-action="forgot-password">Esqueci minha senha</a>
+      </div>
+    </div>
+
+    <!-- Exibido quando usuário chega via link de reset do e-mail -->
+    <div id="recovery-form" style="display:none">
+      <div style="text-align:center;margin-bottom:20px">
+        <i class="fas fa-key" style="font-size:28px;color:var(--purple-light)"></i>
+        <h3 style="margin:10px 0 4px;font-size:17px;font-weight:700;color:var(--text-primary)">Criar nova senha</h3>
+        <p style="font-size:13px;color:var(--text-secondary)">Insira e confirme sua nova senha abaixo.</p>
+      </div>
+      <div class="form-group">
+        <label>Nova Senha</label>
+        <input type="password" id="recovery-pass" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="form-group">
+        <label>Confirmar Senha</label>
+        <input type="password" id="recovery-pass-confirm" placeholder="Repita a nova senha" />
+      </div>
+      <button class="btn-login" data-action="save-recovery-password">
+        <i class="fas fa-lock"></i> Salvar Nova Senha
+      </button>
     </div>
   </div>
 </div>
@@ -63,11 +91,7 @@
     <div class="sidebar-header">
       <div class="logo">
         <span class="logo-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff" opacity="0.9"/>
-            <path d="M2 17l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-            <path d="M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="assets/logo-48.png" alt="Seja Create" class="logo-img" width="28" height="28" />
         </span>
         <span class="logo-text">Seja <strong>Create</strong></span>
       </div>
@@ -80,6 +104,9 @@
         <span class="user-name" id="user-name">Admin Geral</span>
         <span class="user-role" id="user-role-label">Administrador</span>
       </div>
+      <button class="btn-change-pass" data-action="change-password" title="Alterar senha">
+        <i class="fas fa-key"></i>
+      </button>
     </div>
 
     <nav class="nav-menu">
@@ -104,23 +131,53 @@
       </div>
       <div class="nav-section" id="nav-operacional">
         <span class="nav-section-title">Operacional</span>
+        <a class="nav-item" data-page="planejamentos" data-action="navigate" data-page="planejamentos">
+          <i class="fas fa-calendar-plus"></i><span>Planejamentos</span>
+        </a>
         <a class="nav-item" data-page="tarefas" data-action="navigate" data-page="tarefas">
           <i class="fas fa-columns"></i><span>Gestão de Tarefas</span>
         </a>
         <a class="nav-item" data-page="calendario" data-action="navigate" data-page="calendario">
           <i class="fas fa-calendar-alt"></i><span>Calendário</span>
         </a>
+        <a class="nav-item" data-page="onboarding" data-action="navigate" data-page="onboarding">
+          <i class="fas fa-folder-open"></i><span>Dossiê do Cliente</span>
+        </a>
       </div>
       <div class="nav-section" id="nav-financeiro">
         <span class="nav-section-title">Financeiro</span>
-        <a class="nav-item" data-page="financeiro" data-action="navigate" data-page="financeiro">
-          <i class="fas fa-dollar-sign"></i><span>Financeiro</span>
+        <a class="nav-item" data-fin-tab="visao-geral" data-action="navigate-fin">
+          <i class="fas fa-chart-line"></i><span>Visão Geral</span>
+        </a>
+        <a class="nav-item" data-fin-tab="receber" data-action="navigate-fin">
+          <i class="fas fa-arrow-down"></i><span>A Receber</span>
+        </a>
+        <a class="nav-item" data-fin-tab="pagar" data-action="navigate-fin">
+          <i class="fas fa-arrow-up"></i><span>A Pagar</span>
+        </a>
+        <a class="nav-item" data-fin-tab="inadimplencia" data-action="navigate-fin">
+          <i class="fas fa-exclamation-circle"></i><span>Inadimplência</span>
+        </a>
+        <a class="nav-item" data-fin-tab="fluxo-caixa" data-action="navigate-fin">
+          <i class="fas fa-water"></i><span>Fluxo de Caixa</span>
+        </a>
+        <a class="nav-item" data-fin-tab="dre" data-action="navigate-fin">
+          <i class="fas fa-file-invoice-dollar"></i><span>DRE</span>
+        </a>
+        <a class="nav-item" data-fin-tab="plano-contas" data-action="navigate-fin">
+          <i class="fas fa-sitemap"></i><span>Plano de Contas</span>
         </a>
       </div>
       <div class="nav-section" id="nav-relatorios">
         <span class="nav-section-title">Análise</span>
+        <a class="nav-item" data-page="dashboard-marketing" data-action="navigate" data-page="dashboard-marketing">
+          <i class="fas fa-bullhorn"></i><span>Dashboard de Marketing</span>
+        </a>
         <a class="nav-item" data-page="relatorios" data-action="navigate" data-page="relatorios">
           <i class="fas fa-chart-bar"></i><span>Relatórios</span>
+        </a>
+        <a class="nav-item" data-page="relatorios-meta" data-action="navigate" data-page="relatorios-meta">
+          <i class="fab fa-meta"></i><span>Relatórios Meta</span>
         </a>
       </div>
       <div class="nav-section" id="nav-config">
@@ -152,6 +209,9 @@
           <i class="fas fa-search"></i>
           <input type="text" placeholder="Buscar clientes, tarefas..." />
         </div>
+        <button class="topbar-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema">
+          <i class="fas fa-sun" id="theme-icon"></i>
+        </button>
         <button class="topbar-btn" data-action="navigate" data-page="avisos">
           <i class="fas fa-bell"></i>
           <span class="notif-dot"></span>
@@ -174,6 +234,7 @@
 
 <!-- ── Camada 2: Dados e cliente Supabase ────────── -->
 <script src="js/data.js"></script>
+<script src="js/briefing-schema.js"></script>
 <script src="js/supabase.js"></script>
 
 <!-- ── Camada 3: Utils (sem dependências externas) ── -->
@@ -189,6 +250,7 @@
 
 <!-- ── Camada 5: Services ────────────────────────── -->
 <script src="js/services/authService.js"></script>
+<script src="js/services/metaService.js"></script>
 <script src="js/services/clientService.js"></script>
 <script src="js/services/financialService.js"></script>
 <script src="js/services/taskService.js"></script>
@@ -208,6 +270,9 @@
 <script src="js/crm.js"></script>
 <script src="js/cadastro.js"></script>
 <script src="js/tarefas.js"></script>
+<script src="js/dashboard-marketing.js"></script>
+<script src="js/planejamentos.js"></script>
+<script src="js/onboarding.js"></script>
 <script src="js/calendario.js"></script>
 <script src="js/financeiro/index.js"></script>
 <script src="js/financeiro/visaoGeral.js"></script>
@@ -218,6 +283,7 @@
 <script src="js/financeiro/dre.js"></script>
 <script src="js/financeiro/planoDeContas.js"></script>
 <script src="js/relatorios.js"></script>
+<script src="js/relatorios-meta.js"></script>
 <script src="js/configuracoes.js"></script>
 <script src="js/cliente-area.js"></script>
 </body>
