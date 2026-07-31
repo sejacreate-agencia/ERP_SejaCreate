@@ -5,6 +5,14 @@
 let draggedLeadId = null;
 let _leadData = [];
 
+// Filtro de período. Começa sem filtro de propósito: o CRM não tem o
+// fechamento mensal do Financeiro, e abrir filtrado esconderia leads antigos
+// ainda em negociação.
+let _crmFilterMonth = 0;   // 0 = todos os meses
+let _crmFilterYear  = new Date().getFullYear();
+let _crmDateBase    = 'last_contact';  // 'last_contact' | 'created_at'
+let _crmView        = 'board';         // 'board' | 'list'
+
 const stageColors = {
   'Lead Novo': 'blue', 'Contato Iniciado': 'purple', 'Proposta Enviada': 'yellow',
   'Negociação': 'yellow', 'Fechado': 'green', 'Perdido': 'red'
@@ -19,6 +27,7 @@ const stageCSSColors = {
 };
 
 async function renderCRM() {
+  _crmView = 'board';
   const pc = document.getElementById('page-content');
   // Ativa modo kanban imediatamente para layout correto
   pc.classList.add('kanban-mode');
@@ -27,7 +36,6 @@ async function renderCRM() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">CRM — Pipeline Comercial</h1>
-          <p class="page-subtitle">Arraste leads entre colunas para atualizar o estágio</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="show-crm-list"><i class="fas fa-list"></i> Lista</button>
@@ -47,23 +55,99 @@ async function renderCRM() {
   _renderCRMContent();
 }
 
+/* ─── FILTRO DE PERÍODO ───────────────────── */
+
+// Data que serve de base ao filtro, conforme o seletor da tela.
+function _crmLeadDate(l) {
+  return _crmDateBase === 'created_at'
+    ? (l.created_at || l.created || '')
+    : (l.last_contact || l.lastContact || '');
+}
+
+function _applyCrmDateFilter(leads) {
+  if (!_crmFilterMonth) return leads;
+  return leads.filter(l => {
+    const d = String(_crmLeadDate(l)).split('T')[0];
+    if (!d) return false;
+    const [y, m] = d.split('-');
+    return parseInt(y) === _crmFilterYear && parseInt(m) === _crmFilterMonth;
+  });
+}
+
+// A barra de filtro aparece nas duas visões — redesenha a que estiver ativa.
+function _crmRerender() {
+  if (_crmView === 'list') showCRMList();
+  else _renderCRMContent();
+}
+
+function setCrmDateFilter() {
+  const mEl = document.getElementById('crm-filter-month');
+  const yEl = document.getElementById('crm-filter-year');
+  if (mEl) _crmFilterMonth = parseInt(mEl.value);
+  if (yEl) _crmFilterYear  = parseInt(yEl.value);
+  _crmRerender();
+}
+
+function setCrmDateBase(base) {
+  _crmDateBase = base;
+  _crmRerender();
+}
+
+function clearCrmDateFilter() {
+  _crmFilterMonth = 0;
+  _crmRerender();
+}
+
+const _CRM_MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function _crmFilterBarHtml(total, filtrados) {
+  const curYear  = new Date().getFullYear();
+  const yearOpts = [curYear-2, curYear-1, curYear, curYear+1].map(y =>
+    `<option value="${y}" ${y === _crmFilterYear ? 'selected' : ''}>${y}</option>`).join('');
+  const monthOpts = `<option value="0" ${!_crmFilterMonth ? 'selected' : ''}>Todo o período</option>` +
+    _CRM_MESES.map((m, i) =>
+      `<option value="${i+1}" ${(i+1) === _crmFilterMonth ? 'selected' : ''}>${m}</option>`).join('');
+
+  return `
+    <div class="filters-bar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <span class="filter-label"><i class="fas fa-filter"></i> Período:</span>
+      <select class="filter-select" id="crm-filter-month" data-action="set-crm-date-filter">${monthOpts}</select>
+      <select class="filter-select" id="crm-filter-year"  data-action="set-crm-date-filter">${yearOpts}</select>
+      <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;margin-left:4px">Base:</span>
+      <select class="filter-select" id="crm-date-base" data-action="set-crm-date-base" style="min-width:150px">
+        <option value="last_contact" ${_crmDateBase==='last_contact'?'selected':''}>Último contato</option>
+        <option value="created_at"   ${_crmDateBase==='created_at'  ?'selected':''}>Data de criação</option>
+      </select>
+      ${_crmFilterMonth ? `
+        <span class="tag tag-purple" style="font-size:11px">
+          ${_CRM_MESES[_crmFilterMonth-1]}/${_crmFilterYear} · ${filtrados} de ${total} leads
+        </span>
+        <button class="btn btn-sm btn-ghost" data-action="clear-crm-date-filter" style="font-size:11px">
+          <i class="fas fa-times"></i> Limpar
+        </button>` : ''}
+    </div>`;
+}
+
 function _renderCRMContent() {
-  const totalPipeline = _leadData.filter(l => l.stage !== 'Perdido').reduce((s, l) => s + (l.value || 0), 0);
-  const closedVal = _leadData.filter(l => l.stage === 'Fechado').reduce((s, l) => s + (l.value || 0), 0);
-  const convRate = _leadData.length ? Math.round(_leadData.filter(l => l.stage === 'Fechado').length / _leadData.length * 100) : 0;
+  const leads = _applyCrmDateFilter(_leadData);
+
+  const totalPipeline = leads.filter(l => l.stage !== 'Perdido').reduce((s, l) => s + (l.value || 0), 0);
+  const closedVal = leads.filter(l => l.stage === 'Fechado').reduce((s, l) => s + (l.value || 0), 0);
+  const convRate = leads.length ? Math.round(leads.filter(l => l.stage === 'Fechado').length / leads.length * 100) : 0;
 
   // KPIs
   const kpiEl = document.getElementById('crm-kpis');
   if (kpiEl) kpiEl.innerHTML = `
+    ${_crmFilterBarHtml(_leadData.length, leads.length)}
     <div class="kpi-grid kpi-grid-compact" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
       <div class="kpi-card">
         <div class="kpi-icon blue"><i class="fas fa-users"></i></div>
-        <div class="kpi-value">${_leadData.length}</div>
+        <div class="kpi-value">${leads.length}</div>
         <div class="kpi-label">Total de Leads</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-icon green"><i class="fas fa-check-circle"></i></div>
-        <div class="kpi-value">${_leadData.filter(l=>l.stage==='Fechado').length}</div>
+        <div class="kpi-value">${leads.filter(l=>l.stage==='Fechado').length}</div>
         <div class="kpi-label">Fechados</div>
         <div class="kpi-change up"><i class="fas fa-percent"></i> ${convRate}% conv.</div>
       </div>
@@ -87,7 +171,7 @@ function _renderCRMContent() {
     boardEl.innerHTML = `
       <div class="crm-pipeline-wrapper" style="flex:1;min-height:0;">
         <div id="crm-board" class="crm-pipeline-board">
-          ${SC.crmStages.map(stage => renderCRMColumn(stage)).join('')}
+          ${SC.crmStages.map(stage => renderCRMColumn(stage, leads)).join('')}
         </div>
       </div>`;
   }
@@ -100,8 +184,8 @@ function _renderCRMContent() {
   setTimeout(() => bindLeadDragEvents(), 60);
 }
 
-function renderCRMColumn(stage) {
-  const leads = _leadData.filter(l => l.stage === stage);
+function renderCRMColumn(stage, source = _leadData) {
+  const leads = source.filter(l => l.stage === stage);
   const cssColor = stageCSSColors[stage] || '#5a5a70';
   const totalVal = leads.reduce((s, l) => s + (l.value || 0), 0);
 
@@ -127,7 +211,7 @@ function renderCRMColumn(stage) {
         ${leads.map(l => renderLeadCard(l)).join('')}
         ${!leads.length ? `<div class="crm-empty-col">
           <i class="fas fa-inbox" style="font-size:20px;margin-bottom:6px;display:block"></i>
-          Sem leads
+          ${_crmFilterMonth ? 'Sem leads no período' : 'Sem leads'}
         </div>` : ''}
       </div>
     </div>
@@ -817,7 +901,9 @@ async function saveNewLead() {
 /* ─── LISTA DE LEADS ─────────────────── */
 
 async function showCRMList() {
-  const rows = _leadData.map(l => {
+  _crmView = 'list';
+  const leads = _applyCrmDateFilter(_leadData);
+  const rows = leads.map(l => {
     let empAv = '?', empName = 'N/A';
     if (l.assignee && typeof l.assignee === 'object') {
       empAv = l.assignee.avatar_initials || '?';
@@ -845,12 +931,13 @@ async function showCRMList() {
       </tr>`;
   }).join('');
 
-  document.getElementById('page-content').innerHTML = `
+  const pcList = document.getElementById('page-content');
+  pcList.classList.remove('kanban-mode');  // a lista não usa o layout flex do board
+  pcList.innerHTML = `
     <div class="page-header">
       <div class="page-header-row">
         <div>
           <h1 class="page-title">CRM — Lista de Leads</h1>
-          <p class="page-subtitle">${_leadData.length} leads no sistema</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" data-action="render-crm"><i class="fas fa-columns"></i> Pipeline</button>
@@ -858,6 +945,7 @@ async function showCRMList() {
         </div>
       </div>
     </div>
+    ${_crmFilterBarHtml(_leadData.length, leads.length)}
     <div class="card">
       <div class="table-wrap">
         <table>

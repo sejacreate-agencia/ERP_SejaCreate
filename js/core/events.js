@@ -49,6 +49,9 @@ const Actions = {
   // ── CRM ───────────────────────────────────
   'show-crm-list':        ()  => showCRMList(),
   'render-crm':           ()  => renderCRM(),
+  'set-crm-date-filter':  ()  => setCrmDateFilter(),
+  'set-crm-date-base':    el  => setCrmDateBase(el.value),
+  'clear-crm-date-filter':()  => clearCrmDateFilter(),
   'open-lead-modal':      el  => openLeadModal(el.dataset.stage || null),
   // IDs de lead são UUID no Supabase — nunca converter com parseInt
   'open-lead-detail':     el  => openLeadDetail(el.dataset.id),
