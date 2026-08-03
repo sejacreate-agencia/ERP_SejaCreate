@@ -25,6 +25,7 @@ const Actions = {
   'save-change-password': ()  => saveChangePassword(),
   'open-reset-pass-modal': el => openResetPassModal(el.dataset.name, el.dataset.email),
   'send-reset-email':      el => AuthService.sendResetEmailForUser(el.dataset.email),
+  'resend-confirmation':   el => AuthService.resendConfirmation(el.dataset.email),
 
   // ── AVISOS ────────────────────────────────
   'refresh-avisos':       ()  => renderAvisos(),
@@ -123,6 +124,9 @@ const Actions = {
   'save-art-link':        el  => saveArtLink(el.dataset.id),
   'del-art':              el  => deleteArt(el.dataset.id, el.dataset.task),
   'save-post-info':       el  => saveTaskPostInfo(el.dataset.id),
+  'edit-task-briefing':   el  => editTaskBriefing(el.dataset.id),
+  'save-task-briefing':   el  => saveTaskBriefing(el.dataset.id),
+  'cancel-task-briefing': el  => cancelTaskBriefing(el.dataset.id),
   'add-task-link':        el  => addTaskLink(el.dataset.id),
   'manage-columns':       ()  => openColumnsModal(),
   'kbcol-add':            ()  => kbAddColumn(),

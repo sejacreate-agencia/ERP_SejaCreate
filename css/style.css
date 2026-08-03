@@ -325,6 +325,7 @@ input, select, textarea { font-family: var(--font); outline: none; }
 .main-content {
   margin-left: var(--sidebar-width);
   flex: 1;
+  min-width: 0; /* permite encolher: sem isso, tabelas largas estouram a viewport */
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -740,6 +741,13 @@ tbody tr:last-child td { border-bottom: none; }
   animation: slideUp 0.2s ease;
 }
 .modal-lg { width: 800px; }
+/* Detalhe do card: conteúdo + coluna lateral de ações */
+.task-modal-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; }
+.task-modal-side { border-left: 1px solid var(--border); padding-left: 18px; min-width: 0; }
+@media (max-width: 820px) {
+  .task-modal-grid { grid-template-columns: 1fr; }
+  .task-modal-side { border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 18px; }
+}
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .modal-title { font-size: 16px; font-weight: 700; }
 .modal-close { background: none; color: var(--text-muted); font-size: 18px; }
@@ -983,15 +991,21 @@ tbody tr:last-child td { border-bottom: none; }
 .tag-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
 
 /* PERMISSION MATRIX */
-.perm-matrix { width: 100%; border-collapse: collapse; }
+.perm-matrix { width: 100%; min-width: 760px; border-collapse: collapse; }
 .perm-matrix th, .perm-matrix td {
   padding: 10px 12px;
   text-align: center;
   font-size: 12px;
   border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
 }
 .perm-matrix th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
 .perm-matrix td:first-child { text-align: left; font-weight: 600; color: var(--text-secondary); }
+/* Coluna "Perfil" fica fixa durante o scroll horizontal */
+.perm-matrix th:first-child, .perm-matrix td:first-child {
+  position: sticky; left: 0; z-index: 1;
+  background: var(--bg-card);
+}
 .perm-checkbox { accent-color: var(--purple); width: 15px; height: 15px; cursor: pointer; }
 
 /* TEAM CARD */
@@ -1052,7 +1066,7 @@ tbody tr:last-child td { border-bottom: none; }
 .report-desc { font-size: 12px; color: var(--text-muted); }
 
 /* CONFIG MENU */
-.config-layout { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+.config-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; }
 .config-sidebar-nav { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: 8px; }
 .config-nav-item {
   display: flex; align-items: center; gap: 9px;
@@ -1062,7 +1076,13 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .config-nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
 .config-nav-item.active { background: var(--purple-subtle); color: var(--purple-light); font-weight: 600; }
-.config-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: 24px; }
+.config-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: 24px; min-width: 0; }
+
+/* Cabeçalho de seção (título + botão de ação) — quebra em telas estreitas */
+.config-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 18px;
+}
 
 /* CHECKLIST */
 .checklist-item {
@@ -1283,5 +1303,5 @@ tbody tr:last-child td { border-bottom: none; }
   }
   .modal { width: 95vw !important; max-height: 90vh; }
   .modal-lg { width: 95vw !important; }
-  .modal .grid-template-columns { grid-template-columns: 1fr !important; }
+  .modal [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
 }

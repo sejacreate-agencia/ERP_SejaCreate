@@ -110,7 +110,7 @@ function renderConfigUsuarios() {
     </tr>`).join('');
 
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Usuários do Sistema</h3>
       <button class="btn btn-primary" data-action="open-func-modal">
         <i class="fas fa-plus"></i> Novo Usuário
@@ -201,6 +201,8 @@ async function saveFuncModal(id) {
     avatar_initials: name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   };
 
+  let avisoConfirmacao = null; // e-mail pendente de confirmação (exibido no fim)
+
   if (isSupabaseReady()) {
     if (!id) {
       // ── 1. CRIAR USUÁRIO ────────────────────────────────────────────
@@ -218,19 +220,34 @@ async function saveFuncModal(id) {
       const { data: signUpData, error: authError } = await supabaseClient.auth.signUp({
         email,
         password: pass,
-        options: { data: { full_name: name, role: profilePayload.role } },
+        options: {
+          data: { full_name: name, role: profilePayload.role },
+          emailRedirectTo: AuthService._getRedirectUrl() || undefined,
+        },
       });
 
-      // Restaura sessão do admin (signUp pode criar nova sessão se confirmação de e-mail estiver desligada)
+      // Restaura sessão do admin (signUp cria nova sessão quando a confirmação
+      // de e-mail está desligada — sem isso o admin fica logado como o novo usuário)
       if (adminSession) {
         await supabaseClient.auth.setSession({
           access_token:  adminSession.access_token,
           refresh_token: adminSession.refresh_token,
         });
+        await SB.loadProfile(adminSession.user.id);
       }
 
       if (authError || !signUpData?.user?.id) {
         showToast(`Erro ao criar usuário: ${authError?.message || 'ID não retornado pelo Auth'}`, 'error');
+        resetBtn('Criar Usuário');
+        return;
+      }
+
+      // O Supabase não acusa erro quando o e-mail já existe (proteção contra
+      // enumeração): ele devolve um usuário "fantasma" com identities vazio.
+      // Sem esta checagem o admin acha que criou a conta, mas a senha nova
+      // nunca foi aplicada — e o usuário não consegue logar.
+      if (Array.isArray(signUpData.user.identities) && signUpData.user.identities.length === 0) {
+        showToast(`O e-mail ${email} já está cadastrado no Auth. Use "Redefinir senha" na lista de usuários.`, 'error');
         resetBtn('Criar Usuário');
         return;
       }
@@ -242,9 +259,16 @@ async function saveFuncModal(id) {
 
       if (profileError) {
         showToast(`Usuário criado, mas erro ao salvar perfil: ${profileError.message}`, 'warning');
+      } else if (!signUpData.session) {
+        // Sem sessão = o projeto exige confirmação de e-mail. O usuário existe,
+        // mas o login falha com "Email not confirmed" até ele abrir o link.
+        avisoConfirmacao = email;
       } else {
         showToast(`✅ Usuário "${name}" criado com sucesso!`, 'success');
       }
+
+      // Reflete na lista local (senão o usuário só aparece após recarregar a página)
+      SC.employees.push({ id: userId, name, email, ...profilePayload, avatar: profilePayload.avatar_initials });
 
     } else {
       // ── 2. EDITAR USUÁRIO EXISTENTE ─────────────────────────────────
@@ -254,6 +278,8 @@ async function saveFuncModal(id) {
         resetBtn();
         return;
       }
+      const emp = SC.employees.find(e => String(e.id) === String(id));
+      if (emp) Object.assign(emp, { name, email, cargo: profilePayload.cargo, phone: profilePayload.phone, role: profilePayload.role, status: profilePayload.status });
       showToast(`✅ Usuário "${name}" atualizado com sucesso!`, 'success');
     }
 
@@ -281,6 +307,41 @@ async function saveFuncModal(id) {
 
   closeModal();
   switchConfigSection('usuarios');
+
+  if (avisoConfirmacao) openConfirmacaoEmailModal(avisoConfirmacao);
+}
+
+// Explica por que o usuário recém-criado ainda não consegue logar e oferece
+// as duas saídas: reenviar a confirmação ou mandar link de definição de senha.
+function openConfirmacaoEmailModal(email) {
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fas fa-envelope-open-text" style="color:var(--warning);margin-right:8px"></i>
+        Falta confirmar o e-mail
+      </span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;line-height:1.7;color:var(--text-secondary)">
+        A conta de <b>${email}</b> foi criada, mas este projeto Supabase exige
+        <b>confirmação de e-mail</b>. Enquanto o link não for aberto, o login falha
+        com "Email not confirmed".
+      </p>
+      <div style="background:var(--bg-input);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.7">
+        Para que novos usuários entrem <b>na hora</b>, desligue em<br>
+        <b>Supabase → Authentication → Providers → Email → Confirm email</b>.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="resend-confirmation" data-email="${email}">
+        <i class="fas fa-paper-plane"></i> Reenviar confirmação
+      </button>
+      <button class="btn btn-primary" data-action="send-reset-email" data-email="${email}">
+        <i class="fas fa-key"></i> Enviar link de senha
+      </button>
+    </div>
+  `);
 }
 
 async function deleteEmployee(id) {
@@ -306,7 +367,7 @@ function renderConfigEquipes() {
   const colorMap = { purple:'#79009d', blue:'#3b82f6', green:'#10b981', yellow:'#f59e0b', red:'#ef4444', gray:'#6b7280' };
 
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Equipes</h3>
       <button class="btn btn-primary" data-action="open-equipe-modal">
         <i class="fas fa-plus"></i> Nova Equipe
@@ -446,7 +507,7 @@ function renderConfigPerfis() {
   ];
 
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Perfis de Acesso</h3>
       <button class="btn btn-secondary" data-action="switch-config-section" data-section="permissoes">
         <i class="fas fa-lock"></i> Gerenciar Permissões
@@ -583,13 +644,13 @@ function renderConfigPermissoes() {
   const roles = Object.keys(SC.permissoes);
 
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Matriz de Permissões</h3>
       <button class="btn btn-primary" data-action="save-permissoes">
         <i class="fas fa-save"></i> Salvar Alterações
       </button>
     </div>
-    <div style="overflow-x:auto">
+    <div class="table-wrap">
       <table class="perm-matrix">
         <thead>
           <tr>
@@ -612,7 +673,7 @@ function renderConfigPermissoes() {
                 <td>
                   <input type="checkbox" class="perm-checkbox"
                          id="pm-${role}-${action}"
-                         data-role="${role}" data-action="${action}"
+                         data-role="${role}" data-perm="${action}"
                          ${SC.permissoes[role]?.[action] ? 'checked' : ''}>
                 </td>`).join('')}
             </tr>`).join('')}
@@ -629,7 +690,7 @@ function savePermissoes() {
   const checkboxes = document.querySelectorAll('.perm-checkbox');
   checkboxes.forEach(cb => {
     const role = cb.dataset.role;
-    const action = cb.dataset.action;
+    const action = cb.dataset.perm || cb.dataset.action;
     if (SC.permissoes[role]) {
       SC.permissoes[role][action] = cb.checked ? 1 : 0;
     }
@@ -642,7 +703,7 @@ function savePermissoes() {
 
 function renderConfigFunil() {
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Etapas do Funil de Produção</h3>
       <button class="btn btn-primary" data-action="open-funil-stage-modal">
         <i class="fas fa-plus"></i> Nova Etapa
@@ -720,7 +781,7 @@ function deleteFunilStage(idx) {
 
 function renderConfigTipos() {
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Tipos de Conteúdo</h3>
       <button class="btn btn-primary" data-action="open-tipo-modal">
         <i class="fas fa-plus"></i> Novo Tipo
@@ -791,7 +852,7 @@ function deleteTipo(idx) {
 
 function renderConfigServicos() {
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Serviços Oferecidos</h3>
       <button class="btn btn-primary" data-action="open-servico-modal">
         <i class="fas fa-plus"></i> Novo Serviço
@@ -862,7 +923,7 @@ function deleteServico(idx) {
 
 function renderConfigAprovacao() {
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Modelos de Aprovação</h3>
     </div>
     <div>
