@@ -102,14 +102,16 @@ function renderCalGrid() {
     const dayTasks = tasks.filter(t => t.postDate === dateStr);
     const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
+    // A célula inteira abre a lista do dia; os eventos internos continuam
+    // abrindo o card direto (o delegador usa closest, o mais interno vence).
     cells += `
-      <div class="cal-cell ${isToday ? 'today' : ''}">
+      <div class="cal-cell ${isToday ? 'today' : ''}" ${dayTasks.length ? `data-action="open-day-tasks" data-date="${dateStr}" style="cursor:pointer"` : ''}>
         <div class="cal-day">${d}</div>
         ${dayTasks.slice(0,3).map(t => {
           const cls = t.status === 'Publicado' ? 'published' : (t.status === 'Aprovado' || t.status === 'Programado') ? '' : t.status === 'Enviado ao Cliente' ? 'awaiting' : 'pending';
           return `<div class="cal-event ${cls}" title="${SC.getClientName(t.client)} — ${t.title}" data-action="open-task-modal" data-id="${t.id}">${t.title.slice(0,20)}${t.title.length>20?'…':''}</div>`;
         }).join('')}
-        ${dayTasks.length > 3 ? `<div style="font-size:10px;color:var(--text-muted);padding:2px 4px">+${dayTasks.length-3} mais</div>` : ''}
+        ${dayTasks.length > 3 ? `<div class="cal-more" data-action="open-day-tasks" data-date="${dateStr}" style="font-size:10px;color:var(--purple-light);padding:2px 4px;cursor:pointer;font-weight:600">+${dayTasks.length-3} mais</div>` : ''}
       </div>`;
   }
 
@@ -246,6 +248,44 @@ function applyCalFilters() {
   calFilters.status = document.getElementById('cal-status').value;
   document.getElementById('cal-grid-area').innerHTML = renderCalGrid();
   document.getElementById('upcoming-list').innerHTML = renderUpcomingList();
+}
+
+// Lista todos os cards de um dia — a célula do mês só mostra 3.
+function openDayTasksModal(dateStr) {
+  const tasks = getCalendarTasks().filter(t => t.postDate === dateStr);
+  if (!tasks.length) return;
+
+  const [y, m, d] = dateStr.split('-');
+  const diaSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][new Date(`${dateStr}T00:00:00`).getDay()];
+
+  const linhas = tasks.map(t => {
+    const cls = t.status === 'Publicado' ? 'published'
+      : (t.status === 'Aprovado' || t.status === 'Programado') ? ''
+      : t.status === 'Enviado ao Cliente' ? 'awaiting' : 'pending';
+    return `
+      <div class="day-task-row" data-action="open-task-modal" data-id="${t.id}">
+        <span class="cal-event ${cls}" style="width:6px;height:34px;padding:0;flex-shrink:0;border-radius:3px"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${SC.getClientName(t.client) || 'Sem cliente'}</div>
+        </div>
+        ${getStatusTag(t.status)}
+      </div>`;
+  }).join('');
+
+  Modal.open(`
+    <div class="modal-header">
+      <div>
+        <span class="modal-title">${d}/${m}/${y}</span>
+        <div style="font-size:12px;color:var(--text-muted)">${diaSemana} · ${tasks.length} ${tasks.length === 1 ? 'card' : 'cards'}</div>
+      </div>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" style="max-height:60vh;overflow-y:auto">${linhas}</div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
+    </div>
+  `);
 }
 
 Router.register('calendario', renderCalendario, 'Calendário');

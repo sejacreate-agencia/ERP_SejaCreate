@@ -475,7 +475,7 @@ async function openCardModal(stage = 'Solicitado') {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col full"><label>Descrição / Briefing *</label><textarea class="input-field" id="nc-text" rows="4" placeholder="Detalhe o que precisa ser criado..."></textarea></div>
+        <div class="form-col full"><label>Descrição / Briefing *</label><textarea class="input-field" id="nc-text" rows="9" placeholder="Detalhe o que precisa ser criado..."></textarea></div>
       </div>
       <div class="form-row">
         <div class="form-col full">
@@ -611,6 +611,15 @@ async function openTaskModal(id) {
   }
   const assigneeOpts = profiles.map(p => `<option value="${p.id}" ${String(p.id) === String(t.assignee_id) ? 'selected' : ''}>${_escapeHtml(p.full_name)}</option>`).join('');
 
+  // Cliente e data são editáveis em qualquer etapa — antes eram texto fixo,
+  // então só dava para corrigir recriando o card.
+  const podeEditar = SC.hasPermission('editar');
+  const _clientes = podeEditar ? await Data.clients() : [];
+  const _tClientId = String(t.client_id ?? (t.client && typeof t.client === 'object' ? t.client.id : t.client) ?? '');
+  const clientOpts = `<option value="">— sem cliente —</option>` + _clientes
+    .map(c => `<option value="${c.id}" ${String(c.id) === _tClientId ? 'selected' : ''}>${_escapeHtml(c.name)}</option>`)
+    .join('');
+
   const _colKeys2 = (_kanbanCols && _kanbanCols.length) ? _kanbanCols.map(c => c.key) : (SC.kanbanCols || []);
   const stageOpts = _colKeys2.map(s => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${s}</option>`).join('');
   const checklists = t.task_checklists || t.checklist || [];
@@ -691,9 +700,9 @@ async function openTaskModal(id) {
                 <i class="fas fa-pen"></i> Editar
               </button>` : ''}
             </div>
-            <div id="briefing-view-${id}" style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap">${_escapeHtml(t.text) || '—'}</div>
+            <div id="briefing-view-${id}" style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;min-height:180px;max-height:420px;overflow-y:auto">${_escapeHtml(t.text) || '—'}</div>
             <div id="briefing-edit-${id}" style="display:none">
-              <textarea class="input-field" id="briefing-input-${id}" rows="6" placeholder="Detalhe o que precisa ser criado...">${_escapeHtml(t.text || '')}</textarea>
+              <textarea class="input-field" id="briefing-input-${id}" rows="12" placeholder="Detalhe o que precisa ser criado...">${_escapeHtml(t.text || '')}</textarea>
               <div style="display:flex;gap:8px;margin-top:8px">
                 <button class="btn btn-primary btn-sm" data-action="save-task-briefing" data-id="${id}"><i class="fas fa-save"></i> Salvar briefing</button>
                 <button class="btn btn-secondary btn-sm" data-action="cancel-task-briefing" data-id="${id}">Cancelar</button>
@@ -701,37 +710,18 @@ async function openTaskModal(id) {
             </div>
           </div>
 
-          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
-            <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">📣 Informações de postagem</summary>
+          <details open style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
+            <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">🖼️ Arte / Anexos (${attachments.length})</summary>
             <div style="margin-top:10px">
-              <div class="form-row">
-                <div class="form-col"><label>Título da postagem</label><input class="input-field" id="pi-title-${id}" value="${_escapeHtml(t.post_title || '')}" placeholder="Ex.: Dia dos Pais"></div>
-                <div class="form-col"><label>Conta / perfil</label><input class="input-field" id="pi-account-${id}" value="${_escapeHtml(t.social_account || '')}" placeholder="@perfil"></div>
-              </div>
-              <div class="form-row"><div class="form-col full"><label>Legenda</label><textarea class="input-field" id="pi-caption-${id}" rows="3" placeholder="Legenda da postagem...">${_escapeHtml(t.caption || '')}</textarea></div></div>
-              <div class="form-row">
-                <div class="form-col"><label>Hashtags</label><input class="input-field" id="pi-hash-${id}" value="${_escapeHtml(t.hashtags || '')}" placeholder="#tag #tag"></div>
-                <div class="form-col"><label>Tipo de publicação</label><select class="select-field" id="pi-ptype-${id}"><option value="">—</option>${TASK_PUBLISH_TYPES.map(p => `<option ${t.publish_type === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
-              </div>
-              <label style="font-size:11px;color:var(--text-muted)">Canais</label>
-              <div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 8px">
-                ${TASK_CHANNELS.map(ch => `<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400"><input type="checkbox" class="pi-chan-${id}" value="${ch}" ${channels.includes(ch) ? 'checked' : ''}> ${ch}</label>`).join('')}
-              </div>
-              <div class="form-row"><div class="form-col full"><label>Observações internas (não vão para a postagem)</label><textarea class="input-field" id="pi-internal-${id}" rows="2">${_escapeHtml(t.internal_notes || '')}</textarea></div></div>
-              <button class="btn btn-primary btn-sm" data-action="save-post-info" data-id="${id}"><i class="fas fa-save"></i> Salvar informações</button>
+              ${isSupabaseReady() ? `
+                <div style="margin-bottom:8px">
+                  <button class="btn btn-sm btn-ghost" data-action="upload-art-modal" data-id="${id}" style="font-size:11px"><i class="fas fa-upload"></i> Upload</button>
+                  <button class="btn btn-sm btn-ghost" data-action="add-art-link" data-id="${id}" style="font-size:11px"><i class="fas fa-link"></i> Link do Drive</button>
+                </div>
+              ` : ''}
+              ${artHtml}
             </div>
           </details>
-
-          <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase">
-              Arte / Anexos
-              ${isSupabaseReady() ? `
-                <button class="btn btn-sm btn-ghost" data-action="upload-art-modal" data-id="${id}" style="font-size:11px;margin-left:8px"><i class="fas fa-upload"></i> Upload</button>
-                <button class="btn btn-sm btn-ghost" data-action="add-art-link" data-id="${id}" style="font-size:11px"><i class="fas fa-link"></i> Link do Drive</button>
-              ` : ''}
-            </div>
-            ${artHtml}
-          </div>
 
           <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
             <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">🔗 Links relacionados</summary>
@@ -755,6 +745,27 @@ async function openTaskModal(id) {
                 <input class="input-field" id="new-check-${id}" placeholder="Novo item..." style="flex:1" onkeyup="if(event.key==='Enter')addCheckItem(${JSON.stringify(id)})" />
                 <button class="btn btn-secondary btn-sm" data-action="add-check-item" data-id="${id}"><i class="fas fa-plus"></i></button>
               </div>
+            </div>
+          </details>
+
+          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
+            <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">📣 Informações de postagem</summary>
+            <div style="margin-top:10px">
+              <div class="form-row">
+                <div class="form-col"><label>Título da postagem</label><input class="input-field" id="pi-title-${id}" value="${_escapeHtml(t.post_title || '')}" placeholder="Ex.: Dia dos Pais"></div>
+                <div class="form-col"><label>Conta / perfil</label><input class="input-field" id="pi-account-${id}" value="${_escapeHtml(t.social_account || '')}" placeholder="@perfil"></div>
+              </div>
+              <div class="form-row"><div class="form-col full"><label>Legenda</label><textarea class="input-field" id="pi-caption-${id}" rows="3" placeholder="Legenda da postagem...">${_escapeHtml(t.caption || '')}</textarea></div></div>
+              <div class="form-row">
+                <div class="form-col"><label>Hashtags</label><input class="input-field" id="pi-hash-${id}" value="${_escapeHtml(t.hashtags || '')}" placeholder="#tag #tag"></div>
+                <div class="form-col"><label>Tipo de publicação</label><select class="select-field" id="pi-ptype-${id}"><option value="">—</option>${TASK_PUBLISH_TYPES.map(p => `<option ${t.publish_type === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+              </div>
+              <label style="font-size:11px;color:var(--text-muted)">Canais</label>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 8px">
+                ${TASK_CHANNELS.map(ch => `<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400"><input type="checkbox" class="pi-chan-${id}" value="${ch}" ${channels.includes(ch) ? 'checked' : ''}> ${ch}</label>`).join('')}
+              </div>
+              <div class="form-row"><div class="form-col full"><label>Observações internas (não vão para a postagem)</label><textarea class="input-field" id="pi-internal-${id}" rows="2">${_escapeHtml(t.internal_notes || '')}</textarea></div></div>
+              <button class="btn btn-primary btn-sm" data-action="save-post-info" data-id="${id}"><i class="fas fa-save"></i> Salvar informações</button>
             </div>
           </details>
 
@@ -784,7 +795,11 @@ async function openTaskModal(id) {
           <div style="display:flex;flex-direction:column;gap:12px">
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Cliente</div>
-              <div style="font-size:13px;font-weight:600;color:var(--text-purple)">${_escapeHtml(clientName)}</div>
+              ${podeEditar ? `
+              <select class="select-field" style="width:100%;font-size:12px" onchange="changeTaskClient('${id}', this.value)">
+                ${clientOpts}
+              </select>` : `
+              <div style="font-size:13px;font-weight:600;color:var(--text-purple)">${_escapeHtml(clientName)}</div>`}
             </div>
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Solicitante</div>
@@ -803,7 +818,11 @@ async function openTaskModal(id) {
             </div>
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Data de Postagem</div>
-              <div style="font-size:13px;font-weight:600;${overdue?'color:var(--danger)':''}">${formatDateBR(postDate) || '—'}</div>
+              ${podeEditar ? `
+              <input type="date" class="input-field" style="width:100%;font-size:12px${overdue?';color:var(--danger)':''}"
+                     value="${postDate ? String(postDate).slice(0,10) : ''}"
+                     onchange="changeTaskDate('${id}', this.value)">` : `
+              <div style="font-size:13px;font-weight:600;${overdue?'color:var(--danger)':''}">${formatDateBR(postDate) || '—'}</div>`}
             </div>
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">TAGS</div>
@@ -964,6 +983,47 @@ async function saveTaskBriefing(id) {
   _toggleBriefingEdit(id, false);
 
   showToast('✅ Briefing atualizado!', 'success');
+}
+
+/* ─── CLIENTE E DATA (editáveis em qualquer etapa) ─── */
+
+async function changeTaskClient(id, clientId) {
+  const t = _taskData.find(x => String(x.id) === String(id));
+  const novo = clientId || null;
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.tasks.update(id, { client_id: novo });
+    if (error) { showToast(`Erro ao trocar cliente: ${error.message}`, 'error'); return; }
+  }
+
+  const nome = novo ? SC.getClientName(novo) : null;
+  [t, (SC.tasks || []).find(x => String(x.id) === String(id))].forEach(o => {
+    if (!o) return;
+    o.client_id = novo;
+    o.client = novo ? { id: novo, name: nome } : null;
+  });
+
+  showToast(nome ? `✅ Cliente alterado para ${nome}.` : '✅ Cliente removido do card.', 'success');
+  renderTarefas();
+}
+
+async function changeTaskDate(id, date) {
+  const t = _taskData.find(x => String(x.id) === String(id));
+  const nova = date || null;
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.tasks.update(id, { post_date: nova });
+    if (error) { showToast(`Erro ao trocar a data: ${error.message}`, 'error'); return; }
+  }
+
+  [t, (SC.tasks || []).find(x => String(x.id) === String(id))].forEach(o => {
+    if (!o) return;
+    o.post_date = nova;
+    o.postDate  = nova;
+  });
+
+  showToast(nova ? `✅ Data de postagem: ${formatDateBR(nova)}` : '✅ Data removida.', 'success');
+  renderTarefas();
 }
 
 async function saveTaskPostInfo(id) {

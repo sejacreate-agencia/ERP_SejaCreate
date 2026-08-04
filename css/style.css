@@ -1084,6 +1084,17 @@ tbody tr:last-child td { border-bottom: none; }
   gap: 12px; flex-wrap: wrap; margin-bottom: 18px;
 }
 
+/* LISTA DE CARDS DO DIA (popup do calendário) */
+.day-task-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; border-radius: 8px; cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+  transition: var(--transition);
+}
+.day-task-row:last-child { border-bottom: none; }
+.day-task-row:hover { background: var(--bg-input); }
+.cal-more:hover { text-decoration: underline; }
+
 /* CHECKLIST */
 .checklist-item {
   display: flex; align-items: center; gap: 10px;

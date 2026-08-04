@@ -39,6 +39,7 @@ const Actions = {
   // ── CALENDÁRIO ────────────────────────────
   'set-cal-mode':         el  => setCalMode(el.dataset.mode),
   'change-month':         el  => changeMonth(parseInt(el.dataset.dir)),
+  'open-day-tasks':       el  => openDayTasksModal(el.dataset.date),
 
   // ── DASHBOARD ─────────────────────────────
   'show-new-task-modal':  ()  => showNewTaskModal(),
