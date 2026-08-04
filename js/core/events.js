@@ -23,7 +23,9 @@ const Actions = {
   ),
   'change-password':      ()  => openChangePasswordModal(),
   'save-change-password': ()  => saveChangePassword(),
-  'open-reset-pass-modal': el => openResetPassModal(el.dataset.name, el.dataset.email),
+  'open-reset-pass-modal': el => openResetPassModal(el.dataset.name, el.dataset.email, el.dataset.id),
+  'apply-temp-password':   el => applyTempPassword(el.dataset.id, el.dataset.email),
+  'confirm-user-email':    el => confirmUserEmail(el.dataset.id, el.dataset.email),
   'send-reset-email':      el => AuthService.sendResetEmailForUser(el.dataset.email),
   'resend-confirmation':   el => AuthService.resendConfirmation(el.dataset.email),
 

@@ -97,7 +97,7 @@ function renderConfigUsuarios() {
             <i class="fas fa-edit"></i> Editar
           </button>
           <button class="btn btn-sm" style="background:var(--warning-subtle,#fff8e1);color:var(--warning,#f59e0b)"
-                  data-action="open-reset-pass-modal" data-email="${e.email}" data-name="${e.name}"
+                  data-action="open-reset-pass-modal" data-id="${e.id}" data-email="${e.email}" data-name="${e.name}"
                   title="Redefinir senha">
             <i class="fas fa-key"></i>
           </button>
@@ -262,7 +262,7 @@ async function saveFuncModal(id) {
       } else if (!signUpData.session) {
         // Sem sessão = o projeto exige confirmação de e-mail. O usuário existe,
         // mas o login falha com "Email not confirmed" até ele abrir o link.
-        avisoConfirmacao = email;
+        avisoConfirmacao = { email, id: userId };
       } else {
         showToast(`✅ Usuário "${name}" criado com sucesso!`, 'success');
       }
@@ -308,12 +308,12 @@ async function saveFuncModal(id) {
   closeModal();
   switchConfigSection('usuarios');
 
-  if (avisoConfirmacao) openConfirmacaoEmailModal(avisoConfirmacao);
+  if (avisoConfirmacao) openConfirmacaoEmailModal(avisoConfirmacao.email, avisoConfirmacao.id);
 }
 
 // Explica por que o usuário recém-criado ainda não consegue logar e oferece
 // as duas saídas: reenviar a confirmação ou mandar link de definição de senha.
-function openConfirmacaoEmailModal(email) {
+function openConfirmacaoEmailModal(email, userId) {
   openModal(`
     <div class="modal-header">
       <span class="modal-title">
@@ -332,14 +332,23 @@ function openConfirmacaoEmailModal(email) {
         Para que novos usuários entrem <b>na hora</b>, desligue em<br>
         <b>Supabase → Authentication → Providers → Email → Confirm email</b>.
       </div>
+      ${userId ? `
+      <button class="btn btn-primary" style="width:100%;margin-top:12px"
+              data-action="confirm-user-email" data-id="${userId}" data-email="${email}">
+        <i class="fas fa-bolt"></i> Ativar conta agora (sem esperar o e-mail)
+      </button>
+      <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0;text-align:center">
+        Requer a supabase-migration-014.sql aplicada.
+      </p>` : ''}
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="resend-confirmation" data-email="${email}">
         <i class="fas fa-paper-plane"></i> Reenviar confirmação
       </button>
-      <button class="btn btn-primary" data-action="send-reset-email" data-email="${email}">
+      <button class="btn btn-secondary" data-action="send-reset-email" data-email="${email}">
         <i class="fas fa-key"></i> Enviar link de senha
       </button>
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
     </div>
   `);
 }
@@ -1186,11 +1195,68 @@ async function saveChangePassword() {
 
 /* ─── RESET DE SENHA (ADMIN) ──────────────── */
 
-function openResetPassModal(name, email) {
+// A migration 014 cria as funções admin_*. Enquanto ela não roda, o PostgREST
+// responde que a função não existe — vale avisar o que fazer em vez do erro cru.
+function _erroMigration014(error) {
+  const msg = (error?.message || '') + (error?.details || '');
+  return error?.code === 'PGRST202' || error?.code === '42883' || /admin_set_user_password|admin_confirm_user_email/.test(msg);
+}
+
+async function applyTempPassword(userId, email) {
+  if (!isSupabaseReady()) { Toast.show('Disponível apenas com Supabase conectado.', 'warning'); return; }
+
+  const pass = document.getElementById('temp-pass-val')?.textContent?.trim();
+  if (!pass) { Toast.show('Senha temporária não encontrada.', 'error'); return; }
+
+  const btn = document.getElementById('apply-pass-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aplicando...'; }
+
+  const { error } = await supabaseClient.rpc('admin_set_user_password', {
+    target_id: userId,
+    new_password: pass,
+  });
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Aplicar agora'; }
+
+  if (error) {
+    if (_erroMigration014(error)) {
+      Toast.show('Rode a supabase-migration-014.sql no SQL Editor para habilitar este botão.', 'warning');
+    } else {
+      Toast.show(`Erro ao aplicar senha: ${error.message}`, 'error');
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-check"></i> Senha aplicada';
+  }
+  Toast.show(`✅ Senha de ${email} redefinida. Informe a senha temporária a ele.`, 'success');
+}
+
+async function confirmUserEmail(userId, email) {
+  if (!isSupabaseReady()) { Toast.show('Disponível apenas com Supabase conectado.', 'warning'); return; }
+
+  const { error } = await supabaseClient.rpc('admin_confirm_user_email', { target_id: userId });
+
+  if (error) {
+    if (_erroMigration014(error)) {
+      Toast.show('Rode a supabase-migration-014.sql no SQL Editor para habilitar este botão.', 'warning');
+    } else {
+      Toast.show(`Erro ao confirmar conta: ${error.message}`, 'error');
+    }
+    return;
+  }
+
+  Toast.show(`✅ Conta de ${email} confirmada. Ele já pode entrar com a senha definida.`, 'success');
+  closeModal();
+}
+
+function openResetPassModal(name, email, userId) {
   if (!email) { Toast.show('E-mail do usuário não encontrado.', 'error'); return; }
 
   const tempPass = AuthService.generatePassword();
-  const sql = `UPDATE auth.users\nSET encrypted_password = crypt('${tempPass}', gen_salt('bf'))\nWHERE email = '${email}';`;
+  const sql = `UPDATE auth.users\nSET encrypted_password = crypt('${tempPass}', gen_salt('bf')),\n    email_confirmed_at = COALESCE(email_confirmed_at, NOW())\nWHERE email = '${email}';`;
 
   openModal(`
     <div class="modal-header">
@@ -1217,7 +1283,7 @@ function openResetPassModal(name, email) {
       <div style="background:var(--bg-secondary);border-radius:10px;padding:16px">
         <p style="font-size:13px;font-weight:600;margin:0 0 6px">Opção 2 — Senha temporária gerada</p>
         <p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px">
-          Copie a senha e informe ao usuário. Para ativá-la, use o SQL abaixo no Supabase.
+          Copie a senha, clique em <strong>Aplicar agora</strong> e informe ao usuário.
         </p>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <code id="temp-pass-val" style="flex:1;font-size:15px;font-weight:700;letter-spacing:1px;
@@ -1227,8 +1293,19 @@ function openResetPassModal(name, email) {
             <i class="fas fa-copy"></i>
           </button>
         </div>
-        <details style="font-size:12px">
-          <summary style="cursor:pointer;color:var(--text-secondary);margin-bottom:6px">Ver SQL para ativar esta senha</summary>
+        ${userId ? `
+        <button class="btn btn-primary" id="apply-pass-btn"
+                data-action="apply-temp-password" data-id="${userId}" data-email="${email}">
+          <i class="fas fa-bolt"></i> Aplicar agora
+        </button>
+        <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0">
+          Aplica a senha, confirma a conta e encerra as sessões antigas do usuário.
+        </p>` : `
+        <p style="font-size:12px;color:var(--warning);margin:0">
+          ID do usuário indisponível — use o SQL abaixo.
+        </p>`}
+        <details style="font-size:12px;margin-top:10px">
+          <summary style="cursor:pointer;color:var(--text-secondary);margin-bottom:6px">Alternativa manual — SQL</summary>
           <div style="display:flex;align-items:flex-start;gap:6px;margin-top:6px">
             <pre id="reset-sql" style="flex:1;background:var(--bg-primary);border:1px solid var(--border);
                  border-radius:6px;padding:10px;font-size:11px;margin:0;white-space:pre-wrap;word-break:break-all">${sql}</pre>
