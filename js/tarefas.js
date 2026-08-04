@@ -680,12 +680,25 @@ async function openTaskModal(id) {
       <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 260px;gap:20px">
+      <div class="task-modal-grid">
         <!-- LEFT -->
         <div>
           <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase">Descrição / Briefing</div>
-            <div style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap">${_escapeHtml(t.text) || '—'}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <span>Descrição / Briefing</span>
+              ${SC.hasPermission('editar') ? `
+              <button class="btn btn-ghost btn-sm" data-action="edit-task-briefing" data-id="${id}" style="font-size:11px;text-transform:none">
+                <i class="fas fa-pen"></i> Editar
+              </button>` : ''}
+            </div>
+            <div id="briefing-view-${id}" style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap">${_escapeHtml(t.text) || '—'}</div>
+            <div id="briefing-edit-${id}" style="display:none">
+              <textarea class="input-field" id="briefing-input-${id}" rows="6" placeholder="Detalhe o que precisa ser criado...">${_escapeHtml(t.text || '')}</textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-primary btn-sm" data-action="save-task-briefing" data-id="${id}"><i class="fas fa-save"></i> Salvar briefing</button>
+                <button class="btn btn-secondary btn-sm" data-action="cancel-task-briefing" data-id="${id}">Cancelar</button>
+              </div>
+            </div>
           </div>
 
           <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
@@ -767,7 +780,7 @@ async function openTaskModal(id) {
         </div>
 
         <!-- RIGHT -->
-        <div style="border-left:1px solid var(--border);padding-left:18px">
+        <div class="task-modal-side">
           <div style="display:flex;flex-direction:column;gap:12px">
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Cliente</div>
@@ -904,6 +917,53 @@ function pickMention(id, fullName) {
   if (box) box.style.display = 'none';
   ta.focus();
   ta.selectionStart = ta.selectionEnd = before.length;
+}
+
+/* ─── BRIEFING (descrição do card) ───────── */
+
+function _toggleBriefingEdit(id, editing) {
+  const view = document.getElementById(`briefing-view-${id}`);
+  const edit = document.getElementById(`briefing-edit-${id}`);
+  const btn  = document.querySelector(`[data-action="edit-task-briefing"][data-id="${id}"]`);
+  if (!view || !edit) return;
+  view.style.display = editing ? 'none' : '';
+  edit.style.display = editing ? '' : 'none';
+  if (btn) btn.style.display = editing ? 'none' : '';
+  if (editing) document.getElementById(`briefing-input-${id}`)?.focus();
+}
+
+function editTaskBriefing(id) {
+  _toggleBriefingEdit(id, true);
+}
+
+function cancelTaskBriefing(id) {
+  const t = _taskData.find(x => String(x.id) === String(id));
+  const ta = document.getElementById(`briefing-input-${id}`);
+  if (ta && t) ta.value = t.text || '';
+  _toggleBriefingEdit(id, false);
+}
+
+async function saveTaskBriefing(id) {
+  const ta = document.getElementById(`briefing-input-${id}`);
+  if (!ta) return;
+  const text = ta.value.trim();
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.tasks.update(id, { text });
+    if (error) { showToast(`Erro ao salvar briefing: ${error.message}`, 'error'); return; }
+  }
+
+  // Mantém memória local em sincronia (_taskData e SC.tasks compartilham objetos no modo demo)
+  const t = _taskData.find(x => String(x.id) === String(id));
+  if (t) t.text = text;
+  const st = (SC.tasks || []).find(x => String(x.id) === String(id));
+  if (st) st.text = text;
+
+  const view = document.getElementById(`briefing-view-${id}`);
+  if (view) view.innerHTML = _escapeHtml(text) || '—';
+  _toggleBriefingEdit(id, false);
+
+  showToast('✅ Briefing atualizado!', 'success');
 }
 
 async function saveTaskPostInfo(id) {

@@ -50,7 +50,7 @@ const AuthService = {
   async _loginSupabase(email, password) {
     const { data, error } = await SB.login(email, password);
     if (error) {
-      Toast.login(`❌ ${error.message}`);
+      this._showLoginError(error, email);
       return { error };
     }
 
@@ -58,6 +58,12 @@ const AuthService = {
     if (!profile) {
       Toast.login('Conta autenticada, mas sem perfil cadastrado. Peça ao admin para criar seu perfil na tabela "profiles".');
       return { error: { message: 'profile_not_found' } };
+    }
+
+    if (profile.status === 'inativo') {
+      await SB.logout();
+      Toast.login('Sua conta está INATIVA. Peça ao administrador para reativá-la em Configurações → Usuários.');
+      return { error: { message: 'user_inactive' } };
     }
 
     SC.currentUser = this._mapProfile(profile);
@@ -72,6 +78,71 @@ const AuthService = {
     await hydrateFromSupabase();
     this._postLogin(profile.role);
     return { data: SC.currentUser };
+  },
+
+  // Traduz o erro do Supabase Auth para uma mensagem acionável.
+  // O caso mais comum de "criei o usuário e ele não consegue entrar" é o
+  // e-mail ainda não confirmado (Confirm email ligado no projeto Supabase).
+  _showLoginError(error, email) {
+    const code = (error.code || '').toLowerCase();
+    const msg  = (error.message || '').toLowerCase();
+
+    if (code === 'email_not_confirmed' || msg.includes('not confirmed')) {
+      Toast.login(
+        `E-mail ainda não confirmado.<br>Abra o link enviado para <b>${email}</b> (verifique também o spam).` +
+        `<br><button class="btn btn-sm btn-secondary" style="margin-top:8px" ` +
+        `data-action="resend-confirmation" data-email="${email}">Reenviar e-mail de confirmação</button>`,
+        'warning', { html: true, duration: 12000 }
+      );
+      return;
+    }
+
+    if (code === 'invalid_credentials' || msg.includes('invalid login credentials')) {
+      Toast.login('E-mail ou senha incorretos. Use "Esqueci minha senha" para redefinir.');
+      return;
+    }
+
+    if (code === 'user_banned' || msg.includes('banned')) {
+      Toast.login('Esta conta está bloqueada. Fale com o administrador.');
+      return;
+    }
+
+    if (msg.includes('rate limit') || msg.includes('too many')) {
+      Toast.login('Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.');
+      return;
+    }
+
+    Toast.login(`❌ ${error.message}`);
+  },
+
+  // Reenvia o e-mail de confirmação de cadastro
+  async resendConfirmation(email) {
+    if (!isSupabaseReady()) {
+      Toast.show('Supabase não conectado.', 'warning');
+      return false;
+    }
+    if (!email) {
+      Toast.show('E-mail não informado.', 'warning');
+      return false;
+    }
+    const redirectTo = this._getRedirectUrl();
+    const { error } = await supabaseClient.auth.resend({
+      type: 'signup',
+      email,
+      ...(redirectTo ? { options: { emailRedirectTo: redirectTo } } : {}),
+    });
+
+    // Na tela de login o aviso vai no formulário; dentro do app, toast normal.
+    const ls = document.getElementById('login-screen');
+    const onLoginScreen = !!ls && ls.style.display !== 'none' && !ls.classList.contains('hidden');
+    const notify = (msg, type) => onLoginScreen ? Toast.login(msg, type) : Toast.show(msg, type);
+
+    if (error) {
+      notify(`Não foi possível reenviar: ${error.message}`, 'error');
+      return false;
+    }
+    notify(`✅ E-mail de confirmação reenviado para ${email}.`, 'success');
+    return true;
   },
 
   async _loginDemo(role) {
