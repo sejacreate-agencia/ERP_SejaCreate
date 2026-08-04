@@ -18,7 +18,6 @@ function renderCalendario() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Calendário de Publicações</h1>
-          <p class="page-subtitle">Visualize e acompanhe os conteúdos aprovados e programados</p>
         </div>
         <div class="page-actions">
           <div class="tabs" style="margin:0">

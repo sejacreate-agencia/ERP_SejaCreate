@@ -4,8 +4,9 @@
 
 function renderFinPagar() {
   const today = new Date(new Date().toDateString());
-  const provisionados = _payData.filter(p => p.status === 'provisionado');
-  const demais        = _payData.filter(p => p.status !== 'provisionado');
+  const visiveis      = _applyFinStatusFilter(_payData);
+  const provisionados = visiveis.filter(p => p.status === 'provisionado');
+  const demais        = visiveis.filter(p => p.status !== 'provisionado');
   const sorted        = [...provisionados, ...demais];
   const provTotal     = provisionados.reduce((s, p) => s + (p.value||0), 0);
   const isComp        = finRegime === 'competencia';
@@ -62,6 +63,15 @@ function renderFinPagar() {
         <i class="fas fa-plus"></i> Nova Despesa
       </button>
     </div>
+    ${_finStatusFilterBar(_payData, [
+      { value: 'pago',              label: 'Pago',         icon: 'fa-check-circle' },
+      { value: 'pendente',          label: 'Pendente',     icon: 'fa-hourglass-half' },
+      { value: 'atrasado',          label: 'Vencido',      icon: 'fa-exclamation-circle' },
+      { value: 'previsto',          label: 'Previsto',     icon: 'fa-calendar' },
+      { value: 'provisionado',      label: 'Provisionado', icon: 'fa-layer-group' },
+      { value: 'parcialmente_pago', label: 'Parcial',      icon: 'fa-adjust' },
+      { value: 'cancelado',         label: 'Cancelado',    icon: 'fa-ban' },
+    ])}
     <div class="card">
       ${provBanner}
       <div class="table-wrap">
@@ -79,7 +89,9 @@ function renderFinPagar() {
               <th>Ações</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Nenhum lançamento encontrado</td></tr>'}</tbody>
+          <tbody>${rows || `<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">
+            Nenhum lançamento encontrado${_finFilterStatus ? ' para este status' : ''}.
+          </td></tr>`}</tbody>
         </table>
       </div>
     </div>`;

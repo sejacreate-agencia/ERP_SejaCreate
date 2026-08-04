@@ -20,7 +20,6 @@ async function renderDashboardMarketing() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Dashboard de Marketing</h1>
-          <p class="page-subtitle">Indicadores das solicitações de arte e tempo de produção</p>
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary btn-sm" data-action="dm-export-pdf"><i class="fas fa-file-pdf"></i> PDF</button>

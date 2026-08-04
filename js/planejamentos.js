@@ -28,7 +28,6 @@ async function renderPlanejamentos() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Planejamentos</h1>
-          <p class="page-subtitle">Calendário editorial — planeje, aprove e envie para produção</p>
         </div>
         <div class="page-actions">
           <div class="tabs" style="margin:0">

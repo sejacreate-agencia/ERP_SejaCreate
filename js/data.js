@@ -30,6 +30,9 @@ const SC = {
     { id: 6, name: 'Pharma Saúde Total', resp: 'Dra. Beatriz Faria', email: 'beatriz@pharmasaude.com', phone: '(41) 9 3210-9876', cnpj: '45.678.901/0001-23', services: ['Social Media', 'Consultoria'], plan: 'Padrão', start: '2024-09-01', expiry: '2025-09-01', status: 'ativo', revenue: 4100 },
   ],
 
+  // Usuários com role='cliente' (portal do cliente). Preenchido pelo Supabase.
+  clientUsers: [],
+
   employees: [
     { id: 1, name: 'Ana Paula Silva', cargo: 'Administradora', email: 'ana@sejacreate.com', phone: '(11) 9 9999-0001', role: 'admin', status: 'ativo' },
     { id: 2, name: 'Bruno Carvalho', cargo: 'Gestor de Projetos', email: 'bruno@sejacreate.com', phone: '(11) 9 9999-0002', role: 'gestor', status: 'ativo' },

@@ -23,7 +23,7 @@ let _obSearch = '';
 // Estado do workspace aberto
 let _wsClient = null;
 let _wsTab = 'onboarding';
-let _wsData = { onboardingId: null, steps: [], notes: [], links: [], attachments: [] };
+let _wsData = { onboardingId: null, steps: [], notes: [], links: [], attachments: [], briefing: null };
 
 async function renderOnboarding() {
   const pc = document.getElementById('page-content');
@@ -32,10 +32,12 @@ async function renderOnboarding() {
       <div class="page-header-row">
         <div>
           <h1 class="page-title">Dossiê do Cliente</h1>
-          <p class="page-subtitle">Central de cada cliente — onboarding, briefing, anotações e links</p>
         </div>
         <div class="page-actions">
           <input class="filter-select" id="ob-search" placeholder="🔍 Buscar cliente..." style="min-width:220px" oninput="applyObSearch()" value="${_obSearch}">
+          <button class="btn btn-secondary" data-action="ob-abrir-import" title="Importar respostas antigas do Google Forms">
+            <i class="fas fa-file-import"></i> Importar briefings
+          </button>
         </div>
       </div>
     </div>
@@ -113,7 +115,8 @@ async function openClientWorkspace(clientId) {
     </div>
     <div class="tabs" style="margin:0 0 4px;padding:0 4px;flex-wrap:wrap">
       <button class="tab-btn active" data-action="ws-tab" data-tab="onboarding"><i class="fas fa-clipboard-check"></i> Onboarding</button>
-      <button class="tab-btn" data-action="ws-tab" data-tab="dados"><i class="fas fa-id-card"></i> Dados / Briefing</button>
+      <button class="tab-btn" data-action="ws-tab" data-tab="dados"><i class="fas fa-id-card"></i> Dados</button>
+      <button class="tab-btn" data-action="ws-tab" data-tab="briefing"><i class="fas fa-clipboard-question"></i> Briefing</button>
       <button class="tab-btn" data-action="ws-tab" data-tab="notas"><i class="fas fa-sticky-note"></i> Anotações</button>
       <button class="tab-btn" data-action="ws-tab" data-tab="links"><i class="fas fa-link"></i> Links</button>
     </div>
@@ -127,17 +130,19 @@ async function openClientWorkspace(clientId) {
 
 async function wsReload() {
   const cid = _wsClient.id;
-  const [ob, notesRes, linksRes, attRes] = await Promise.all([
+  const [ob, notesRes, linksRes, attRes, brRes] = await Promise.all([
     DB.clientOnboarding.get(cid),
     DB.clientNotes.listByClient(cid),
     DB.clientLinks.listByClient(cid),
     DB.clientAttachments.listByClient(cid),
+    DB.clientBriefings.get(cid),
   ]);
   _wsData.onboardingId = ob?.id || null;
   _wsData.steps = _wsMergeSteps(ob?.steps);
   _wsData.notes = notesRes.data || [];
   _wsData.links = linksRes.data || [];
   _wsData.attachments = attRes.data || [];
+  _wsData.briefing = brRes.data || null;
   wsRenderTab();
 }
 
@@ -159,7 +164,10 @@ function wsSwitchTab(tab) {
 function wsRenderTab() {
   const el = document.getElementById('ws-tab-content');
   if (!el) return;
-  el.innerHTML = { onboarding: wsOnboardingHtml, dados: wsDadosHtml, notas: wsNotesHtml, links: wsLinksHtml }[_wsTab]();
+  el.innerHTML = {
+    onboarding: wsOnboardingHtml, dados: wsDadosHtml, briefing: wsBriefingHtml,
+    notas: wsNotesHtml, links: wsLinksHtml,
+  }[_wsTab]();
 }
 
 // ── ABA: ONBOARDING (timeline com checkpoints) ──
@@ -240,9 +248,12 @@ function wsDadosHtml() {
       ${field('Vencimento', c.dia_vencimento ? 'Dia ' + c.dia_vencimento : '—')}
     </div>
     <div style="margin-bottom:8px">
-      <label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">Briefing</label>
-      <textarea class="input-field" id="ws-briefing" rows="5" placeholder="Informações do briefing do cliente...">${c.briefing || ''}</textarea>
-      <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="ws-save-briefing"><i class="fas fa-save"></i> Salvar briefing</button>
+      <label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase">Observações gerais</label>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">
+        Anotações livres da equipe. As respostas do formulário ficam na aba <strong>Briefing</strong>.
+      </div>
+      <textarea class="input-field" id="ws-briefing" rows="5" placeholder="Observações da equipe sobre o cliente...">${c.briefing || ''}</textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="ws-save-briefing"><i class="fas fa-save"></i> Salvar observações</button>
     </div>
     <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -262,6 +273,149 @@ async function saveBriefing() {
   await DB.clients.update(_wsClient.id, { briefing: val });
   _wsClient.briefing = val;
   showToast('✅ Briefing salvo!', 'success');
+}
+
+// ── ABA: BRIEFING ──
+// O cliente responde pelo link tokenizado (briefing.html?t=...). Aqui a
+// equipe gera/reenvia o link e lê as respostas.
+
+function _briefingUrl(token) {
+  // Mesma origem/pasta do index.html — funciona tanto no GitHub Pages
+  // (subpasta do repo) quanto em domínio próprio.
+  const base = location.href.replace(/[^/]*$/, '');
+  return `${base}briefing.html?t=${encodeURIComponent(token)}`;
+}
+
+function _briefingToken() {
+  // crypto.randomUUID não existe em WebViews antigas; o fallback mantém
+  // entropia suficiente para um token de uso único.
+  if (window.crypto?.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+  const a = new Uint8Array(16);
+  (window.crypto || {}).getRandomValues?.(a);
+  return [...a].map(b => b.toString(16).padStart(2, '0')).join('') || String(Date.now()) + Math.random().toString(36).slice(2);
+}
+
+function _obEsc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function wsBriefingHtml() {
+  const b = _wsData.briefing;
+  const c = _wsClient;
+
+  if (!b) {
+    return `
+      <div class="empty-state" style="padding:32px">
+        <i class="fas fa-clipboard-question" style="color:var(--purple-light)"></i>
+        <p style="margin-top:10px;font-weight:600">Nenhum briefing gerado ainda</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5">
+          Gere um link exclusivo e envie para ${_obEsc(c.contact_name || c.name)}.<br>
+          São ${BRIEFING_QUESTIONS.length} perguntas, respondidas pelo celular, com o
+          progresso salvo automaticamente.
+        </p>
+        <button class="btn btn-primary" style="margin-top:16px" data-action="ws-gerar-briefing">
+          <i class="fas fa-link"></i> Gerar link do briefing
+        </button>
+      </div>`;
+  }
+
+  const url = _briefingUrl(b.token);
+  const respondido = b.status === 'respondido';
+  const fone = (c.phone || '').replace(/\D/g, '');
+  const waMsg = encodeURIComponent(
+    `Olá! Para começarmos a estratégia digital de ${c.name}, preencha o briefing neste link: ${url}`);
+
+  const cabecalho = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <span class="tag ${respondido ? 'tag-green' : 'tag-yellow'}">
+        <i class="fas ${respondido ? 'fa-circle-check' : 'fa-hourglass-half'}"></i>
+        ${respondido ? 'Respondido em ' + formatDateBR(b.submitted_at) : 'Aguardando resposta'}
+      </span>
+      ${b.source === 'import' ? `<span class="tag tag-gray" style="font-size:10px"><i class="fas fa-file-import"></i> Importado do Forms</span>` : ''}
+    </div>`;
+
+  const linkBox = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">
+        Link do cliente
+      </div>
+      <input class="input-field" readonly value="${_obEsc(url)}" data-action="ws-select-link"
+             style="font-size:11px;margin-bottom:8px" />
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-secondary" data-action="ws-copiar-briefing" data-url="${_obEsc(url)}">
+          <i class="fas fa-copy"></i> Copiar
+        </button>
+        ${fone ? `<a class="btn btn-sm btn-success" target="_blank" href="https://wa.me/55${fone}?text=${waMsg}">
+          <i class="fab fa-whatsapp"></i> Enviar no WhatsApp
+        </a>` : `<span style="font-size:11px;color:var(--text-muted);align-self:center">Cliente sem telefone cadastrado</span>`}
+        <a class="btn btn-sm btn-ghost" target="_blank" href="${_obEsc(url)}">
+          <i class="fas fa-up-right-from-square"></i> Abrir
+        </a>
+        ${respondido ? `<button class="btn btn-sm btn-ghost" data-action="ws-reabrir-briefing" data-id="${b.id}"
+                                style="margin-left:auto;color:var(--warning)">
+          <i class="fas fa-rotate-left"></i> Reabrir para nova resposta
+        </button>` : ''}
+      </div>
+    </div>`;
+
+  if (!respondido) {
+    return cabecalho + linkBox + `
+      <div class="empty-state" style="padding:24px">
+        <i class="fas fa-hourglass-half" style="color:var(--warning)"></i>
+        <p style="font-size:13px">O cliente ainda não enviou as respostas.</p>
+      </div>`;
+  }
+
+  const respostas = BRIEFING_SECTIONS.map(sec => {
+    const itens = sec.questions.map(q => {
+      const v = briefingFormatValue(b.answers?.[q.key]);
+      return `
+        <div style="padding:10px 0;border-bottom:1px solid var(--border-light)">
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.4">${_obEsc(q.label)}</div>
+          <div style="font-size:13px;white-space:pre-wrap;margin-top:3px;${v ? '' : 'color:var(--text-muted);font-style:italic'}">
+            ${v ? _obEsc(v) : 'Não respondido'}
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div style="margin-bottom:18px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--purple-light);margin-bottom:4px">
+          <i class="fas ${sec.icon}"></i> ${_obEsc(sec.title)}
+        </div>
+        ${itens}
+      </div>`;
+  }).join('');
+
+  return cabecalho + linkBox + respostas;
+}
+
+async function wsGerarBriefing() {
+  const token = _briefingToken();
+  const { data, error } = await DB.clientBriefings.create(_wsClient.id, token);
+  if (error) { showToast(`Erro ao gerar o link: ${error.message}`, 'error'); return; }
+  _wsData.briefing = data;
+  showToast('🔗 Link gerado! Envie para o cliente.', 'success');
+  wsRenderTab();
+}
+
+function wsCopiarBriefing(url) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url)
+      .then(() => showToast('Link copiado!', 'success'))
+      .catch(() => showToast('Não foi possível copiar — selecione o link e copie manualmente.', 'warning'));
+  } else {
+    showToast('Selecione o link e copie manualmente.', 'info');
+  }
+}
+
+async function wsReabrirBriefing(id) {
+  if (!confirm('Reabrir o briefing? O cliente poderá responder de novo pelo mesmo link, substituindo as respostas atuais.')) return;
+  const { error } = await DB.clientBriefings.reabrir(id);
+  if (error) { showToast(`Erro: ${error.message}`, 'error'); return; }
+  showToast('Briefing reaberto.', 'success');
+  await wsReload();
 }
 
 // ── ABA: ANOTAÇÕES ──
@@ -400,6 +554,181 @@ async function wsDelFile(id) {
   if (!confirm('Remover este arquivo?')) return;
   await DB.clientAttachments.remove(id);
   await wsReload();
+}
+
+/* ─── IMPORTAR RESPOSTAS ANTIGAS DO GOOGLE FORMS ─────────────
+   Importação única das respostas coletadas antes do formulário nativo.
+   O CSV entra por upload em vez de fetch direto: a planilha é pública,
+   mas o endpoint do Google não libera CORS para outras origens. */
+
+let _impLinhas = [];   // [{ nome, dataHora, answers, clientId }]
+
+function openBriefingImport() {
+  if (!isSupabaseReady() || !_obClients.length) {
+    showToast('Conecte o Supabase e carregue os clientes antes de importar.', 'warning');
+    return;
+  }
+  const clientOpts = `<option value="">— Escolher cliente —</option>` +
+    _obClients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-file-import" style="color:var(--purple-light);margin-right:8px"></i>Importar briefings do Google Forms</span>
+      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg-secondary);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);line-height:1.6">
+        Na planilha de respostas: <strong>Arquivo → Fazer download → CSV</strong>.
+        Depois selecione o arquivo abaixo. As colunas são reconhecidas pelo texto
+        do cabeçalho, então não mexa nos títulos das perguntas.
+      </div>
+      <input type="file" class="input-field" id="imp-file" accept=".csv,text/csv" />
+      <button class="btn btn-primary btn-sm" style="margin-top:10px" data-action="ob-import-parse">
+        <i class="fas fa-magnifying-glass"></i> Ler arquivo
+      </button>
+      <div id="imp-resultado" style="margin-top:16px"></div>
+    </div>
+    <div class="modal-footer" id="imp-footer"></div>
+  `, 'modal-lg');
+
+  // Guardado para montar os selects sem refazer a lista a cada linha
+  openBriefingImport._clientOpts = clientOpts;
+}
+
+function briefingImportParse() {
+  const file = document.getElementById('imp-file')?.files?.[0];
+  const box  = document.getElementById('imp-resultado');
+  if (!file) { showToast('Escolha o arquivo CSV primeiro.', 'warning'); return; }
+  if (typeof XLSX === 'undefined') {
+    box.innerHTML = `<div style="color:var(--danger);font-size:13px">Biblioteca de leitura de planilha não carregou. Atualize a página e tente de novo.</div>`;
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    let linhas;
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'string' });
+      linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    } catch (err) {
+      box.innerHTML = `<div style="color:var(--danger);font-size:13px">Não foi possível ler o arquivo: ${_obEsc(err.message)}</div>`;
+      return;
+    }
+
+    if (!linhas.length) {
+      box.innerHTML = `<div style="color:var(--warning);font-size:13px">O arquivo não tem nenhuma resposta.</div>`;
+      return;
+    }
+
+    // Cabeçalho → key da pergunta
+    const headers = Object.keys(linhas[0]);
+    const mapa = {};
+    headers.forEach(h => { const k = briefingKeyFromLabel(h); if (k) mapa[h] = k; });
+    const reconhecidas = Object.keys(mapa).length;
+    const naoReconhecidas = headers.filter(h => !mapa[h] && !/carimbo|timestamp/i.test(h));
+
+    _impLinhas = linhas.map(row => {
+      const answers = {};
+      Object.entries(mapa).forEach(([h, key]) => {
+        const q = BRIEFING_QUESTIONS.find(x => x.key === key);
+        const v = briefingParseValue(q, row[h]);
+        if (Array.isArray(v) ? v.length : v) answers[key] = v;
+      });
+      const dataHora = row[headers.find(h => /carimbo|timestamp/i.test(h))] || '';
+      return { nome: answers.nome_funcao || '(sem nome)', dataHora, answers, clientId: _sugerirCliente(answers.nome_funcao) };
+    });
+
+    box.innerHTML = `
+      <div style="font-size:13px;margin-bottom:10px">
+        <strong>${_impLinhas.length}</strong> resposta(s) lida(s) ·
+        <strong>${reconhecidas}</strong> de ${BRIEFING_QUESTIONS.length} perguntas reconhecidas
+      </div>
+      ${naoReconhecidas.length ? `
+        <div style="background:var(--warning-subtle,rgba(245,158,11,.12));border:1px solid var(--warning);border-radius:8px;padding:10px;font-size:12px;margin-bottom:12px">
+          <i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i>
+          ${naoReconhecidas.length} coluna(s) não bateram com nenhuma pergunta e serão ignoradas:
+          <span style="color:var(--text-muted)">${_obEsc(naoReconhecidas.slice(0, 3).join(' · '))}${naoReconhecidas.length > 3 ? '…' : ''}</span>
+        </div>` : ''}
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">
+        Escolha o cliente de cada resposta. O formulário não tem campo de empresa,
+        então a sugestão é só pelo nome de quem respondeu — confira antes de importar.
+        Linhas sem cliente são puladas.
+      </div>
+      <div class="table-wrap" style="max-height:320px;overflow:auto">
+        <table style="font-size:12px">
+          <thead><tr><th>Respondente</th><th>Data</th><th>Preenchidas</th><th style="min-width:180px">Cliente</th></tr></thead>
+          <tbody>
+            ${_impLinhas.map((l, i) => `
+              <tr>
+                <td style="max-width:200px">${_obEsc(String(l.nome).slice(0, 60))}</td>
+                <td style="white-space:nowrap;color:var(--text-muted)">${_obEsc(String(l.dataHora).slice(0, 10))}</td>
+                <td>${Object.keys(l.answers).length}</td>
+                <td>
+                  <select class="select-field imp-cliente" data-idx="${i}" style="font-size:12px">
+                    ${openBriefingImport._clientOpts.replace(
+                      new RegExp(`value="${l.clientId}"`), `value="${l.clientId}" selected`)}
+                  </select>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    document.getElementById('imp-footer').innerHTML = `
+      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="ob-import-salvar">
+        <i class="fas fa-download"></i> Importar selecionados
+      </button>`;
+  };
+
+  reader.onerror = () => {
+    box.innerHTML = `<div style="color:var(--danger);font-size:13px">Falha ao ler o arquivo.</div>`;
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Sugestão pelo nome de quem respondeu — o formulário não pede a empresa,
+// então isso é só um atalho: a conferência final é do usuário.
+function _sugerirCliente(nomeResposta) {
+  const alvo = briefingNormalizeLabel(nomeResposta);
+  if (!alvo) return '';
+  const hit = _obClients.find(c => {
+    const nome = briefingNormalizeLabel(c.name);
+    const resp = briefingNormalizeLabel(c.contact_name);
+    return (resp && alvo.includes(resp)) || (nome && alvo.includes(nome));
+  });
+  return hit ? hit.id : '';
+}
+
+async function briefingImportSalvar() {
+  document.querySelectorAll('.imp-cliente').forEach(sel => {
+    _impLinhas[parseInt(sel.dataset.idx)].clientId = sel.value;
+  });
+
+  const aImportar = _impLinhas.filter(l => l.clientId);
+  if (!aImportar.length) { showToast('Nenhuma linha tem cliente selecionado.', 'warning'); return; }
+
+  const btn = document.querySelector('[data-action="ob-import-salvar"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...'; }
+
+  let ok = 0, falhas = 0;
+  for (const l of aImportar) {
+    const dt = l.dataHora ? _impParseData(l.dataHora) : null;
+    const { error } = await DB.clientBriefings.importar(l.clientId, _briefingToken(), l.answers, dt);
+    if (error) { falhas++; console.warn('Falha ao importar', l.nome, error); } else { ok++; }
+  }
+
+  closeModal();
+  showToast(`${ok} briefing(s) importado(s)${falhas ? ` · ${falhas} falharam` : ''}.`, falhas ? 'warning' : 'success');
+  renderOnboarding();
+}
+
+// O carimbo do Forms vem como "dd/mm/aaaa hh:mm:ss" — Date() interpretaria
+// como mês/dia e jogaria a data para outro mês.
+function _impParseData(s) {
+  const m = String(s).match(/^(\d{2})\/(\d{2})\/(\d{4})[ ,]*(\d{2}:\d{2}(:\d{2})?)?/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}T${m[4] || '00:00:00'}`;
 }
 
 Router.register('onboarding', renderOnboarding, 'Dossiê do Cliente');
