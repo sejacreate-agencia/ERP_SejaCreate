@@ -338,7 +338,7 @@ function openConfirmacaoEmailModal(email, userId) {
         <i class="fas fa-bolt"></i> Ativar conta agora (sem esperar o e-mail)
       </button>
       <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0;text-align:center">
-        Requer a supabase-migration-014.sql aplicada.
+        Requer a supabase-migration-016.sql aplicada.
       </p>` : ''}
     </div>
     <div class="modal-footer">
@@ -1195,7 +1195,7 @@ async function saveChangePassword() {
 
 /* ─── RESET DE SENHA (ADMIN) ──────────────── */
 
-// A migration 014 cria as funções admin_*. Enquanto ela não roda, o PostgREST
+// A migration 016 cria as funções admin_*. Enquanto ela não roda, o PostgREST
 // responde que a função não existe — vale avisar o que fazer em vez do erro cru.
 function _erroMigration014(error) {
   const msg = (error?.message || '') + (error?.details || '');
@@ -1220,7 +1220,7 @@ async function applyTempPassword(userId, email) {
 
   if (error) {
     if (_erroMigration014(error)) {
-      Toast.show('Rode a supabase-migration-014.sql no SQL Editor para habilitar este botão.', 'warning');
+      Toast.show('Rode a supabase-migration-016.sql no SQL Editor para habilitar este botão.', 'warning');
     } else {
       Toast.show(`Erro ao aplicar senha: ${error.message}`, 'error');
     }
@@ -1241,7 +1241,7 @@ async function confirmUserEmail(userId, email) {
 
   if (error) {
     if (_erroMigration014(error)) {
-      Toast.show('Rode a supabase-migration-014.sql no SQL Editor para habilitar este botão.', 'warning');
+      Toast.show('Rode a supabase-migration-016.sql no SQL Editor para habilitar este botão.', 'warning');
     } else {
       Toast.show(`Erro ao confirmar conta: ${error.message}`, 'error');
     }

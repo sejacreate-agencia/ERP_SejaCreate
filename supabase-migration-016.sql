@@ -1,5 +1,5 @@
 -- =============================================
--- MIGRATION 014 — Redefinição de senha pelo admin, sem SQL manual
+-- MIGRATION 016 — Redefinição de senha pelo admin, sem SQL manual
 -- Execute UMA VEZ no Supabase SQL Editor.
 -- =============================================
 -- Depois desta migration, o botão "Redefinir Senha" em Configurações →

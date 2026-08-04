@@ -1,5 +1,5 @@
 -- =============================================
--- MIGRATION 013 — Correção do cadastro de usuários / login
+-- MIGRATION 015 — Correção do cadastro de usuários / login
 -- Execute no Supabase SQL Editor
 -- =============================================
 -- Contexto: usuários criados em Configurações → Usuários não conseguiam logar.
