@@ -12,6 +12,16 @@ let _mentionUsers = []; // perfis para autocomplete de @menção no card
 const TASK_CHANNELS = ['Instagram Feed', 'Instagram Reels', 'Instagram Stories', 'Facebook Feed', 'Facebook Reels', 'Facebook Stories'];
 const TASK_PUBLISH_TYPES = ['Feed', 'Carrossel', 'Reels / Vídeo', 'Stories', 'Anúncio'];
 
+// Argumento JS dentro de atributo HTML (onclick, onchange...).
+// JSON.stringify devolve aspas DUPLAS, que encerram o atributo antes da hora
+// e matam o handler. Com ids UUID (Supabase) isso quebrava upload, checklist,
+// tags, menções e o drag do kanban; em modo demo os ids são números, sem
+// aspas, e o bug ficava escondido. O &quot; é decodificado pelo parser HTML
+// antes de o JS ser avaliado.
+function _jsArg(v) {
+  return JSON.stringify(v == null ? null : v).replace(/"/g, '&quot;');
+}
+
 function _escapeHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -249,7 +259,7 @@ function buildKanbanCard(t) {
     <div class="kanban-card"
          draggable="true"
          data-id="${t.id}"
-         ondragstart="taskDragStart(event,${JSON.stringify(t.id)})"
+         ondragstart="taskDragStart(event,${_jsArg(t.id)})"
          ondragend="taskDragEnd(event)"
          data-action="open-task-modal">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
@@ -630,7 +640,7 @@ async function openTaskModal(id) {
   const checklistHtml = checklists.map((item, idx) => `
     <div class="checklist-item" id="cli-${idx}">
       <input type="checkbox" id="ci-${idx}" ${item.done ? 'checked' : ''}
-        onchange="toggleCheck(${JSON.stringify(id)},${JSON.stringify(item.id || idx)},this.checked,${idx})">
+        onchange="toggleCheck(${_jsArg(id)},${_jsArg(item.id || idx)},this.checked,${idx})">
       <label for="ci-${idx}" class="${item.done ? 'done' : ''}">${_escapeHtml(item.text)}</label>
     </div>`).join('');
 
@@ -744,7 +754,7 @@ async function openTaskModal(id) {
                 ${checklistHtml || '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nenhum item no checklist</div>'}
               </div>
               <div style="display:flex;gap:8px;margin-top:8px">
-                <input class="input-field" id="new-check-${id}" placeholder="Novo item..." style="flex:1" onkeyup="if(event.key==='Enter')addCheckItem(${JSON.stringify(id)})" />
+                <input class="input-field" id="new-check-${id}" placeholder="Novo item..." style="flex:1" onkeyup="if(event.key==='Enter')addCheckItem(${_jsArg(id)})" />
                 <button class="btn btn-secondary btn-sm" data-action="add-check-item" data-id="${id}"><i class="fas fa-plus"></i></button>
               </div>
             </div>
@@ -876,7 +886,7 @@ async function openTaskModal(id) {
 function _taskTagsHtml(t, id) {
   const tags = t.tags || [];
   if (!tags.length) return '<span style="font-size:11px;color:var(--text-muted)">Nenhuma tag.</span>';
-  return tags.map(tag => `<span class="tag tag-purple" style="font-size:10px;margin:0 3px 3px 0;display:inline-flex;align-items:center;gap:4px">${_escapeHtml(tag)}<i class="fas fa-times" style="cursor:pointer" onclick="removeTaskTag('${id}', ${JSON.stringify(tag)})"></i></span>`).join('');
+  return tags.map(tag => `<span class="tag tag-purple" style="font-size:10px;margin:0 3px 3px 0;display:inline-flex;align-items:center;gap:4px">${_escapeHtml(tag)}<i class="fas fa-times" style="cursor:pointer" onclick="removeTaskTag('${id}', ${_jsArg(tag)})"></i></span>`).join('');
 }
 
 function _taskLinksHtml(t, id) {
@@ -923,7 +933,7 @@ function onCommentInput(id) {
   if (!matches.length) { box.style.display = 'none'; return; }
   box.innerHTML = matches.map(u => `
     <div style="padding:8px 10px;cursor:pointer;display:flex;gap:8px;align-items:center"
-         onmousedown="event.preventDefault();pickMention('${id}', ${JSON.stringify(u.full_name)})">
+         onmousedown="event.preventDefault();pickMention('${id}', ${_jsArg(u.full_name)})">
       <div class="avatar-xs">${_escapeHtml(u.avatar_initials || (u.full_name || '').slice(0,2))}</div>
       <span style="font-size:13px">${_escapeHtml(u.full_name)}</span>
     </div>`).join('');
@@ -1228,7 +1238,7 @@ async function addCheckItem(taskId) {
     const div = document.createElement('div');
     div.className = 'checklist-item';
     div.id = `cli-${idx}`;
-    div.innerHTML = `<input type="checkbox" id="ci-${idx}" onchange="toggleCheck(${JSON.stringify(taskId)},${JSON.stringify(newItem.id)},this.checked,${idx})"><label for="ci-${idx}">${val}</label>`;
+    div.innerHTML = `<input type="checkbox" id="ci-${idx}" onchange="toggleCheck(${_jsArg(taskId)},${_jsArg(newItem.id)},this.checked,${idx})"><label for="ci-${idx}">${val}</label>`;
     container.appendChild(div);
   }
   showToast('Item adicionado!', 'success');
@@ -1442,7 +1452,7 @@ function uploadArtModal(taskId) {
     <div class="modal-body">
       <div style="border:2px dashed var(--border);border-radius:8px;padding:30px;text-align:center">
         <i class="fas fa-cloud-upload-alt" style="font-size:36px;color:var(--text-muted);margin-bottom:12px;display:block"></i>
-        <input type="file" id="art-file-input" accept="image/*,video/*,.pdf" multiple style="display:none" onchange="handleArtUpload(${JSON.stringify(taskId)},this)">
+        <input type="file" id="art-file-input" accept="image/*,video/*,.pdf" multiple style="display:none" onchange="handleArtUpload(${_jsArg(taskId)},this)">
         <button class="btn btn-primary" data-action="trigger-art-upload">
           <i class="fas fa-folder-open"></i> Selecionar Arquivos
         </button>
