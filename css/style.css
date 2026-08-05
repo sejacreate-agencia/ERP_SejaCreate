@@ -741,6 +741,9 @@ tbody tr:last-child td { border-bottom: none; }
   animation: slideUp 0.2s ease;
 }
 .modal-lg { width: 800px; }
+.modal-xl { width: 1100px; max-height: 92vh; }
+/* Editor de briefing: abre POR CIMA do modal do card, sem fechá-lo */
+#briefing-editor-overlay { z-index: 600; }
 /* Detalhe do card: conteúdo + coluna lateral de ações */
 .task-modal-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; }
 .task-modal-side { border-left: 1px solid var(--border); padding-left: 18px; min-width: 0; }
