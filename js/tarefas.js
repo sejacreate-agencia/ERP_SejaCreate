@@ -1422,6 +1422,13 @@ async function deleteTask(id) {
   renderTaskBoard();
 }
 
+// Teto por arquivo. Precisa acompanhar o limite do bucket 'task-arts' no
+// Supabase (migration 017) e o limite GLOBAL do projeto, que é o menor dos
+// dois e não pode ser furado pelo frontend:
+//   Dashboard → Storage → Settings → "Upload file size limit"
+// Free vai até 50MB; planos pagos permitem mais.
+const ART_MAX_MB = 50;
+
 function uploadArtModal(taskId) {
   if (!isSupabaseReady()) {
     showToast('Upload disponível com Supabase configurado', 'info');
@@ -1435,62 +1442,107 @@ function uploadArtModal(taskId) {
     <div class="modal-body">
       <div style="border:2px dashed var(--border);border-radius:8px;padding:30px;text-align:center">
         <i class="fas fa-cloud-upload-alt" style="font-size:36px;color:var(--text-muted);margin-bottom:12px;display:block"></i>
-        <input type="file" id="art-file-input" accept="image/*,video/*,.pdf" style="display:none" onchange="handleArtUpload(${JSON.stringify(taskId)},this)">
+        <input type="file" id="art-file-input" accept="image/*,video/*,.pdf" multiple style="display:none" onchange="handleArtUpload(${JSON.stringify(taskId)},this)">
         <button class="btn btn-primary" data-action="trigger-art-upload">
-          <i class="fas fa-folder-open"></i> Selecionar Arquivo
+          <i class="fas fa-folder-open"></i> Selecionar Arquivos
         </button>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:10px">PNG, JPG, GIF, MP4, PDF (máx. 20MB)</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px">
+          PNG, JPG, GIF, MP4, PDF — máx. ${ART_MAX_MB}MB por arquivo<br>
+          <span style="font-size:11px">Pode selecionar vários de uma vez</span>
+        </p>
       </div>
       <div id="upload-progress" style="margin-top:12px;display:none">
         <div class="progress-bar"><div class="progress-fill" id="upload-bar" style="width:0%"></div></div>
         <p id="upload-status" style="font-size:12px;color:var(--text-muted);margin-top:6px;text-align:center">Fazendo upload...</p>
       </div>
+      <div id="upload-list" style="margin-top:10px"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-secondary" data-action="close-modal">Fechar</button>
     </div>
   `);
 }
 
+function _fmtBytes(b) {
+  if (b >= 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + ' MB';
+  return Math.max(1, Math.round(b / 1024)) + ' KB';
+}
+
 async function handleArtUpload(taskId, input) {
-  const file = input.files[0];
-  if (!file) return;
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
 
   const progress = document.getElementById('upload-progress');
-  const bar = document.getElementById('upload-bar');
-  const status = document.getElementById('upload-status');
+  const bar      = document.getElementById('upload-bar');
+  const status   = document.getElementById('upload-status');
+  const lista    = document.getElementById('upload-list');
   if (progress) progress.style.display = 'block';
 
-  // Simula progresso
-  let p = 0;
-  const interval = setInterval(() => {
-    p = Math.min(p + 15, 90);
-    if (bar) bar.style.width = p + '%';
-  }, 200);
+  // Barra por arquivo concluído — mais honesto que a animação fake anterior,
+  // já que o SDK de storage não expõe progresso de upload.
+  const passo = 100 / files.length;
+  let enviados = 0, falhas = 0;
 
-  const path = `tasks/${taskId}/${Date.now()}_${file.name}`;
-  const { data: url, error } = await SB.uploadFile('task-arts', path, file);
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const linha = document.createElement('div');
+    linha.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0';
+    linha.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:var(--text-muted);width:14px"></i>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escapeHtml(file.name)}</span>
+      <span style="color:var(--text-muted)">${_fmtBytes(file.size)}</span>`;
+    if (lista) lista.appendChild(linha);
+    const icone = linha.querySelector('i');
 
-  clearInterval(interval);
-  if (bar) bar.style.width = '100%';
+    if (status) status.textContent = `Enviando ${i + 1} de ${files.length}...`;
 
-  if (error) {
-    if (status) status.textContent = `Erro: ${error.message}`;
-    showToast('Erro no upload', 'error');
-    return;
+    // Barrado aqui para o usuário saber o motivo — o storage recusaria com
+    // "Payload too large", que não diz nada a quem está usando.
+    if (file.size > ART_MAX_MB * 1024 * 1024) {
+      falhas++;
+      icone.className = 'fas fa-times-circle';
+      icone.style.color = 'var(--danger)';
+      linha.title = `Acima do limite de ${ART_MAX_MB}MB`;
+      linha.insertAdjacentHTML('beforeend', `<span style="color:var(--danger)">acima de ${ART_MAX_MB}MB</span>`);
+      if (bar) bar.style.width = Math.round((i + 1) * passo) + '%';
+      continue;
+    }
+
+    const path = `tasks/${taskId}/${Date.now()}_${i}_${file.name}`;
+    const { data: url, error } = await SB.uploadFile('task-arts', path, file);
+
+    if (error) {
+      falhas++;
+      icone.className = 'fas fa-times-circle';
+      icone.style.color = 'var(--danger)';
+      linha.title = error.message;
+      linha.insertAdjacentHTML('beforeend', `<span style="color:var(--danger)">falhou</span>`);
+    } else {
+      enviados++;
+      icone.className = 'fas fa-check-circle';
+      icone.style.color = 'var(--success, #10b981)';
+      const { data: att } = await DB.taskAttachments.add(taskId, url, file.name, file.type, 'arte');
+      const tUp = _taskData.find(x => String(x.id) === String(taskId));
+      if (tUp && !tUp.art_url) await DB.tasks.update(taskId, { art_url: url });
+      _reflectAttachment(taskId, att || { id: `tmp-${Date.now()}_${i}`, file_url: url, file_name: file.name, file_type: file.type, kind: 'arte' }, url);
+    }
+
+    if (bar) bar.style.width = Math.round((i + 1) * passo) + '%';
   }
 
-  const { data: att } = await DB.taskAttachments.add(taskId, url, file.name, file.type, 'arte');
-  const tUp = _taskData.find(x => String(x.id) === String(taskId));
-  if (tUp && !tUp.art_url) await DB.tasks.update(taskId, { art_url: url });
-  _reflectAttachment(taskId, att || { id: `tmp-${Date.now()}`, file_url: url, file_name: file.name, file_type: file.type, kind: 'arte' }, url);
-  if (status) status.textContent = 'Upload concluído!';
-  showToast('Arte enviada com sucesso!', 'success');
+  input.value = ''; // permite reenviar o mesmo arquivo depois
 
-  setTimeout(() => {
-    closeModal();
-    openTaskModal(taskId);
-  }, 800);
+  if (status) {
+    status.textContent = falhas
+      ? `${enviados} enviado(s), ${falhas} com problema.`
+      : `${enviados} arquivo(s) enviado(s)!`;
+  }
+  if (enviados) showToast(`✅ ${enviados} arquivo(s) enviado(s)!`, 'success');
+  if (falhas && !enviados) showToast('Nenhum arquivo foi enviado.', 'error');
+
+  // Com falha na tela, não fecha sozinho: o usuário precisa ler o que houve.
+  if (!falhas) {
+    setTimeout(() => { closeModal(); openTaskModal(taskId); }, 800);
+  }
 }
 
 // Atualiza o card em memória com o novo anexo (evita recarregar o board inteiro)
