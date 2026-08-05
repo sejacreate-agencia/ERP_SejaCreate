@@ -700,7 +700,9 @@ async function openTaskModal(id) {
                 <i class="fas fa-pen"></i> Editar
               </button>` : ''}
             </div>
-            <div id="briefing-view-${id}" style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;min-height:180px;max-height:420px;overflow-y:auto">${_escapeHtml(t.text) || '—'}</div>
+            <div id="briefing-view-${id}" title="Duplo clique para abrir o editor grande"
+                 ${podeEditar ? `ondblclick="openBriefingEditor('${id}')"` : ''}
+                 style="background:var(--bg-input);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;min-height:180px;max-height:420px;overflow-y:auto${podeEditar ? ';cursor:text' : ''}">${_escapeHtml(t.text) || '—'}</div>
             <div id="briefing-edit-${id}" style="display:none">
               <textarea class="input-field" id="briefing-input-${id}" rows="12" placeholder="Detalhe o que precisa ser criado...">${_escapeHtml(t.text || '')}</textarea>
               <div style="display:flex;gap:8px;margin-top:8px">
@@ -784,10 +786,12 @@ async function openTaskModal(id) {
             </div>
           </div>
 
-          <div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:700;text-transform:uppercase">Histórico</div>
-            <div id="task-history-${id}"><div style="font-size:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div></div>
-          </div>
+          <details style="margin-bottom:16px;background:var(--bg-secondary);border-radius:8px;padding:12px">
+            <summary style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;cursor:pointer">🕑 Histórico</summary>
+            <div style="margin-top:10px">
+              <div id="task-history-${id}"><div style="font-size:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div></div>
+            </div>
+          </details>
         </div>
 
         <!-- RIGHT -->
@@ -962,17 +966,76 @@ function cancelTaskBriefing(id) {
   _toggleBriefingEdit(id, false);
 }
 
-async function saveTaskBriefing(id) {
-  const ta = document.getElementById(`briefing-input-${id}`);
-  if (!ta) return;
-  const text = ta.value.trim();
+// Editor em tela cheia (duplo clique no briefing). Fechar salva.
+// Não usa Modal.open: ele fecha o overlay existente, o que derrubaria o
+// modal do card por baixo. Aqui é um overlay próprio, empilhado acima.
+function openBriefingEditor(id) {
+  if (document.getElementById('briefing-editor-overlay')) return;
 
+  const t = _taskData.find(x => String(x.id) === String(id));
+  if (!t) return;
+  const original = t.text || '';
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay fade-in';
+  ov.id = 'briefing-editor-overlay';
+  ov.innerHTML = `
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <span class="modal-title">
+          <i class="fas fa-align-left" style="color:var(--purple-light);margin-right:8px"></i>
+          Briefing — ${_escapeHtml(t.title)}
+        </span>
+        <button class="modal-close" id="be-close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <textarea class="input-field" id="be-text" spellcheck="true"
+                  placeholder="Detalhe o que precisa ser criado..."
+                  style="width:100%;height:58vh;resize:vertical;font-size:14px;line-height:1.7">${_escapeHtml(original)}</textarea>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;align-items:center">
+        <span id="be-hint" style="font-size:11px;color:var(--text-muted)">Ao fechar, o briefing é salvo automaticamente.</span>
+        <button class="btn btn-primary" id="be-done"><i class="fas fa-check"></i> Concluir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const ta = ov.querySelector('#be-text');
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = ta.value.length;
+
+  let fechando = false;
+  const fechar = async () => {
+    if (fechando) return;          // evita salvar duas vezes (clique + Esc)
+    fechando = true;
+    document.removeEventListener('keydown', onKey);
+
+    const novo = ta.value.trim();
+    if (novo !== original.trim()) {
+      const hint = ov.querySelector('#be-hint');
+      if (hint) hint.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+      const ok = await _persistBriefing(id, novo);
+      if (!ok) { fechando = false; document.addEventListener('keydown', onKey); return; }
+    }
+    ov.remove();
+  };
+
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } };
+
+  ov.addEventListener('click', e => { if (e.target === ov) fechar(); });
+  ov.querySelector('#be-close').addEventListener('click', fechar);
+  ov.querySelector('#be-done').addEventListener('click', fechar);
+  document.addEventListener('keydown', onKey);
+}
+
+// Grava o briefing e atualiza a tela. Compartilhado pelo editor grande e
+// pelo botão Editar embutido no card.
+async function _persistBriefing(id, text) {
   if (isSupabaseReady()) {
     const { error } = await DB.tasks.update(id, { text });
-    if (error) { showToast(`Erro ao salvar briefing: ${error.message}`, 'error'); return; }
+    if (error) { showToast(`Erro ao salvar briefing: ${error.message}`, 'error'); return false; }
   }
 
-  // Mantém memória local em sincronia (_taskData e SC.tasks compartilham objetos no modo demo)
   const t = _taskData.find(x => String(x.id) === String(id));
   if (t) t.text = text;
   const st = (SC.tasks || []).find(x => String(x.id) === String(id));
@@ -980,9 +1043,17 @@ async function saveTaskBriefing(id) {
 
   const view = document.getElementById(`briefing-view-${id}`);
   if (view) view.innerHTML = _escapeHtml(text) || '—';
-  _toggleBriefingEdit(id, false);
+  const inline = document.getElementById(`briefing-input-${id}`);
+  if (inline) inline.value = text;
 
   showToast('✅ Briefing atualizado!', 'success');
+  return true;
+}
+
+async function saveTaskBriefing(id) {
+  const ta = document.getElementById(`briefing-input-${id}`);
+  if (!ta) return;
+  if (await _persistBriefing(id, ta.value.trim())) _toggleBriefingEdit(id, false);
 }
 
 /* ─── CLIENTE E DATA (editáveis em qualquer etapa) ─── */
