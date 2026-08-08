@@ -403,8 +403,12 @@ const DB = {
   // ── TASK ATTACHMENTS ────────────────────
   taskAttachments: {
     async add(taskId, fileUrl, fileName, fileType, kind = 'arte') {
+      // uploaded_by é OBRIGATÓRIO: a policy task_attachments_insert exige
+      // WITH CHECK (uploaded_by = auth.uid()). Sem ele o INSERT volta 403 e o
+      // anexo some ao recarregar, mesmo com o arquivo já no storage.
       return SB.insert('task_attachments', {
-        task_id: taskId, file_url: fileUrl, file_name: fileName, file_type: fileType, kind
+        task_id: taskId, file_url: fileUrl, file_name: fileName, file_type: fileType, kind,
+        uploaded_by: SB.profile?.id || null,
       });
     },
     async list(taskId) {
