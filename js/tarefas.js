@@ -1527,13 +1527,24 @@ async function handleArtUpload(taskId, input) {
       linha.title = error.message;
       linha.insertAdjacentHTML('beforeend', `<span style="color:var(--danger)">falhou</span>`);
     } else {
-      enviados++;
-      icone.className = 'fas fa-check-circle';
-      icone.style.color = 'var(--success, #10b981)';
-      const { data: att } = await DB.taskAttachments.add(taskId, url, file.name, file.type, 'arte');
-      const tUp = _taskData.find(x => String(x.id) === String(taskId));
-      if (tUp && !tUp.art_url) await DB.tasks.update(taskId, { art_url: url });
-      _reflectAttachment(taskId, att || { id: `tmp-${Date.now()}_${i}`, file_url: url, file_name: file.name, file_type: file.type, kind: 'arte' }, url);
+      // O arquivo subiu, mas só conta como enviado se o anexo PERSISTIR.
+      // Antes caía num id 'tmp-' e a tela mostrava sucesso; ao recarregar,
+      // o anexo tinha sumido.
+      const { data: att, error: attErr } = await DB.taskAttachments.add(taskId, url, file.name, file.type, 'arte');
+      if (attErr || !att) {
+        falhas++;
+        icone.className = 'fas fa-times-circle';
+        icone.style.color = 'var(--danger)';
+        linha.title = attErr?.message || 'anexo não registrado';
+        linha.insertAdjacentHTML('beforeend', `<span style="color:var(--danger)">não registrado</span>`);
+      } else {
+        enviados++;
+        icone.className = 'fas fa-check-circle';
+        icone.style.color = 'var(--success, #10b981)';
+        const tUp = _taskData.find(x => String(x.id) === String(taskId));
+        if (tUp && !tUp.art_url) await DB.tasks.update(taskId, { art_url: url });
+        _reflectAttachment(taskId, att, url);
+      }
     }
 
     if (bar) bar.style.width = Math.round((i + 1) * passo) + '%';
