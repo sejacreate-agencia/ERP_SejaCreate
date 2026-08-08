@@ -52,8 +52,10 @@ prontos AS (
     regexp_replace(a.arquivo, '^\d{10,16}_(\d+_)?', '') AS file_name,
     COALESCE(a.mimetype, 'application/octet-stream')    AS file_type,
     CASE WHEN a.arquivo LIKE 'ref\_%' THEN 'referencia' ELSE 'arte' END AS kind,
-    -- só usa o dono se ele ainda existir em profiles (a FK exige)
-    (SELECT p.id FROM public.profiles p WHERE p.id = a.owner_id) AS uploaded_by,
+    -- só usa o dono se ele ainda existir em profiles (a FK exige).
+    -- storage.objects.owner_id é TEXT e profiles.id é UUID — compara como
+    -- texto, que também evita erro caso o owner_id não seja um UUID válido.
+    (SELECT p.id FROM public.profiles p WHERE p.id::text = a.owner_id) AS uploaded_by,
     a.created_at
   FROM arquivos a
   -- só para tarefas que ainda existem
