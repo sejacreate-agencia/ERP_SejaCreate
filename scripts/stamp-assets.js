@@ -43,9 +43,11 @@ const antes = html;
 let carimbados = 0;
 const faltando = [];
 
-// src="js/..." e href="css/..." — com ou sem ?v= anterior
+// src="js/...", href="css/..." e o manifest.json da raiz — com ou sem ?v= anterior.
+// O manifest entra aqui porque o iOS o cacheia de forma agressiva: sem carimbo,
+// trocar ícone ou nome do app não chega em quem já instalou na tela de início.
 html = html.replace(
-  /(\s(?:src|href)=")((?:js|css)\/[^"?]+)(\?v=[^"]*)?(")/g,
+  /(\s(?:src|href)=")((?:js|css)\/[^"?]+|manifest\.json)(\?v=[^"]*)?(")/g,
   (todo, ini, arquivo, _versaoAntiga, fim) => {
     const h = hashDe(arquivo);
     if (!h) { faltando.push(arquivo); return todo; }

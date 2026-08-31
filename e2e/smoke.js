@@ -11,7 +11,7 @@ const PASS  = process.env.E2E_PASS;
 const SHOTS = path.join(__dirname, 'shots');
 
 const PAGES = [
-  'dashboard', 'tarefas', 'calendario', 'crm', 'cadastro',
+  'dashboard', 'agenda', 'tarefas', 'calendario', 'crm', 'cadastro',
   'planejamentos', 'onboarding', 'relatorios', 'relatorios-meta',
   'dashboard-marketing', 'avisos', 'configuracoes', 'cliente-area',
 ];

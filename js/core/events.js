@@ -41,6 +41,10 @@ const Actions = {
   'change-month':         el  => changeMonth(parseInt(el.dataset.dir)),
   'open-day-tasks':       el  => openDayTasksModal(el.dataset.date),
 
+  // ── AGENDA ────────────────────────────────
+  'ag-dia':               el  => agMudarDia(parseInt(el.dataset.dir)),
+  'ag-hoje':              ()  => agHoje(),
+
   // ── DASHBOARD ─────────────────────────────
   'show-new-task-modal':  ()  => showNewTaskModal(),
   'save-new-task':        ()  => saveNewTask(),

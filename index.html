@@ -2,15 +2,28 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- viewport-fit=cover + os paddings de safe-area no CSS: sem isso o
+       conteúdo some atrás do notch e da barra inferior no iPhone -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Seja Create — Plataforma de Gestão</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Nunito:wght@800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-  <link rel="stylesheet" href="css/style.css?v=f0b46dbd" />
+  <link rel="stylesheet" href="css/style.css?v=283f892c" />
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="128x128" href="assets/logo-128.png" />
+
+  <!-- ─── PWA ───────────────────────────────────
+       O manifest serve o Android/Chrome. No iOS quem manda é o bloco
+       apple-* abaixo: é a meta apple-mobile-web-app-capable que faz o
+       app abrir SEM a barra do Safari ao ser aberto pela tela de início. -->
+  <link rel="manifest" href="manifest.json?v=e13052b1" />
+  <meta name="theme-color" content="#111118" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/logo-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Seja Create" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <!-- Tema: aplicar antes do render para evitar flash -->
   <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -137,6 +150,9 @@
         <a class="nav-item" data-page="tarefas" data-action="navigate" data-page="tarefas">
           <i class="fas fa-columns"></i><span>Gestão de Tarefas</span>
         </a>
+        <a class="nav-item" data-page="agenda" data-action="navigate" data-page="agenda">
+          <i class="fas fa-calendar-day"></i><span>Agenda</span>
+        </a>
         <a class="nav-item" data-page="calendario" data-action="navigate" data-page="calendario">
           <i class="fas fa-calendar-alt"></i><span>Calendário</span>
         </a>
@@ -262,7 +278,7 @@
 <script src="js/core/router.js?v=33228265"></script>
 <script src="js/core/permissions.js?v=84bd7cb5"></script>
 <script src="js/app.js?v=b9ff93ec"></script>
-<script src="js/core/events.js?v=2eea8838"></script>
+<script src="js/core/events.js?v=20861210"></script>
 
 <!-- ── Camada 7: Páginas ─────────────────────────── -->
 <script src="js/dashboard.js?v=0dbedf2a"></script>
@@ -274,6 +290,7 @@
 <script src="js/planejamentos.js?v=cf3f0449"></script>
 <script src="js/onboarding.js?v=928afdf4"></script>
 <script src="js/calendario.js?v=3d671730"></script>
+<script src="js/agenda.js?v=4f31e3d5"></script>
 <script src="js/financeiro/index.js?v=58dd84b0"></script>
 <script src="js/financeiro/visaoGeral.js?v=01d9db79"></script>
 <script src="js/financeiro/receber.js?v=bcd1b71e"></script>
