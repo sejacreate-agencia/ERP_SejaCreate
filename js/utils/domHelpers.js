@@ -100,13 +100,13 @@ const $$ = (sel, ctx) => Dom.$$(sel, ctx);
 
 // ─── THEME ───────────────────────────────────
 function initTheme() {
-  const saved = localStorage.getItem('sc-theme') || 'dark';
+  const saved = localStorage.getItem('sc-theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
   _updateThemeIcon(saved);
 }
 
 function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('sc-theme', next);

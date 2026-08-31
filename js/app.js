@@ -33,9 +33,38 @@ function navigate(page) {
 
 // ─── UI ──────────────────────────────────────
 
+function noCelular() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
+// No celular a sidebar fica FORA da tela (translateX(-100%)) e quem a traz de
+// volta é a classe .mobile-open. Alternar .collapsed ali só mudava a largura de
+// um elemento invisível — por isso o menu não abria no iPhone.
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('collapsed');
-  document.getElementById('main-content').classList.toggle('expanded');
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main-content');
+  if (!sidebar) return;
+
+  if (noCelular()) {
+    const aberta = sidebar.classList.toggle('mobile-open');
+    document.body.classList.toggle('sidebar-aberta', aberta);
+    return;
+  }
+
+  // Desktop: recolhe para a faixa de ícones
+  sidebar.classList.remove('mobile-open');
+  document.body.classList.remove('sidebar-aberta');
+  sidebar.classList.toggle('collapsed');
+  if (main) main.classList.toggle('expanded');
+}
+
+// Escolher um item no celular fecha o menu — senão ele fica por cima do
+// conteúdo que a pessoa acabou de abrir.
+function fecharMenuMobile() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || !sidebar.classList.contains('mobile-open')) return;
+  sidebar.classList.remove('mobile-open');
+  document.body.classList.remove('sidebar-aberta');
 }
 
 // ─── INIT ─────────────────────────────────────
