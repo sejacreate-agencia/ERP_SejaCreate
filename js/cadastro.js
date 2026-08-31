@@ -65,13 +65,17 @@ function renderCadastro(tab) {
     <div class="tabs">
       ${tabs.map(t => `
         <button class="tab-btn ${cadastroTab === t.id ? 'active' : ''}" data-action="switch-cadastro-tab" data-tab="${t.id}">
-          <i class="fas ${t.icon}"></i> ${t.label} <span style="font-size:11px;opacity:0.7">(${t.count})</span>
+          <i class="fas ${t.icon}"></i> ${t.label} <span style="font-size:11px;opacity:0.7"${t.id === 'clientes' ? ' id="cad-clientes-count"' : ''}>(${t.count})</span>
         </button>`).join('')}
     </div>
     <div id="cadastro-content">
       ${cadastroTab === 'clientes' ? renderClientesTab() : cadastroTab === 'funcionarios' ? renderFuncionariosTab() : renderFornecedoresTab()}
     </div>
   `;
+
+  // As linhas nascem todas visíveis; sem isto o filtro padrão (Ativos) só
+  // valeria depois de o usuário mexer no seletor.
+  if (cadastroTab === 'clientes') _applyClientFilters();
 }
 
 function renderClientesTab() {
@@ -111,9 +115,9 @@ function renderClientesTab() {
     <div class="filters-bar">
       <input class="filter-select" style="width:240px" placeholder="🔍 Buscar cliente..." oninput="filterClients(this.value)" />
       <select class="filter-select" onchange="filterClientStatus(this.value)">
-        <option value="">Todos os status</option>
-        <option value="ativo">Ativos</option>
-        <option value="inativo">Inativos</option>
+        <option value=""       ${_clientFilters.status === ''        ? 'selected' : ''}>Todos os status</option>
+        <option value="ativo"  ${_clientFilters.status === 'ativo'   ? 'selected' : ''}>Ativos</option>
+        <option value="inativo"${_clientFilters.status === 'inativo' ? 'selected' : ''}>Inativos</option>
       </select>
       <select class="filter-select" onchange="filterClientPlan(this.value)">
         <option value="">Todos os planos</option>
@@ -519,15 +523,25 @@ function saveNewSupplier() {
   closeModal(); showToast('Fornecedor cadastrado!'); renderCadastro('fornecedores');
 }
 
-const _clientFilters = { q: '', status: '', plan: '' };
+// Abre já filtrado por Ativos — que é a visão do dia a dia. Inativo é
+// exceção, e ficava misturado na lista toda vez que a tela era aberta.
+const _clientFilters = { q: '', status: 'ativo', plan: '' };
 function _applyClientFilters() {
   const rows = document.querySelectorAll('#clients-table tbody tr');
+  let visiveis = 0;
   rows.forEach(r => {
     const okQ      = !_clientFilters.q      || (r.dataset.name || '').includes(_clientFilters.q);
     const okStatus = !_clientFilters.status || r.dataset.status === _clientFilters.status;
     const okPlan   = !_clientFilters.plan   || r.dataset.plan   === _clientFilters.plan;
-    r.style.display = (okQ && okStatus && okPlan) ? '' : 'none';
+    const mostra = okQ && okStatus && okPlan;
+    r.style.display = mostra ? '' : 'none';
+    if (mostra) visiveis++;
   });
+
+  // O contador da aba segue o que está na tela — mostrar (19) com 12 linhas
+  // visíveis faria parecer que sumiu cliente.
+  const cnt = document.getElementById('cad-clientes-count');
+  if (cnt) cnt.textContent = `(${visiveis})`;
 }
 function filterClients(q)          { _clientFilters.q = (q || '').toLowerCase(); _applyClientFilters(); }
 function filterClientStatus(v)     { _clientFilters.status = v || ''; _applyClientFilters(); }
