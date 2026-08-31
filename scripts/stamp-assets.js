@@ -28,7 +28,13 @@ const CHECK = process.argv.includes('--check');
 const hashDe = (rel) => {
   const abs = path.join(RAIZ, rel);
   if (!fs.existsSync(abs)) return null;
-  return crypto.createHash('sha1').update(fs.readFileSync(abs)).digest('hex').slice(0, 8);
+  // Normaliza CRLF -> LF antes de somar. No Windows o core.autocrlf deixa o
+  // working tree com CRLF, mas o repositorio e o Pages servem LF: sem isto o
+  // hash mudaria conforme o sistema operacional de quem roda o script,
+  // gerando diff fantasma e --check falhando a toa.
+  const bytes = fs.readFileSync(abs);
+  const normalizado = Buffer.from(bytes.toString('binary').replace(/\r\n/g, '\n'), 'binary');
+  return crypto.createHash('sha1').update(normalizado).digest('hex').slice(0, 8);
 };
 
 let html = fs.readFileSync(HTML, 'utf8');
