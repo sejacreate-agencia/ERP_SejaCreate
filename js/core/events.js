@@ -44,6 +44,15 @@ const Actions = {
   // ── AGENDA ────────────────────────────────
   'ag-dia':               el  => agMudarDia(parseInt(el.dataset.dir)),
   'ag-hoje':              ()  => agHoje(),
+  'ag-novo-compromisso':  ()  => agAbrirDitado(),
+  'ag-recarregar-compromissos': () => _agCarregarCompromissos(),
+  'ag-interpretar':       ()  => agInterpretarDitado(),
+  'ag-salvar-compromisso':()  => agSalvarCompromisso(),
+
+  // ── GOOGLE AGENDA ─────────────────────────
+  'gcal-copiar':          ()  => gcalCopiarConta(),
+  'gcal-verificar':       ()  => gcalVerificar(),
+  'gcal-desconectar':     ()  => gcalDesconectar(),
 
   // ── DASHBOARD ─────────────────────────────
   'show-new-task-modal':  ()  => showNewTaskModal(),

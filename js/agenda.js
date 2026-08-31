@@ -114,6 +114,8 @@ function _agPintar() {
     ${_agTarefasHtml(doDia)}
     ${_agCompromissosHtml()}
   `;
+
+  _agCarregarCompromissos();   // assíncrono, não bloqueia as tarefas
 }
 
 // ── Tarefas agrupadas por cliente ──
@@ -194,29 +196,108 @@ function _agLinha(t) {
 }
 
 // ── Compromissos do Google Agenda ──
-// A integração entra na Fase 3; até lá, o card explica o que virá.
+// Carrega em separado das tarefas: uma conexão quebrada com o Google não
+// pode derrubar a lista de tarefas, que é a parte essencial da tela.
 function _agCompromissosHtml() {
-  const temIntegracao = typeof GoogleCalendarService !== 'undefined';
-  if (!temIntegracao) {
-    return `
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">
-            <i class="fab fa-google" style="color:var(--purple-light);margin-right:8px"></i>
-            Compromissos
-          </span>
+  return `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <i class="fab fa-google" style="color:var(--purple-light);margin-right:8px"></i>
+          Compromissos
+        </span>
+        <button class="btn btn-primary btn-sm" data-action="ag-novo-compromisso">
+          <i class="fas fa-microphone"></i> Ditar
+        </button>
+      </div>
+      <div id="ag-compromissos">
+        <div class="loading-state" style="padding:24px 0;text-align:center;font-size:13px;color:var(--text-muted)">
+          <i class="fas fa-spinner fa-spin"></i> Carregando compromissos...
         </div>
-        <div class="empty-state" style="padding:30px 0;text-align:center">
-          <p style="color:var(--text-muted);font-size:13px;margin:0">
-            O Google Agenda ainda não está conectado.
-          </p>
-          <p style="color:var(--text-muted);font-size:12px;margin-top:6px">
-            Quando estiver, seus compromissos do dia aparecem aqui.
-          </p>
-        </div>
-      </div>`;
+      </div>
+    </div>`;
+}
+
+async function _agCarregarCompromissos() {
+  const alvo = document.getElementById('ag-compromissos');
+  if (!alvo) return;
+  const dia = _agKey(_agDate);
+
+  if (typeof GoogleCalendarService === 'undefined' || !isSupabaseReady()) {
+    alvo.innerHTML = _agAvisoConectar('O Google Agenda ainda não está conectado.');
+    return;
   }
-  return `<div class="card" id="ag-compromissos"></div>`;
+
+  // Confere na tabela ANTES de chamar a Edge Function. Quem ainda não conectou
+  // (ou o projeto onde a função nem foi publicada) não gera chamada nenhuma —
+  // evita erro de CORS no console e bloco de erro nesta tela, que é a do dia a
+  // dia. A leitura passa pela RLS: cada um só enxerga a própria linha.
+  const { data: cfg, error: cfgErro } = await SB.list('google_calendars', {
+    filters: [{ op: 'eq', col: 'user_id', val: SB.profile?.id }],
+    limit: 1,
+  });
+  if (cfgErro || !cfg || !cfg.length || !cfg[0].verified_at) {
+    alvo.innerHTML = _agAvisoConectar('O Google Agenda ainda não está conectado.');
+    return;
+  }
+
+  const r = await GoogleCalendarService.listar(dia);
+
+  // A resposta pode chegar depois de o usuário já ter mudado de dia
+  if (_agKey(_agDate) !== dia) return;
+
+  if (r.codigo === 'agenda_nao_configurada' || r.codigo === 'google_nao_configurado') {
+    alvo.innerHTML = _agAvisoConectar(r.erro);
+    return;
+  }
+  if (r.erro) {
+    // Tom discreto, não alarme: aqui a lista de tarefas é o essencial, e um
+    // problema no Google não deve dominar a tela.
+    alvo.innerHTML = `
+      <div style="padding:20px;text-align:center">
+        <p style="font-size:13px;color:var(--text-muted);margin:0">${_agEsc(r.erro)}</p>
+        <button class="btn btn-secondary btn-sm" style="margin-top:10px" data-action="ag-recarregar-compromissos">
+          <i class="fas fa-rotate"></i> Tentar de novo
+        </button>
+      </div>`;
+    return;
+  }
+
+  const eventos = r.dados?.eventos || [];
+  if (!eventos.length) {
+    alvo.innerHTML = `<div style="padding:24px;text-align:center;font-size:13px;color:var(--text-muted)">Nenhum compromisso neste dia.</div>`;
+    return;
+  }
+
+  alvo.innerHTML = eventos.map(e => {
+    const hora = e.diaTodo
+      ? 'dia todo'
+      : (e.inicio || '').slice(11, 16) + (e.fim ? ` – ${e.fim.slice(11, 16)}` : '');
+    return `
+      <div class="day-task-row" ${e.link ? `onclick="window.open('${e.link}','_blank')"` : ''}>
+        <span style="width:6px;height:34px;flex-shrink:0;border-radius:3px;background:var(--purple-light)"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${_agEsc(e.titulo)}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted)">
+            ${_agEsc(hora)}${e.local ? ' · ' + _agEsc(e.local) : ''}
+          </div>
+        </div>
+        ${e.link ? '<i class="fas fa-external-link-alt" style="font-size:11px;color:var(--text-muted)"></i>' : ''}
+      </div>`;
+  }).join('');
+}
+
+function _agAvisoConectar(msg) {
+  return `
+    <div style="padding:26px;text-align:center">
+      <p style="color:var(--text-muted);font-size:13px;margin:0">${_agEsc(msg)}</p>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px"
+              data-action="navigate" data-page="configuracoes">
+        <i class="fas fa-plug"></i> Conectar em Integrações
+      </button>
+    </div>`;
 }
 
 function _agEsc(s) {

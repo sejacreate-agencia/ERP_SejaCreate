@@ -1,0 +1,17 @@
+# Configuração local do Supabase CLI (apenas as funções deste projeto).
+# A linha mais importante: o webhook precisa ser PÚBLICO (a Meta chama sem JWT).
+
+project_id = "owauukcjdasumguvzqch"
+
+[functions.wa-send]
+# Exige JWT do usuário do ERP (chamada autenticada a partir do front).
+verify_jwt = true
+
+[functions.wa-webhook]
+# Público: a Meta chama este endpoint sem Authorization.
+verify_jwt = false
+
+[functions.gcal]
+# Google Agenda. Exige JWT do usuário do ERP: a agenda consultada é sempre a
+# de quem chamou, resolvida pelo token — nunca por um id vindo do body.
+verify_jwt = true

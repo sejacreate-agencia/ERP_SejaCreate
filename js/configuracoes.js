@@ -1045,6 +1045,122 @@ function toggleModeloAprovacao(id) {
 
 /* ─── INTEGRAÇÕES ───────────────────────── */
 
+/* ─── GOOGLE AGENDA (conta de serviço) ──────────────────────────────────── */
+
+// Cartão renderizado vazio e hidratado depois: renderConfigIntegracoes() é
+// síncrona, mas o estado da conexão vem da Edge Function.
+function _gcalCardHtml() {
+  setTimeout(_gcalHidratar, 0);
+  return `
+    <div class="card" style="margin-bottom:22px;padding:18px" id="gcal-card">
+      <h3 style="margin:0 0 4px;font-size:15px">
+        <i class="fab fa-google" style="color:var(--purple-light);margin-right:6px"></i>
+        Google Agenda — minha conta
+      </h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">
+        Conecte sua agenda para ver os compromissos do dia na aba Agenda e criar novos por ditado.
+      </p>
+      <div id="gcal-estado">
+        <div style="font-size:13px;color:var(--text-muted)">
+          <i class="fas fa-spinner fa-spin"></i> Verificando...
+        </div>
+      </div>
+    </div>`;
+}
+
+async function _gcalHidratar() {
+  const alvo = document.getElementById('gcal-estado');
+  if (!alvo) return;
+
+  if (typeof GoogleCalendarService === 'undefined' || !isSupabaseReady()) {
+    alvo.innerHTML = `<p style="font-size:13px;color:var(--text-muted);margin:0">Disponível apenas na versão conectada ao Supabase.</p>`;
+    return;
+  }
+
+  const r = await GoogleCalendarService.status();
+  if (r.codigo === 'google_nao_configurado') {
+    alvo.innerHTML = `
+      <div style="background:var(--warning-subtle);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary)">
+        A integração ainda não foi configurada no servidor.
+        Rode a <b>supabase-migration-019.sql</b> e publique a função <b>gcal</b> com os segredos da conta de serviço.
+        Passo a passo em <b>docs/google-agenda-setup.md</b>.
+      </div>`;
+    return;
+  }
+  if (r.erro && !r.dados) {
+    alvo.innerHTML = `<p style="font-size:13px;color:var(--danger);margin:0">${r.erro}</p>`;
+    return;
+  }
+
+  const d = r.dados || {};
+  const conta = d.conta_servico || '';
+
+  if (d.conectado) {
+    alvo.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="tag tag-green"><span class="status-dot dot-green"></span> Conectado</span>
+        <span style="font-size:13px;font-weight:600">${d.calendar_id}</span>
+        <button class="btn btn-sm btn-danger" style="margin-left:auto" data-action="gcal-desconectar">
+          <i class="fas fa-unlink"></i> Desconectar
+        </button>
+      </div>`;
+    return;
+  }
+
+  // Não conectado: mostra o e-mail a compartilhar e pede a agenda
+  alvo.innerHTML = `
+    <div style="background:var(--bg-input);border-radius:8px;padding:14px;margin-bottom:14px">
+      <p style="font-size:12px;font-weight:600;margin:0 0 8px">1. Compartilhe sua agenda com esta conta</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <code id="gcal-sa" style="flex:1;font-size:12px;background:var(--bg-primary);padding:8px 10px;border-radius:6px;border:1px solid var(--border);word-break:break-all">${conta || '(não configurada)'}</code>
+        <button class="btn btn-secondary btn-sm" data-action="gcal-copiar" title="Copiar"><i class="fas fa-copy"></i></button>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin:0;line-height:1.6">
+        No Google Agenda: <b>Configurações da sua agenda → Compartilhar com pessoas específicas → Adicionar pessoa</b>,
+        cole o e-mail acima e escolha <b>“Fazer alterações nos eventos”</b>.
+      </p>
+    </div>
+    <p style="font-size:12px;font-weight:600;margin:0 0 6px">2. Informe o e-mail da sua agenda</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input class="input-field" id="gcal-email" style="flex:1;min-width:220px"
+             placeholder="${SB.profile?.email || 'seu@gmail.com'}" value="${SB.profile?.email || ''}">
+      <button class="btn btn-primary" data-action="gcal-verificar">
+        <i class="fas fa-plug"></i> Verificar acesso
+      </button>
+    </div>`;
+}
+
+function gcalCopiarConta() {
+  const t = document.getElementById('gcal-sa')?.textContent?.trim();
+  if (!t) return;
+  navigator.clipboard.writeText(t).then(() => showToast('✅ E-mail copiado!', 'success'));
+}
+
+// Testa ANTES de salvar — mesmo padrão do verifyMetaPage
+async function gcalVerificar() {
+  const email = document.getElementById('gcal-email')?.value?.trim();
+  if (!email) { showToast('Informe o e-mail da sua agenda.', 'warning'); return; }
+
+  const btn = document.querySelector('[data-action="gcal-verificar"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...'; }
+
+  const r = await GoogleCalendarService.verificar(email);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plug"></i> Verificar acesso'; }
+  if (r.erro) { showToast(r.erro, 'error'); return; }
+
+  showToast('✅ Agenda conectada!', 'success');
+  _gcalHidratar();
+}
+
+async function gcalDesconectar() {
+  if (!confirm('Desconectar sua agenda do ERP? Nada é apagado no Google.')) return;
+  const r = await GoogleCalendarService.desconectar();
+  if (r.erro) { showToast(r.erro, 'error'); return; }
+  showToast('Agenda desconectada.', 'info');
+  _gcalHidratar();
+}
+
 function renderConfigIntegracoes() {
   const rows = SC.clients.map(c => {
     const cfg        = MetaService.getClientConfig(c.id);
@@ -1072,6 +1188,8 @@ function renderConfigIntegracoes() {
 
   return `
     <div>
+      ${_gcalCardHtml()}
+
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
         <div>
           <h3 style="margin:0 0 4px;font-size:15px">Integrações Meta (Facebook & Instagram)</h3>
