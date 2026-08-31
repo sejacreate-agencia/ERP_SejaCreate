@@ -1370,3 +1370,43 @@ tbody tr:last-child td { border-bottom: none; }
   border-radius: 10px; padding: 1px 7px;
   font-size: 10px; font-weight: 700;
 }
+
+/* =============================================
+   MENU NO CELULAR — gaveta lateral
+   =============================================
+   A sidebar já vinha com transform: translateX(-100%) e .mobile-open no
+   CSS, mas NENHUM código adicionava .mobile-open — o menu era impossível
+   de abrir no celular. Aqui ficam só o fundo escurecido e o conforto de
+   toque; quem alterna a classe é toggleSidebar() em js/app.js. */
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;                    /* logo abaixo da sidebar (100) */
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(2px);
+  }
+  body.sidebar-aberta .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+
+  /* A sidebar desliza; sem isto ela apareceria de estalo */
+  .sidebar { transition: transform 0.25s ease; box-shadow: var(--shadow); }
+
+  /* No celular a gaveta nunca deve ficar na versão só-ícones: quem abre o
+     menu quer ler os nomes. */
+  .sidebar.collapsed { width: var(--sidebar-width); }
+  .sidebar.collapsed .logo-text,
+  .sidebar.collapsed .user-details,
+  .sidebar.collapsed .nav-section-title,
+  .sidebar.collapsed .nav-item span,
+  .sidebar.collapsed .badge,
+  .sidebar.collapsed .sidebar-footer span { display: revert; }
+  .sidebar.collapsed .nav-item { justify-content: flex-start; padding: 11px 18px; }
+
+  /* Alvos de toque maiores — 44px é o mínimo recomendado pela Apple */
+  .nav-item { padding: 12px 18px; min-height: 44px; }
+  .nav-section-title { padding: 10px 18px 5px; }
+}

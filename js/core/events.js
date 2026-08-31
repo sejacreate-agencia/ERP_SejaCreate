@@ -246,6 +246,12 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error(`Events: erro ao executar "${action}":`, err);
     }
+
+    // Escolheu um item do menu no celular? Fecha a gaveta. Cobre tanto
+    // 'navigate' quanto 'navigate-fin' sem listar ação por ação.
+    if (el.classList.contains('nav-item') && typeof fecharMenuMobile === 'function') {
+      fecharMenuMobile();
+    }
   });
 
   // Listener separado para <select data-action="...">

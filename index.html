@@ -10,22 +10,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Nunito:wght@800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-  <link rel="stylesheet" href="css/style.css?v=283f892c" />
+  <link rel="stylesheet" href="css/style.css?v=d47865e7" />
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
 
   <!-- ─── PWA ───────────────────────────────────
        O manifest serve o Android/Chrome. No iOS quem manda é o bloco
        apple-* abaixo: é a meta apple-mobile-web-app-capable que faz o
        app abrir SEM a barra do Safari ao ser aberto pela tela de início. -->
-  <link rel="manifest" href="manifest.json?v=e13052b1" />
-  <meta name="theme-color" content="#111118" />
+  <link rel="manifest" href="manifest.json?v=8b7b23e6" />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/logo-180.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <!-- default = texto escuro na barra de status, legivel sobre o tema claro.
+       black-translucent desenharia texto BRANCO sobre fundo branco. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Seja Create" />
   <meta name="mobile-web-app-capable" content="yes" />
   <!-- Tema: aplicar antes do render para evitar flash -->
-  <script>(function(){var t=localStorage.getItem('sc-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script>(function(){var t=localStorage.getItem('sc-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Exportação de relatórios (PDF / Excel) -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -100,6 +102,9 @@
 <div id="app" class="app hidden">
 
   <!-- SIDEBAR -->
+  <!-- Fundo escurecido do menu no celular: tocar fora fecha a gaveta -->
+  <div class="sidebar-backdrop" data-action="toggle-sidebar"></div>
+
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="logo">
@@ -256,7 +261,7 @@
 <!-- ── Camada 3: Utils (sem dependências externas) ── -->
 <script src="js/utils/formatters.js?v=340ccb15"></script>
 <script src="js/utils/validators.js?v=f963ab7e"></script>
-<script src="js/utils/domHelpers.js?v=59d7761a"></script>
+<script src="js/utils/domHelpers.js?v=a7b7da63"></script>
 <script src="js/utils/storageHelpers.js?v=08952977"></script>
 
 <!-- ── Camada 4: Components ──────────────────────── -->
@@ -277,8 +282,8 @@
 <!-- ── Camada 6: Core (router, events, permissions) ─ -->
 <script src="js/core/router.js?v=33228265"></script>
 <script src="js/core/permissions.js?v=84bd7cb5"></script>
-<script src="js/app.js?v=b9ff93ec"></script>
-<script src="js/core/events.js?v=20861210"></script>
+<script src="js/app.js?v=7776def6"></script>
+<script src="js/core/events.js?v=40478bf3"></script>
 
 <!-- ── Camada 7: Páginas ─────────────────────────── -->
 <script src="js/dashboard.js?v=0dbedf2a"></script>
