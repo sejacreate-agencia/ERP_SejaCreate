@@ -1,0 +1,8 @@
+#!/bin/sh
+# Recarimba o index.html quando algum asset de js/ ou css/ entra no commit.
+# Ative uma vez com:  git config core.hooksPath .githooks
+
+if git diff --cached --name-only | grep -qE '^(js|css)/'; then
+  node scripts/stamp-assets.js || exit 1
+  git add index.html
+fi
