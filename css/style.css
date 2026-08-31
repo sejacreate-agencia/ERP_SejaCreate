@@ -1319,3 +1319,54 @@ tbody tr:last-child td { border-bottom: none; }
   .modal-lg { width: 95vw !important; }
   .modal [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
 }
+
+/* =============================================
+   PWA / iOS — área segura (notch e barra inferior)
+   =============================================
+   Só produzem efeito por causa do viewport-fit=cover no index.html.
+   Em desktop e Android sem recorte, env() resolve para 0 e nada muda.
+   Sem isto, com a status bar translúcida do iOS o topo da topbar fica
+   escondido atrás do relógio e da bateria. */
+@supports (padding: env(safe-area-inset-top)) {
+  .topbar {
+    height: calc(var(--topbar-height) + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+  .sidebar {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .page-wrapper {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+  .modal {
+    margin-top: env(safe-area-inset-top);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* =============================================
+   AGENDA — visão do dia agrupada por cliente
+   ============================================= */
+.agenda-nav {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px; flex-wrap: wrap;
+}
+.agenda-nav-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Sem text-transform: o rótulo já vem com a caixa correta de _agRotulo().
+   capitalize estragaria o português — "Segunda-Feira, 31 De Ago". */
+.agenda-nav-dia { font-size: 15px; font-weight: 700; }
+.agenda-grupo { border-top: 1px solid var(--border-light); }
+.agenda-grupo:first-of-type { border-top: none; }
+.agenda-grupo-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 4px 6px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-purple);
+}
+.agenda-grupo-count {
+  background: var(--purple-subtle); color: var(--purple-light);
+  border-radius: 10px; padding: 1px 7px;
+  font-size: 10px; font-weight: 700;
+}
