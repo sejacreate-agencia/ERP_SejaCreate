@@ -64,3 +64,21 @@ coverage/
 *.temp
 *.bak
 *.orig
+
+# =============================================================================
+# Credenciais — NUNCA versionar
+# =============================================================================
+# Este repositório é publicado INTEIRO no GitHub Pages: qualquer arquivo aqui
+# vira URL pública. Uma chave de conta de serviço commitada por engano estaria
+# acessível a qualquer um em segundos.
+# O manifest.json é do PWA e precisa ser versionado — por isso a exceção.
+*.json
+!manifest.json
+!package.json
+!e2e/package.json
+*-service-account*.json
+chave*.json
+*.pem
+*.p12
+*.key
+service-account*.json
