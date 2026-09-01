@@ -400,6 +400,31 @@ const DB = {
     async remove(id) { return SB.remove('task_checklists', id); },
   },
 
+  // ── AGENDA — itens pessoais ─────────────
+  // Lista particular de cada usuário (captura rápida + modos criativo e
+  // administrativo). Separada de `tasks`, que é o trabalho de cliente.
+  // A RLS já garante o isolamento; o filtro por user_id aqui é só para não
+  // trafegar linha à toa.
+  agendaItems: {
+    // Traz o que a tela precisa numa consulta só: os itens do dia escolhido,
+    // a caixa de entrada (que ignora o dia) e o que ficou em aberto para trás.
+    async doDia(userId, dia) {
+      if (!isSupabaseReady()) return { data: [], error: null };
+      const { data, error } = await supabaseClient
+        .from('agenda_items')
+        .select('*')
+        .eq('user_id', userId)
+        .or(`dia.eq.${dia},modo.eq.inbox,and(feito.eq.false,dia.lt.${dia})`)
+        .order('feito', { ascending: true })
+        .order('ordem', { ascending: true })
+        .order('created_at', { ascending: true });
+      return { data: data || [], error };
+    },
+    async criar(payload)      { return SB.insert('agenda_items', payload); },
+    async atualizar(id, dados) { return SB.update('agenda_items', id, dados); },
+    async remover(id)          { return SB.remove('agenda_items', id); },
+  },
+
   // ── TASK ATTACHMENTS ────────────────────
   taskAttachments: {
     async add(taskId, fileUrl, fileName, fileType, kind = 'arte') {

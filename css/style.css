@@ -1410,3 +1410,216 @@ tbody tr:last-child td { border-bottom: none; }
   .nav-item { padding: 12px 18px; min-height: 44px; }
   .nav-section-title { padding: 10px 18px 5px; }
 }
+
+/* =============================================
+   AGENDA DO DIA — identidade própria
+   =============================================
+   Tudo escopado em .agenda-zen. A paleta é fechada em si (ameixa + dourado),
+   então a tela fica igual nos temas claro e escuro do ERP — o contraste com o
+   resto do sistema é proposital: aqui é foco, não operação. */
+.agenda-zen {
+  --ag-fundo:    #2b1832;
+  --ag-fundo-2:  #351d3d;
+  --ag-cartao:   rgba(255,255,255,0.035);
+  --ag-borda:    rgba(212,175,106,0.18);
+  --ag-ouro:     #d4af6a;
+  --ag-ouro-sut: rgba(212,175,106,0.10);
+  --ag-texto:    #f3e9de;
+  --ag-texto-2:  rgba(243,233,222,0.62);
+  --ag-serif:    'Cormorant Garamond', Georgia, serif;
+
+  background: radial-gradient(ellipse at 50% 0%, var(--ag-fundo-2) 0%, var(--ag-fundo) 62%);
+  color: var(--ag-texto);
+  border-radius: var(--border-radius-lg);
+  padding: 32px 26px 40px;
+  min-height: 100%;
+}
+
+/* ── Cabeçalho ── */
+.ag-header { text-align: center; margin-bottom: 26px; }
+.ag-mono {
+  width: 54px; height: 54px; margin: 0 auto 12px;
+  border: 1px solid var(--ag-ouro); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ag-serif); font-size: 24px; color: var(--ag-ouro);
+}
+.ag-marca {
+  font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ag-ouro); margin-bottom: 10px;
+}
+.ag-titulo {
+  font-family: var(--ag-serif); font-style: italic; font-weight: 600;
+  font-size: 38px; line-height: 1.1; margin: 0 0 8px; color: var(--ag-texto);
+}
+.ag-data {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  font-size: 13px; color: var(--ag-texto-2);
+}
+.ag-data em { color: var(--ag-ouro); font-style: normal; }
+.ag-seta {
+  background: none; border: none; color: var(--ag-texto-2);
+  padding: 4px 8px; cursor: pointer; transition: var(--transition);
+}
+.ag-seta:hover { color: var(--ag-ouro); }
+.ag-link {
+  background: none; border: none; color: var(--ag-ouro);
+  font-size: 12px; cursor: pointer; padding: 4px 6px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* ── Captura ── */
+.ag-captura {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ag-cartao); border: 1px solid var(--ag-borda);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 18px;
+}
+.ag-captura-mic {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border: 1px solid var(--ag-borda); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ag-ouro); font-size: 13px;
+}
+.ag-captura-campo {
+  flex: 1; min-width: 0; background: none; border: none;
+  color: var(--ag-texto); font-size: 14px; font-family: var(--font);
+}
+.ag-captura-campo::placeholder { color: var(--ag-texto-2); }
+.ag-btn-ouro {
+  background: var(--ag-ouro); color: #2b1832; border: none;
+  border-radius: 8px; padding: 9px 18px;
+  font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  transition: var(--transition);
+}
+.ag-btn-ouro:hover { filter: brightness(1.08); }
+
+/* ── Blocos ── */
+.ag-bloco {
+  background: var(--ag-cartao); border: 1px solid var(--ag-borda);
+  border-radius: 10px; padding: 16px 18px; margin-bottom: 18px;
+}
+.ag-bloco-titulo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ag-ouro); margin-bottom: 10px;
+}
+.ag-sub {
+  font-size: 11px; letter-spacing: 0; text-transform: none;
+  color: var(--ag-texto-2); font-style: italic;
+}
+.ag-conta {
+  background: var(--ag-ouro-sut); color: var(--ag-ouro);
+  border-radius: 10px; padding: 1px 8px; font-size: 10px; letter-spacing: 0;
+}
+.ag-vazio {
+  font-family: var(--ag-serif); font-style: italic;
+  font-size: 15px; color: var(--ag-texto-2); padding: 10px 0;
+}
+.ag-carregando { padding: 60px 0; text-align: center; color: var(--text-muted); }
+
+/* ── Caixa de entrada ── */
+.ag-bloco-inbox { border-color: rgba(212,175,106,0.4); }
+.ag-inbox-linha {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.ag-inbox-linha:last-child { border-bottom: none; }
+.ag-inbox-texto { flex: 1; min-width: 160px; font-size: 14px; }
+.ag-inbox-acoes { display: flex; gap: 6px; }
+.ag-tag-btn {
+  background: none; border: 1px solid var(--ag-borda); color: var(--ag-texto-2);
+  border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer;
+  transition: var(--transition);
+}
+.ag-tag-btn:hover { border-color: var(--ag-ouro); color: var(--ag-ouro); }
+.ag-tag-x:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── Compromissos ── */
+.ag-evento {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+}
+.ag-evento:last-child { border-bottom: none; }
+.ag-evento-hora {
+  font-family: var(--ag-serif); font-size: 15px;
+  color: var(--ag-ouro); flex-shrink: 0; min-width: 92px;
+}
+.ag-evento-titulo { flex: 1; min-width: 0; font-size: 14px; }
+
+/* ── Os dois modos ── */
+.ag-modos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.ag-coluna {
+  background: var(--ag-cartao); border: 1px solid var(--ag-borda);
+  border-radius: 10px; padding: 16px 18px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+.ag-coluna-titulo {
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ag-ouro);
+}
+.ag-coluna-sub {
+  font-family: var(--ag-serif); font-style: italic;
+  font-size: 13px; color: var(--ag-texto-2); margin: 2px 0 12px;
+}
+.ag-coluna-lista { flex: 1; }
+.ag-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 0; font-size: 14px;
+}
+.ag-item.feito .ag-item-texto { text-decoration: line-through; color: var(--ag-texto-2); }
+.ag-item-texto { flex: 1; min-width: 0; word-break: break-word; }
+.ag-check {
+  background: none; border: none; cursor: pointer; flex-shrink: 0;
+  color: var(--ag-texto-2); font-size: 13px; padding: 2px;
+  transition: var(--transition);
+}
+.ag-check:hover { color: var(--ag-ouro); }
+.ag-item.feito .ag-check { color: var(--ag-ouro); }
+.ag-atrasado { color: var(--ag-ouro); font-size: 12px; flex-shrink: 0; }
+.ag-item-x {
+  background: none; border: none; cursor: pointer; flex-shrink: 0;
+  color: transparent; font-size: 15px; padding: 0 4px;
+}
+.ag-item:hover .ag-item-x { color: var(--ag-texto-2); }
+.ag-item-x:hover { color: var(--danger) !important; }
+.ag-add { display: flex; gap: 8px; margin-top: 12px; }
+.ag-add-campo {
+  flex: 1; min-width: 0;
+  background: rgba(0,0,0,0.18); border: 1px solid var(--ag-borda);
+  border-radius: 7px; padding: 8px 11px;
+  color: var(--ag-texto); font-size: 13px; font-family: var(--font);
+}
+.ag-add-campo::placeholder { color: var(--ag-texto-2); }
+.ag-add-campo:focus { border-color: var(--ag-ouro); outline: none; }
+.ag-add-btn {
+  background: none; border: 1px solid var(--ag-borda); color: var(--ag-ouro);
+  border-radius: 7px; width: 34px; flex-shrink: 0;
+  font-size: 16px; cursor: pointer; transition: var(--transition);
+}
+.ag-add-btn:hover { background: var(--ag-ouro-sut); }
+
+/* ── Do kanban (recolhido) ── */
+.ag-kanban summary { cursor: pointer; margin-bottom: 0; }
+.ag-kanban-grupo { margin-bottom: 12px; }
+.ag-kanban-cliente {
+  font-family: var(--ag-serif); font-style: italic;
+  font-size: 15px; color: var(--ag-ouro); margin-bottom: 4px;
+}
+.ag-kanban-linha {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 6px 0 6px 12px; cursor: pointer;
+  border-left: 1px solid var(--ag-borda);
+}
+.ag-kanban-linha:hover { background: rgba(255,255,255,0.03); }
+.ag-kanban-titulo { font-size: 13px; }
+
+/* ── Celular: as colunas empilham, a captura continua no topo ── */
+@media (max-width: 768px) {
+  .agenda-zen { padding: 24px 14px 32px; border-radius: 0; }
+  .ag-titulo { font-size: 30px; }
+  .ag-modos { grid-template-columns: 1fr; }
+  .ag-inbox-acoes { width: 100%; }
+  .ag-evento-hora { min-width: 76px; font-size: 14px; }
+  /* No toque não existe hover: o x precisa estar sempre visível */
+  .ag-item-x { color: var(--ag-texto-2); }
+}
