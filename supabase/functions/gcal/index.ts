@@ -61,13 +61,25 @@ Deno.serve(async (req) => {
     return data;
   };
 
-  const marcar = async (calendarId: string, erro: string | null) => {
+  const marcarOk = async (calendarId: string) => {
     await db.from("google_calendars").upsert({
       user_id: userId,
       calendar_id: calendarId,
-      verified_at: erro ? null : new Date().toISOString(),
-      last_error: erro,
+      verified_at: new Date().toISOString(),
+      last_error: null,
     }, { onConflict: "user_id" });
+  };
+
+  // Falha NÃO pode sobrescrever uma configuração que funciona: digitar um
+  // e-mail errado uma vez derrubaria a agenda já conectada. Só registra o erro
+  // quando é a mesma agenda que já estava salva.
+  const marcarErro = async (calendarId: string, erro: string) => {
+    const atual = await carregarAgenda();
+    if (atual?.calendar_id === calendarId) {
+      await db.from("google_calendars")
+        .update({ verified_at: null, last_error: erro })
+        .eq("user_id", userId);
+    }
   };
 
   try {
@@ -82,11 +94,11 @@ Deno.serve(async (req) => {
           await listarEventos(calendarId, hoje);
         } catch (e) {
           const motivo = (e as Error).message;
-          await marcar(calendarId, motivo);
+          await marcarErro(calendarId, motivo);
           return json({ error: motivo, detalhe: (e as { detalhe?: string }).detalhe }, 422);
         }
 
-        await marcar(calendarId, null);
+        await marcarOk(calendarId);
         return json({ ok: true, calendar_id: calendarId, conta_servico: ENV.SA_EMAIL });
       }
 
