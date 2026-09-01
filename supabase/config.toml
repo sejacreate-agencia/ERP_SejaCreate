@@ -15,3 +15,13 @@ verify_jwt = false
 # Google Agenda. Exige JWT do usuário do ERP: a agenda consultada é sempre a
 # de quem chamou, resolvida pelo token — nunca por um id vindo do body.
 verify_jwt = true
+
+[functions.google-oauth-start]
+# Exige JWT: e aqui que o `state` do OAuth e amarrado ao usuario.
+verify_jwt = true
+
+[functions.google-oauth-callback]
+# PUBLICO, obrigatoriamente: quem chama e o navegador voltando do Google numa
+# navegacao de pagina inteira, sem cabecalho Authorization. Quem prova a
+# identidade e o `state` gravado pela google-oauth-start.
+verify_jwt = false
