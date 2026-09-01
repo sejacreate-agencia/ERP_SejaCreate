@@ -228,26 +228,14 @@ async function _agCarregarCompromissos() {
     return;
   }
 
-  // Confere na tabela ANTES de chamar a Edge Function. Quem ainda não conectou
-  // (ou o projeto onde a função nem foi publicada) não gera chamada nenhuma —
-  // evita erro de CORS no console e bloco de erro nesta tela, que é a do dia a
-  // dia. A leitura passa pela RLS: cada um só enxerga a própria linha.
-  const { data: cfg, error: cfgErro } = await SB.list('google_calendars', {
-    filters: [{ op: 'eq', col: 'user_id', val: SB.profile?.id }],
-    limit: 1,
-  });
-  if (cfgErro || !cfg || !cfg.length || !cfg[0].verified_at) {
-    alvo.innerHTML = _agAvisoConectar('O Google Agenda ainda não está conectado.');
-    return;
-  }
-
   const r = await GoogleCalendarService.listar(dia);
 
   // A resposta pode chegar depois de o usuário já ter mudado de dia
   if (_agKey(_agDate) !== dia) return;
 
-  if (r.codigo === 'agenda_nao_configurada' || r.codigo === 'google_nao_configurado') {
-    alvo.innerHTML = _agAvisoConectar(r.erro);
+  // Estados esperados, nao falhas: mostra o convite para conectar
+  if (['nao_conectado', 'reautorizar', 'google_nao_configurado'].includes(r.codigo)) {
+    alvo.innerHTML = _agAvisoConectar(r.erro, r.codigo !== 'google_nao_configurado');
     return;
   }
   if (r.erro) {
@@ -289,14 +277,14 @@ async function _agCarregarCompromissos() {
   }).join('');
 }
 
-function _agAvisoConectar(msg) {
+function _agAvisoConectar(msg, podeConectar = true) {
   return `
     <div style="padding:26px;text-align:center">
       <p style="color:var(--text-muted);font-size:13px;margin:0">${_agEsc(msg)}</p>
-      <button class="btn btn-secondary btn-sm" style="margin-top:12px"
-              data-action="navigate" data-page="configuracoes">
-        <i class="fas fa-plug"></i> Conectar em Integrações
-      </button>
+      ${podeConectar ? `
+      <button class="btn btn-primary btn-sm" style="margin-top:12px" data-action="gcal-conectar">
+        <i class="fab fa-google"></i> Conectar com o Google
+      </button>` : ''}
     </div>`;
 }
 

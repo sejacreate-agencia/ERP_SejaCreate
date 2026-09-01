@@ -50,8 +50,7 @@ const Actions = {
   'ag-salvar-compromisso':()  => agSalvarCompromisso(),
 
   // ── GOOGLE AGENDA ─────────────────────────
-  'gcal-copiar':          ()  => gcalCopiarConta(),
-  'gcal-verificar':       ()  => gcalVerificar(),
+  'gcal-conectar':        ()  => gcalConectar(),
   'gcal-desconectar':     ()  => gcalDesconectar(),
 
   // ── DASHBOARD ─────────────────────────────

@@ -1078,11 +1078,11 @@ async function _gcalHidratar() {
   }
 
   const r = await GoogleCalendarService.status();
+
   if (r.codigo === 'google_nao_configurado') {
     alvo.innerHTML = `
       <div style="background:var(--warning-subtle);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary)">
         A integração ainda não foi configurada no servidor.
-        Rode a <b>supabase-migration-019.sql</b> e publique a função <b>gcal</b> com os segredos da conta de serviço.
         Passo a passo em <b>docs/google-agenda-setup.md</b>.
       </div>`;
     return;
@@ -1093,13 +1093,12 @@ async function _gcalHidratar() {
   }
 
   const d = r.dados || {};
-  const conta = d.conta_servico || '';
 
   if (d.conectado) {
     alvo.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="tag tag-green"><span class="status-dot dot-green"></span> Conectado</span>
-        <span style="font-size:13px;font-weight:600">${d.calendar_id}</span>
+        <span style="font-size:13px;font-weight:600">${d.email || ''}</span>
         <button class="btn btn-sm btn-danger" style="margin-left:auto" data-action="gcal-desconectar">
           <i class="fas fa-unlink"></i> Desconectar
         </button>
@@ -1107,57 +1106,37 @@ async function _gcalHidratar() {
     return;
   }
 
-  // Não conectado: mostra o e-mail a compartilhar e pede a agenda
+  const expirou = d.precisa_reconectar;
   alvo.innerHTML = `
-    <div style="background:var(--bg-input);border-radius:8px;padding:14px;margin-bottom:14px">
-      <p style="font-size:12px;font-weight:600;margin:0 0 8px">1. Compartilhe sua agenda com esta conta</p>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <code id="gcal-sa" style="flex:1;font-size:12px;background:var(--bg-primary);padding:8px 10px;border-radius:6px;border:1px solid var(--border);word-break:break-all">${conta || '(não configurada)'}</code>
-        <button class="btn btn-secondary btn-sm" data-action="gcal-copiar" title="Copiar"><i class="fas fa-copy"></i></button>
-      </div>
-      <p style="font-size:11px;color:var(--text-muted);margin:0;line-height:1.6">
-        No Google Agenda: <b>Configurações da sua agenda → Compartilhar com pessoas específicas → Adicionar pessoa</b>,
-        cole o e-mail acima e escolha <b>“Fazer alterações nos eventos”</b>.
-      </p>
-    </div>
-    <p style="font-size:12px;font-weight:600;margin:0 0 6px">2. Informe o e-mail da sua agenda</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <input class="input-field" id="gcal-email" style="flex:1;min-width:220px"
-             placeholder="${SB.profile?.email || 'seu@gmail.com'}" value="${SB.profile?.email || ''}">
-      <button class="btn btn-primary" data-action="gcal-verificar">
-        <i class="fas fa-plug"></i> Verificar acesso
-      </button>
-    </div>`;
+    ${expirou ? `<div style="background:var(--warning-subtle);border-radius:8px;padding:10px;font-size:12px;margin-bottom:12px">
+        Sua autorização anterior foi revogada ou expirou. Conecte novamente.
+      </div>` : ''}
+    <button class="btn btn-primary" data-action="gcal-conectar">
+      <i class="fab fa-google"></i> ${expirou ? 'Reconectar' : 'Conectar'} com o Google
+    </button>
+    <p style="font-size:11px;color:var(--text-muted);margin:10px 0 0;line-height:1.6">
+      Você será levado ao Google para autorizar. Como o app ainda não passou pela
+      verificação do Google, na primeira vez aparece um aviso — clique em
+      <b>Avançado</b> e depois em <b>Ir para Seja Create</b>.
+    </p>`;
 }
 
-function gcalCopiarConta() {
-  const t = document.getElementById('gcal-sa')?.textContent?.trim();
-  if (!t) return;
-  navigator.clipboard.writeText(t).then(() => showToast('✅ E-mail copiado!', 'success'));
-}
-
-// Testa ANTES de salvar — mesmo padrão do verifyMetaPage
-async function gcalVerificar() {
-  const email = document.getElementById('gcal-email')?.value?.trim();
-  if (!email) { showToast('Informe o e-mail da sua agenda.', 'warning'); return; }
-
-  const btn = document.querySelector('[data-action="gcal-verificar"]');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...'; }
-
-  const r = await GoogleCalendarService.verificar(email);
-
-  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plug"></i> Verificar acesso'; }
-  if (r.erro) { showToast(r.erro, 'error'); return; }
-
-  showToast('✅ Agenda conectada!', 'success');
-  _gcalHidratar();
+async function gcalConectar() {
+  const btn = document.querySelector('[data-action="gcal-conectar"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Abrindo o Google...'; }
+  const r = await GoogleCalendarService.conectar();
+  if (r.erro) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-google"></i> Conectar com o Google'; }
+    showToast(r.erro, 'error');
+  }
+  // Em caso de sucesso a página navega para o Google — nada a fazer aqui.
 }
 
 async function gcalDesconectar() {
-  if (!confirm('Desconectar sua agenda do ERP? Nada é apagado no Google.')) return;
+  if (!confirm('Desconectar sua conta do Google? O ERP deixa de ver e criar compromissos.')) return;
   const r = await GoogleCalendarService.desconectar();
   if (r.erro) { showToast(r.erro, 'error'); return; }
-  showToast('Agenda desconectada.', 'info');
+  showToast('Conta do Google desconectada.', 'info');
   _gcalHidratar();
 }
 
