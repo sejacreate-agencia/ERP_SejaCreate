@@ -1122,6 +1122,9 @@ async function _gcalHidratar() {
 }
 
 async function gcalConectar() {
+  // Zera o memo da Agenda: sem isso ela seguiria mostrando "nao conectado"
+  // ate o proximo F5, mesmo apos a conexao dar certo.
+  if (typeof _agGoogleIndisponivel !== 'undefined') _agGoogleIndisponivel = null;
   const btn = document.querySelector('[data-action="gcal-conectar"]');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Abrindo o Google...'; }
   const r = await GoogleCalendarService.conectar();

@@ -46,6 +46,11 @@ const Actions = {
   'ag-hoje':              ()  => agHoje(),
   'ag-novo-compromisso':  ()  => agAbrirDitado(),
   'ag-recarregar-compromissos': () => _agCarregarCompromissos(),
+  'ag-capturar':          ()  => agCapturar(),
+  'ag-adicionar':         el  => agAdicionar(el.dataset.modo),
+  'ag-triar':             el  => agTriar(el.dataset.id, el.dataset.modo),
+  'ag-concluir':          el  => agConcluir(el.dataset.id),
+  'ag-remover':           el  => agRemover(el.dataset.id),
   'ag-interpretar':       ()  => agInterpretarDitado(),
   'ag-salvar-compromisso':()  => agSalvarCompromisso(),
 
