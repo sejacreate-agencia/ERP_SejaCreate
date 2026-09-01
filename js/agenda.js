@@ -121,10 +121,15 @@ function _agPintarTopo() {
 
   topo.innerHTML = `
     <div class="ag-header">
-      <div class="ag-mono">${_agEsc(mono)}</div>
-      <div class="ag-marca">Seja Create · ${_agEsc(nome)}</div>
-      <h1 class="ag-titulo">Agenda do dia</h1>
+      <div class="ag-header-quem">
+        <div class="ag-mono">${_agEsc(mono)}</div>
+        <div>
+          <h1 class="ag-titulo">Agenda do dia</h1>
+          <div class="ag-marca">Seja Create · ${_agEsc(nome)}</div>
+        </div>
+      </div>
       <div class="ag-data">
+        ${hoje ? '' : '<button class="ag-link" data-action="ag-hoje">voltar para hoje</button>'}
         <button class="ag-seta" data-action="ag-dia" data-dir="-1" title="Dia anterior">
           <i class="fas fa-chevron-left"></i>
         </button>
@@ -133,7 +138,6 @@ function _agPintarTopo() {
           <i class="fas fa-chevron-right"></i>
         </button>
       </div>
-      ${hoje ? '' : '<button class="ag-link" data-action="ag-hoje">voltar para hoje</button>'}
     </div>`;
 }
 
@@ -171,7 +175,7 @@ function _agCapturaHtml() {
       <input class="ag-captura-campo" id="ag-captura" autocapitalize="sentences"
              placeholder="Capturar uma demanda agora, decide depois onde entra..."
              onkeyup="if(event.key==='Enter')agCapturar()">
-      <button class="ag-btn-ouro" data-action="ag-capturar">Capturar</button>
+      <button class="ag-btn-acao" data-action="ag-capturar">Capturar</button>
     </div>`;
 }
 
