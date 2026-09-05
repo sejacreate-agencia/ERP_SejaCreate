@@ -29,10 +29,13 @@ function _ccOpts(selected) {
     .map(c => `<option value="${c}" ${c===selected?'selected':''}>${c||'— Centro de custo —'}</option>`).join('');
 }
 
+// 'previsto' saiu da lista: o CHECK do banco nunca o aceitou (migration 022) e
+// nenhum agregador do sistema o conhece — na prática era indistinguível de um
+// pendente futuro, e escolhê-lo fazia o salvamento falhar.
 function _recStatusOpts(selected) {
-  return ['previsto','pendente','pago','parcialmente_pago','atrasado','cancelado']
+  return ['pendente','pago','parcialmente_pago','atrasado','cancelado']
     .map(s => {
-      const l = {previsto:'Previsto',pendente:'Pendente',pago:'Pago',parcialmente_pago:'Parcialmente Pago',atrasado:'Vencido',cancelado:'Cancelado'}[s]||s;
+      const l = {pendente:'Pendente',pago:'Pago',parcialmente_pago:'Parcialmente Pago',atrasado:'Vencido',cancelado:'Cancelado'}[s]||s;
       return `<option value="${s}" ${s===selected?'selected':''}>${l}</option>`;
     }).join('');
 }
@@ -177,7 +180,12 @@ async function saveMarkPaid(type, id) {
       if (!error) showToast('⚠️ Salvo com campos básicos — execute migration-005.sql no Supabase.', 'warning');
     }
     if (error) {
-      showToast(`Erro: ${error.message}`, 'error');
+      // O fallback reenvia o mesmo status, então uma violação de CHECK falha
+      // duas vezes e chegaria aqui como texto cru do Postgres.
+      const msg = /status_check/.test(error.message || '')
+        ? 'Baixa parcial ainda não habilitada no banco — execute a migration-022.sql no Supabase.'
+        : `Erro: ${error.message}`;
+      showToast(msg, 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Confirmar'; }
       return;
     }

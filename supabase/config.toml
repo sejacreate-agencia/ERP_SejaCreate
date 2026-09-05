@@ -20,6 +20,13 @@ verify_jwt = true
 # Exige JWT: e aqui que o `state` do OAuth e amarrado ao usuario.
 verify_jwt = true
 
+[functions.cora-spike]
+# TEMPORARIA. Responde uma pergunta so: `Deno.createHttpClient` consegue
+# apresentar certificado de cliente (mTLS) neste runtime? A resposta decide se
+# Cora e NFS-e ficam dentro do Supabase ou precisam de um proxy externo.
+# Apagar a funcao assim que o resultado estiver registrado.
+verify_jwt = true
+
 [functions.google-oauth-callback]
 # PUBLICO, obrigatoriamente: quem chama e o navegador voltando do Google numa
 # navegacao de pagina inteira, sem cabecalho Authorization. Quem prova a

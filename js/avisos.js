@@ -8,20 +8,22 @@ function generateAvisosFromData() {
   const today = new Date(new Date().toDateString());
   let id = 1;
 
-  // Financeiro: recebíveis em atraso
+  // Financeiro: recebíveis em atraso.
+  // finEstaVencido (js/financeiro/index.js) cobre também o 'parcialmente_pago':
+  // quem pagou metade e deixou vencer continua devendo o resto, e a checagem
+  // anterior, que só olhava 'pendente'/'atrasado', calava nesse caso.
   (SC.finances.receivable || []).forEach(r => {
-    const due = r.due_date || r.due;
-    const isAtrasado = r.status === 'atrasado' ||
-      (r.status === 'pendente' && due && new Date(due.split('T')[0]) < today);
-    if (isAtrasado) {
-      const clientName = SC.getClientName(r.client_id || r.client) || 'Cliente';
-      avisos.push({
-        id: id++, type: 'pagamento-aberto',
-        title: `${clientName} — ${r.description || r.desc || 'fatura'} em atraso`,
-        priority: 'alta', assignee: null, client: r.client_id || r.client,
-        deadline: due, action: 'financeiro', icon: '💸',
-      });
-    }
+    if (!finEstaVencido(r)) return;
+    const due        = r.due_date || r.due;
+    const clientName = SC.getClientName(r.client_id || r.client) || 'Cliente';
+    const parcial    = r.status === 'parcialmente_pago'
+      ? ` (resta ${SC.formatCurrency(finSaldoAberto(r))})` : '';
+    avisos.push({
+      id: id++, type: 'pagamento-aberto',
+      title: `${clientName} — ${r.description || r.desc || 'fatura'} em atraso${parcial}`,
+      priority: 'alta', assignee: null, client: r.client_id || r.client,
+      deadline: due, action: 'financeiro', icon: '💸',
+    });
   });
 
   // Tarefas: ajuste solicitado
