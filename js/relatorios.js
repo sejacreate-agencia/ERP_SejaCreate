@@ -604,8 +604,10 @@ function reportFinanceiro() {
 
   const activeClients = _relClients.filter(c => c.status === 'ativo').sort((a,b) => (b.monthly_revenue||0) - (a.monthly_revenue||0));
   const totalRevenue = activeClients.reduce((s,c) => s+(c.monthly_revenue||c.revenue||0),0);
-  const overdueRec = _relReceivables.filter(r => r.status === 'atrasado' || (r.status === 'pendente' && r.due_date && new Date(r.due_date) < new Date()));
-  const overdueVal = overdueRec.reduce((s,r) => s+(r.value||0),0);
+  // Mesmo critério e mesma base do card de Inadimplência do Financeiro
+  // (js/financeiro/index.js): saldo em aberto, incluindo parciais vencidas.
+  const overdueRec = _relReceivables.filter(finEstaVencido);
+  const overdueVal = overdueRec.reduce((s,r) => s+finSaldoAberto(r),0);
 
   return `
     <div class="grid-2" style="margin-bottom:20px">

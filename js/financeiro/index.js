@@ -90,6 +90,37 @@ function _applyFinStatusFilter(list) {
   return list.filter(r => _finEffStatus(r) === _finFilterStatus);
 }
 
+// ── Saldo de um lançamento ────────────────────────────────────────────────────
+// Globais de propósito: dashboard.js e avisos.js também precisam deles, e não há
+// módulos neste projeto. Uma baixa parcial deixa valor_pago < value, e a
+// diferença continua sendo dinheiro a receber — era isso que sumia das telas.
+
+// Quanto já entrou no caixa por este lançamento.
+function finValorRecebido(r) {
+  if (!r || r.status === 'cancelado') return 0;
+  if (r.valor_pago != null) return Number(r.valor_pago) || 0;
+  return r.status === 'pago' ? (Number(r.value) || 0) : 0;
+}
+
+// Quanto ainda falta receber.
+function finSaldoAberto(r) {
+  if (!r || r.status === 'pago' || r.status === 'cancelado') return 0;
+  return Math.max(0, (Number(r.value) || 0) - finValorRecebido(r));
+}
+
+// Vencido = ainda há saldo em aberto E o vencimento passou. Vale para
+// 'pendente' e também para 'parcialmente_pago': quem pagou metade e deixou
+// vencer continua inadimplente pelo resto.
+// Note que isto NÃO é _finEffStatus: aquele traduz o rótulo da coluna Status
+// (e por isso não pode transformar 'parcialmente_pago' em 'atrasado', senão a
+// linha sumiria do chip "Parcial"). Este aqui é sobre dinheiro.
+function finEstaVencido(r) {
+  if (finSaldoAberto(r) <= 0) return false;
+  const due = r.due_date || r.due;
+  if (!due) return false;
+  return new Date(String(due).split('T')[0]) < new Date(new Date().toDateString());
+}
+
 function setFinStatusFilter(status) {
   _finFilterStatus = status === _finFilterStatus ? '' : (status || '');
   _renderFinContent();
@@ -132,10 +163,15 @@ function _renderFinContent() {
   _recData = _applyFinFilter([..._recDataAll]);
   _payData = _applyFinFilter([..._payDataAll]);
 
+  // Os três cards de recebíveis somam SALDO, não valor de face — senão uma
+  // baixa parcial de R$ 40 num título de R$ 100 ou some do "A Receber" ou
+  // aparece lá pelos R$ 100 cheios. "Recebido" é o que entrou de verdade.
+  const vencidos     = _recData.filter(finEstaVencido);
+  const emAberto     = _recData.filter(r => finSaldoAberto(r) > 0 && !finEstaVencido(r));
   const totalRec     = _recData.reduce((s, r) => s + (r.value || 0), 0);
-  const totalPago    = _recData.filter(r => r.status === 'pago').reduce((s, r) => s + (r.value || 0), 0);
-  const totalPend    = _recData.filter(r => r.status === 'pendente').reduce((s, r) => s + (r.value || 0), 0);
-  const totalAtras   = _recData.filter(r => r.status === 'atrasado').reduce((s, r) => s + (r.value || 0), 0);
+  const totalPago    = _recData.reduce((s, r) => s + finValorRecebido(r), 0);
+  const totalPend    = emAberto.reduce((s, r) => s + finSaldoAberto(r), 0);
+  const totalAtras   = vencidos.reduce((s, r) => s + finSaldoAberto(r), 0);
   const totalPay     = _payData.reduce((s, r) => s + (r.value || 0), 0);
   const totalPayPago = _payData.filter(r => r.status === 'pago').reduce((s, r) => s + (r.value || 0), 0);
 
@@ -183,12 +219,12 @@ function _renderFinContent() {
       <div class="fin-card" data-perm="financial">
         <div class="fin-label">A Receber</div>
         <div class="fin-value neutral">${SC.formatCurrency(totalPend)}</div>
-        <div class="fin-sub">${_recData.filter(r=>r.status==='pendente').length} faturas pendentes</div>
+        <div class="fin-sub">${emAberto.length} fatura(s) em aberto</div>
       </div>
       <div class="fin-card" data-perm="financial">
         <div class="fin-label">Inadimplência</div>
         <div class="fin-value negative">${SC.formatCurrency(totalAtras)}</div>
-        <div class="fin-sub" style="color:var(--danger)">${_recData.filter(r=>r.status==='atrasado').length} fatura(s) atrasada(s)</div>
+        <div class="fin-sub" style="color:var(--danger)">${vencidos.length} fatura(s) atrasada(s)</div>
       </div>
       <div class="fin-card" data-perm="financial">
         <div class="fin-label">Contas a Pagar</div>

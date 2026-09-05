@@ -818,7 +818,10 @@ const SCAdapter = {
       value: r.value,
       due_date: r.due,
       status: r.status,
-      paid_at: null,
+      // Sem valor_pago aqui, finSaldoAberto() devolve o valor cheio e uma baixa
+      // parcial aparece no modo demo como se nada tivesse sido pago.
+      valor_pago: r.valor_pago ?? null,
+      paid_at: r.paid_at ?? null,
     }));
   },
 
@@ -1052,11 +1055,16 @@ async function hydrateFromSupabase() {
     }));
 
     // Financeiro
+    // valor_pago é indispensável aqui: finSaldoAberto() o usa para descontar
+    // baixas parciais, e é desta projeção que avisos.js e dashboard.js leem.
+    // Sem o campo, um título parcialmente pago volta a valer o valor cheio
+    // assim que a página é recarregada.
     SC.finances.receivable = (receivables.data || []).map(r => ({
       id: r.id, client: r.client_id, client_id: r.client_id,
       desc: r.description, description: r.description,
       value: r.value, due: r.due_date, due_date: r.due_date,
       status: r.status, paid_at: r.paid_at || null,
+      valor_pago: r.valor_pago ?? null,
     }));
 
     SC.finances.payable = (payables.data || []).map(p => ({

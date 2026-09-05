@@ -98,11 +98,11 @@ function renderFinPagar() {
 }
 
 function renderFinInadimplencia() {
-  const today     = new Date(new Date().toDateString());
-  const atrasados = _recData.filter(r =>
-    r.status === 'atrasado' ||
-    (r.status === 'pendente' && (r.due_date||r.due) && new Date((r.due_date||r.due).split('T')[0]) < today)
-  );
+  const today = new Date(new Date().toDateString());
+  // Mesmo critério do card "Inadimplência" (js/financeiro/index.js), para os
+  // dois não divergirem: inclui o 'parcialmente_pago' vencido, e o valor
+  // cobrado é o SALDO, não o valor de face.
+  const atrasados = _recData.filter(finEstaVencido);
 
   if (!atrasados.length) return `
     <div class="empty-state">
@@ -112,10 +112,11 @@ function renderFinInadimplencia() {
     </div>`;
 
   const waMsg = encodeURIComponent('Olá, tudo bem? Identificamos um pagamento pendente referente ao seu contrato. Poderia verificar, por favor?');
-  const totalAtrasado = atrasados.reduce((s,r)=>s+(r.value||0),0);
+  const totalAtrasado = atrasados.reduce((s,r)=>s+finSaldoAberto(r),0);
 
   const rows = atrasados.map(r => {
     const dueDate = r.due_date || r.due;
+    const saldo   = finSaldoAberto(r);
     const dias    = dueDate ? Math.max(0, Math.round((today - new Date(dueDate.split('T')[0]))/86400000)) : 0;
     const clientObj = r.client;
     let phone = '', clientName = 'N/A', contactName = '';
@@ -130,8 +131,8 @@ function renderFinInadimplencia() {
       contactName = cl?.resp||'';
     }
     const waLink = `https://wa.me/55${phone}?text=${waMsg}`;
-    const multaEstimada = dias > 5 ? Math.round((r.value||0) * 0.02) : 0;
-    const jurosEstimado = dias > 0 ? Math.round((r.value||0) * 0.001 * dias) : 0;
+    const multaEstimada = dias > 5 ? Math.round(saldo * 0.02) : 0;
+    const jurosEstimado = dias > 0 ? Math.round(saldo * 0.001 * dias) : 0;
 
     return `<tr>
       <td>
@@ -139,7 +140,11 @@ function renderFinInadimplencia() {
         ${contactName ? `<div style="font-size:11px;color:var(--text-muted)">${contactName}</div>` : ''}
       </td>
       <td style="font-size:13px">${r.description||r.desc}</td>
-      <td style="color:var(--danger);font-weight:700">${SC.formatCurrency(r.value||0)}</td>
+      <td style="color:var(--danger);font-weight:700">
+        ${SC.formatCurrency(saldo)}
+        ${r.status === 'parcialmente_pago'
+          ? `<div style="font-size:11px;font-weight:400;color:var(--text-muted)">de ${SC.formatCurrency(r.value||0)}</div>` : ''}
+      </td>
       <td style="color:var(--danger);font-size:12px">${formatDateBR(dueDate)||'—'}</td>
       <td><span class="tag tag-red" style="font-weight:700">${dias} dias</span></td>
       <td style="font-size:11px">
