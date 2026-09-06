@@ -628,6 +628,7 @@ function openPerfilModal(role) {
     operacional: { icon:'fa-columns',       label:'Operacional',            desc:'Tarefas + Calendário' },
     financeiro:  { icon:'fa-chart-line',    label:'Financeiro',             desc:'Contas, Fluxo, DRE' },
     relatorios:  { icon:'fa-chart-bar',     label:'Análise / Relatórios',   desc:'Relatórios gerenciais e Meta' },
+    integracoes: { icon:'fa-plug',          label:'Integrações',            desc:'Cora (cobrança) e NFS-e' },
     config:      { icon:'fa-cog',           label:'Configurações',          desc:'Usuários, perfis, integrações' },
     clienteArea: { icon:'fa-user-check',    label:'Área do Cliente',        desc:'Portal de aprovação do cliente' },
     avisos:      { icon:'fa-bell',          label:'Avisos Importantes',     desc:'Notificações e alertas' },
@@ -699,7 +700,7 @@ function savePerfilPerms(role) {
     if (cb && SC.permissoes[role]) SC.permissoes[role][key] = cb.checked ? 1 : 0;
   });
 
-  const modKeys = ['comercial','operacional','financeiro','relatorios','config','clienteArea','avisos'];
+  const modKeys = ['comercial','operacional','financeiro','relatorios','integracoes','config','clienteArea','avisos'];
   if (!SC.modulePermissions) SC.modulePermissions = {};
   if (!SC.modulePermissions[role]) SC.modulePermissions[role] = {};
   modKeys.forEach(key => {

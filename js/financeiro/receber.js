@@ -4,7 +4,6 @@
 
 function renderFinReceber() {
   const today   = new Date(new Date().toDateString());
-  const waMsg   = encodeURIComponent('Olá, tudo bem? Identificamos um pagamento pendente referente ao seu contrato. Poderia verificar, por favor?');
   const isComp  = finRegime === 'competencia';
 
   const visiveis = _applyFinStatusFilter(_recData);
@@ -21,7 +20,9 @@ function renderFinReceber() {
       clientName = cl?.name || 'N/A';
     }
 
-    const waLink     = `https://wa.me/55${phone}?text=${waMsg}`;
+    // Mensagem montada por _msgCobranca (js/financeiro/cobrancas.js): leva nome,
+    // valor, vencimento e — quando existe cobrança — o Pix e o boleto.
+    const waLink     = `https://wa.me/55${phone}?text=${encodeURIComponent(_msgCobranca(r))}`;
     const dueDate    = r.due_date || r.due;
     const paidDate   = r.paid_date || (r.paid_at||'').slice(0,10);
     const isOverdue  = r.status === 'atrasado' ||
@@ -50,6 +51,7 @@ function renderFinReceber() {
       <td style="font-size:12px;color:var(--text-secondary)">${paidDate ? formatDateBR(paidDate) : '—'}</td>
       <td style="font-size:12px">${formaPag}</td>
       <td>${_finStatusTag(effStatus)}</td>
+      <td>${_cobrancaCelula(r)}</td>
       <td>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
           ${r.status !== 'pago' && r.status !== 'cancelado' ? `<button class="btn btn-sm btn-success" data-action="mark-paid" data-type="receivable" data-id="${r.id}"><i class="fas fa-check"></i> Pago</button>` : ''}
@@ -91,10 +93,11 @@ function renderFinReceber() {
               <th>Dt. Pag.</th>
               <th>Forma Pag.</th>
               <th>Status</th>
+              <th>Cobrança / NF</th>
               <th>Ações</th>
             </tr>
           </thead>
-          <tbody>${rows || `<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">
+          <tbody>${rows || `<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">
             Nenhum lançamento encontrado${_finFilterStatus ? ' para este status' : ''}.
           </td></tr>`}</tbody>
         </table>

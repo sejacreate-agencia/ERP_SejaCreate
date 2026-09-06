@@ -72,8 +72,10 @@ function fecharMenuMobile() {
 document.addEventListener('DOMContentLoaded', () => {
   // Retorno do consentimento do Google (?google=ok|erro). Depois do bloco de
   // recuperacao de senha para nao atrapalhar aquele fluxo.
+  // Retorno da Cora (?cora=ok|erro) vem pelo mesmo caminho.
   setTimeout(() => {
     if (typeof GoogleCalendarService !== 'undefined') GoogleCalendarService.tratarRetorno();
+    if (typeof CoraService !== 'undefined') CoraService.tratarRetorno();
   }, 400);
 
   // Esconde seletor de perfil demo quando Supabase está configurado

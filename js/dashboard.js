@@ -12,7 +12,9 @@ function renderDashboard() {
   const pendingApproval = SC.tasks.filter(t => t.status === 'Enviado ao Cliente' || t.status === 'Aprovação Interna');
   const scheduled = SC.tasks.filter(t => t.status === 'Programado' || t.status === 'Aprovado');
   const done = SC.tasks.filter(t => t.status === 'Publicado');
-  const pending = SC.finances.receivable.filter(r => r.status !== 'pago');
+  // finSaldoAberto (js/financeiro/index.js) desconta o que já foi pago: sem
+  // isso um título com baixa parcial entra aqui pelo valor cheio.
+  const pending = SC.finances.receivable.filter(r => finSaldoAberto(r) > 0);
   const activeClients = SC.clients.filter(c => c.status === 'ativo').length;
   const inProgress = SC.tasks.filter(t => t.status !== 'Publicado').length;
 
@@ -79,7 +81,7 @@ function renderDashboard() {
     </div>
     <div class="kpi-card" data-action="navigate" data-page="financeiro" style="cursor:pointer">
       <div class="kpi-icon yellow"><i class="fas fa-file-invoice-dollar"></i></div>
-      <div class="kpi-value" style="font-size:18px">${SC.formatCurrency(pending.reduce((a,r)=>a+r.value,0))}</div>
+      <div class="kpi-value" style="font-size:18px">${SC.formatCurrency(pending.reduce((a,r)=>a+finSaldoAberto(r),0))}</div>
       <div class="kpi-label">Contas a Receber</div>
       <div class="kpi-change down"><i class="fas fa-clock"></i> ${pending.length} faturas</div>
     </div>

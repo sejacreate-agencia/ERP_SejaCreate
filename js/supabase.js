@@ -621,8 +621,17 @@ const DB = {
   // ── FINANCIAL: RECEIVABLES ───────────────
   receivables: {
     async list() {
+      // Os embeds `charge` e `nfse` são resolvidos pelo PostgREST via FK. Para
+      // o perfil `cliente` eles voltam VAZIOS — as policies de payment_charges
+      // e service_invoices não incluem esse papel de propósito, porque as duas
+      // guardam documento e endereço no snapshot. Não é erro; é o desenho.
       return SB.list('financial_receivables', {
-        select: '*, client:clients(id, name, phone)',
+        select: '*, client:clients(id, name, phone),'
+          + ' charge:payment_charges(id,status,provider_status,provider_charge_id,'
+          + 'boleto_url,boleto_digitable,boleto_barcode,pix_emv,vencimento,'
+          + 'valor_centavos,valor_pago_centavos,ultimo_erro),'
+          + ' nfse:service_invoices(id,status,numero_nfse,chave_acesso,danfse_url,'
+          + 'competencia,motivo_bloqueio)',
         order: { col: 'due_date', asc: true }
       });
     },
@@ -660,6 +669,50 @@ const DB = {
       });
     },
     async remove(id) { return SB.remove('financial_payables', id); },
+  },
+
+  // ── COBRANÇA E FISCAL (leitura) ─────────
+  // SOMENTE LEITURA, de propósito. Emitir, cancelar e liquidar cobrança e nota
+  // passam pelas Edge Functions `cora` e `nfse`, que falam com um banco e com a
+  // prefeitura — os valores não podem vir do navegador. As policies de escrita
+  // dessas tabelas não existem justamente para fechar esse caminho.
+  charges: {
+    async list(receivableId) {
+      const o = { order: { col: 'created_at', asc: false } };
+      if (receivableId) o.filters = [{ op: 'eq', col: 'receivable_id', val: receivableId }];
+      return SB.list('payment_charges', o);
+    },
+    async get(id) { return SB.get('payment_charges', id); },
+  },
+
+  serviceInvoices: {
+    async list(receivableId) {
+      const o = { order: { col: 'created_at', asc: false } };
+      if (receivableId) o.filters = [{ op: 'eq', col: 'receivable_id', val: receivableId }];
+      return SB.list('service_invoices', o);
+    },
+  },
+
+  // charge_settings e fiscal_settings têm `org_id` como chave primária, não
+  // `id` — por isso não dá para usar SB.update/SB.get, que filtram por id.
+  chargeSettings: {
+    async get() {
+      const { data, error } = await SB.list('charge_settings', { limit: 1 });
+      return { data: (data && data[0]) || null, error };
+    },
+    async salvar(orgId, payload) {
+      return SB.upsert('charge_settings', { org_id: orgId, ...payload }, 'org_id');
+    },
+  },
+
+  fiscalSettings: {
+    async get() {
+      const { data, error } = await SB.list('fiscal_settings', { limit: 1 });
+      return { data: (data && data[0]) || null, error };
+    },
+    async salvar(orgId, payload) {
+      return SB.upsert('fiscal_settings', { org_id: orgId, ...payload }, 'org_id');
+    },
   },
 
   // ── ACTIVITY LOGS ───────────────────────
@@ -818,7 +871,10 @@ const SCAdapter = {
       value: r.value,
       due_date: r.due,
       status: r.status,
-      paid_at: null,
+      // Sem valor_pago aqui, finSaldoAberto() devolve o valor cheio e uma baixa
+      // parcial aparece no modo demo como se nada tivesse sido pago.
+      valor_pago: r.valor_pago ?? null,
+      paid_at: r.paid_at ?? null,
     }));
   },
 
@@ -1052,11 +1108,16 @@ async function hydrateFromSupabase() {
     }));
 
     // Financeiro
+    // valor_pago é indispensável aqui: finSaldoAberto() o usa para descontar
+    // baixas parciais, e é desta projeção que avisos.js e dashboard.js leem.
+    // Sem o campo, um título parcialmente pago volta a valer o valor cheio
+    // assim que a página é recarregada.
     SC.finances.receivable = (receivables.data || []).map(r => ({
       id: r.id, client: r.client_id, client_id: r.client_id,
       desc: r.description, description: r.description,
       value: r.value, due: r.due_date, due_date: r.due_date,
       status: r.status, paid_at: r.paid_at || null,
+      valor_pago: r.valor_pago ?? null,
     }));
 
     SC.finances.payable = (payables.data || []).map(p => ({
