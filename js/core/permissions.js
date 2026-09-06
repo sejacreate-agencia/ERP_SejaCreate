@@ -9,7 +9,8 @@ function applyPermissions(role) {
   const show = id => Dom.show(id);
 
   // Reset — garante estado limpo antes de aplicar restrições
-  ['nav-comercial','nav-operacional','nav-financeiro','nav-relatorios','nav-config'].forEach(show);
+  ['nav-comercial','nav-operacional','nav-financeiro','nav-relatorios',
+   'nav-integracoes','nav-config'].forEach(show);
   document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
 
   const mods = (SC.modulePermissions && SC.modulePermissions[role]) || {};
@@ -24,6 +25,11 @@ function applyPermissions(role) {
   }
 
   if (!mods.relatorios) hide('nav-relatorios');
+
+  // Cobrança e nota fiscal são financeiro: quem não vê o Financeiro também não
+  // vê as Integrações. Isto é só a aparência — a barreira real está na RLS e na
+  // checagem de perfil dentro das Edge Functions.
+  if (!mods.integracoes) hide('nav-integracoes');
 
   if (!mods.avisos) {
     document.querySelectorAll('[data-page="avisos"]').forEach(el => el.style.display = 'none');

@@ -179,9 +179,37 @@ Deno.serve(async (req) => {
         }
 
         const valorCentavos = reaisParaCentavos(rec.value);
+
+        // Padrões da organização. O modal pode sobrepor, mas o que vale por
+        // omissão é o que está configurado em Integrações → Cora.
+        const { data: cfg } = await db.from("charge_settings")
+          .select("*").maybeSingle();
+
+        const formasPadrao = [
+          ...(cfg?.gerar_boleto !== false ? ["BANK_SLIP"] : []),
+          ...(cfg?.gerar_pix !== false ? ["PIX"] : []),
+        ];
         const formas = Array.isArray(body.formas) && body.formas.length
           ? (body.formas as string[]).filter((f) => ["BANK_SLIP", "PIX"].includes(f))
-          : ["BANK_SLIP", "PIX"];
+          : (formasPadrao.length ? formasPadrao : ["BANK_SLIP", "PIX"]);
+
+        // UNIDADES, e é onde é fácil errar: a configuração guarda a multa em
+        // PERCENTUAL (é como se contrata), mas a Cora quer
+        // payment_terms.fine.amount em CENTAVOS. Já os juros ela quer em
+        // percentual ao mês, então vão direto.
+        const multaCentavos = body.multa_centavos !== undefined
+          ? Number(body.multa_centavos) || 0
+          : (cfg?.aplicar_multa
+            ? Math.round(valorCentavos * Number(cfg.multa_percentual) / 100)
+            : 0);
+
+        const jurosPercentual = body.juros_percentual !== undefined
+          ? Number(body.juros_percentual) || 0
+          : (cfg?.aplicar_juros ? Number(cfg.juros_percentual_mes) : 0);
+
+        const descontoPercentual = body.desconto_percentual !== undefined
+          ? Number(body.desconto_percentual) || 0
+          : (cfg?.aplicar_desconto ? Number(cfg.desconto_percentual) : 0);
 
         // A linha nasce ANTES da chamada, com a idempotency_key gravada. Um
         // duplo-clique ou um retry após timeout reusa esta linha e esta chave,
@@ -216,9 +244,9 @@ Deno.serve(async (req) => {
             descricao: so(rec.description) || "Serviço prestado",
             valorCentavos,
             vencimento: String(rec.due_date).slice(0, 10),
-            multaCentavos: Number(body.multa_centavos) || undefined,
-            jurosPercentualMes: Number(body.juros_percentual) || undefined,
-            descontoPercentual: Number(body.desconto_percentual) || undefined,
+            multaCentavos: multaCentavos || undefined,
+            jurosPercentualMes: jurosPercentual || undefined,
+            descontoPercentual: descontoPercentual || undefined,
             formas,
             idempotencia: charge!.idempotency_key,
           });

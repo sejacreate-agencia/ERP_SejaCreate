@@ -121,6 +121,22 @@ const Actions = {
   'save-new-recebimento':     ()  => saveNewRecebimento(),
   'delete-lanc':              el  => deleteLanc(el.dataset.type, el.dataset.id),
   'open-new-lancamento-pagar':()  => openNewLancModal('payable'),
+  // ── INTEGRAÇÕES > CORA ────────────────────
+  'cora-conectar':         ()  => coraConectar(),
+  'cora-testar':           ()  => coraTestar(),
+  'cora-sincronizar':      ()  => coraSincronizar(),
+  'cora-registrar-webhook':()  => coraRegistrarWebhook(),
+  'cora-desconectar':      ()  => coraDesconectar(),
+  'cora-salvar-config':    ()  => coraSalvarConfig(),
+  // Cobrança a partir do A Receber. Os ids são UUID — nunca passe por parseInt.
+  'open-cobranca':         el  => openCobrancaModal(el.dataset.id),
+  'emitir-cobranca':       el  => emitirCobranca(el.dataset.id),
+  'ver-cobranca':          el  => verCobranca(el.dataset.id),
+  'cancelar-cobranca':     el  => cancelarCobrancaConfirm(el.dataset.id),
+  'copiar-texto':          el  => copiarTexto(el.dataset.valor, el.dataset.rotulo),
+  'whatsapp-cobranca':     el  => enviarCobrancaWhatsApp(el.dataset.id),
+  // ── INTEGRAÇÕES > NFS-e ───────────────────
+  'nfse-salvar-config':    ()  => nfseSalvarConfig(),
   // ── META ─────────────────────────────────
   'open-meta-schedule':   el  => { const t = _taskData?.find(x => String(x.id) === String(el.dataset.id)); if (t) MetaService.openScheduleModal(t); },
   'meta-schedule-post':   el  => MetaService.executeSchedule(el.dataset.taskId),

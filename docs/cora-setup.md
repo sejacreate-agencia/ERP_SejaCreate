@@ -3,166 +3,208 @@
 Cobrança por boleto registrado com QR Code Pix, e baixa automática do
 recebimento quando o cliente paga.
 
-> **Estado atual: Fase 1 (spike).** Só existe a função `cora-spike`, que
-> responde uma pergunta técnica. Nada de cobrança foi construído ainda — e de
-> propósito: o resultado do spike decide onde o código vai morar.
-
 ---
 
-## Por que existe um spike antes de tudo
+## Qual modelo usamos, e por quê
 
-A Cora tem dois modelos de integração:
+A Cora tem dois:
 
-| modelo | para quem | como autentica |
+| modelo | credencial | roda nas Edge Functions? |
 |---|---|---|
-| **Cora Partnership** | empresas que oferecem a Cora aos *seus* clientes | OAuth com `client_id` + `client_secret` |
-| **Integração Direta** | quem usa a API na própria conta | **certificado de cliente (mTLS)** |
+| **Parceria Cora** | `client_id` + `client_secret` (OAuth2) | **sim** |
+| Integração Direta | certificado + chave privada (mTLS) | incerto |
 
-A Seja Create usa a própria conta, então é **Integração Direta** — e ela não tem
-`client_secret`. A autenticação acontece na camada TLS: o servidor apresenta um
-certificado e uma chave privada ao conectar em
-`matls-clients.api.cora.com.br`.
+Usamos a **Parceria**. A Integração Direta autentica na camada TLS, e a única
+porta para isso no Edge Runtime do Supabase é `Deno.createHttpClient`, que a
+documentação do Supabase não lista como suportada. Se não funcionasse, seria
+preciso um proxy externo — um Cloudflare Worker com binding de certificado, que
+é recurso pago — só para intermediar.
 
-O ERP roda em Supabase Edge Functions (Deno). A única forma de apresentar
-certificado de cliente ali é `Deno.createHttpClient({ cert, key })`, que **não
-consta da documentação do Supabase como suportada**. Se não funcionar, o `fetch`
-falha no handshake e nenhuma linha do resto do projeto serve.
+O OAuth funciona hoje e reaproveita o desenho já provado do Google Agenda:
+função de start autenticada, callback público, `state` de uso único e refresh de
+token no servidor.
 
-O mesmo vale para a NFS-e: o Sefin Nacional também exige mTLS, com o e-CNPJ A1.
-**As duas integrações do roadmap dependem desta resposta.**
-
-Por isso a Fase 1 é uma função de 170 linhas que só tenta pegar um token no
-ambiente de testes. Custa um deploy e evita descobrir o problema no meio da
-implementação.
+> A função `cora-spike` continua no repositório. Ela responde se o mTLS funciona
+> aqui, e **essa pergunta volta na fase da NFS-e**: o Sefin Nacional exige mTLS
+> com o e-CNPJ A1. Não apague.
 
 ---
 
-## 1. Obter as credenciais (Stage)
+## 1. Pedir a Parceria
 
-No painel da Cora: **Conta → Integrações via APIs → Integração Direta**.
+No painel da Cora: **Conta → Integrações via APIs → Parceria Cora → Solicitar
+integração**. Aceite os termos.
 
-Você recebe três coisas:
+Vai ser pedido um **link de redirecionamento**. É este, exatamente:
 
-- `certificate.pem` — o certificado
-- `private-key.key` — a chave privada
-- o **`client_id`**
+```
+https://owauukcjdasumguvzqch.supabase.co/functions/v1/cora-oauth-callback
+```
 
-Comece pelo **Stage**. Certificado de stage não funciona em produção e
-vice-versa — são pares distintos.
+Um só. É o endereço da Edge Function que recebe o `code` e o troca pelos tokens,
+no servidor.
 
-> Guarde os dois arquivos fora do repositório. O `.gitignore` já bloqueia
-> `*.pem` e `*.key`, mas o repositório inteiro — incluindo `supabase/` — é
-> publicado no GitHub Pages, então um arquivo de credencial commitado fica
-> público na hora.
+**Por que não `app.sejacreate.com.br`:** o `js/supabase.js` roda com
+`detectSessionInUrl: true`, e o `supabase-js` inspeciona a URL no boot
+procurando `?code=` — o dele, do PKCE. Um código da Cora ali seria confundido
+com um login. Foi por isso que o callback do Google também aponta para uma Edge
+Function.
+
+A Cora responde em até **3 dias úteis** e devolve `client_id` e `client_secret`.
 
 ---
 
 ## 2. Configurar os segredos
-
-Os PEM vão em **base64**: quebra de linha dentro de variável de ambiente é fonte
-garantida de erro silencioso.
 
 ```bash
 supabase login
 supabase link --project-ref owauukcjdasumguvzqch
 
 supabase secrets set CORA_AMBIENTE=stage
-supabase secrets set CORA_CLIENT_ID='<o client_id da Cora>'
-supabase secrets set CORA_CERT_B64="$(base64 -w0 certificate.pem)"
-supabase secrets set CORA_KEY_B64="$(base64 -w0 private-key.key)"
+supabase secrets set CORA_CLIENT_ID='<client_id>'
+supabase secrets set CORA_CLIENT_SECRET='<client_secret>'
+supabase secrets set CORA_WEBHOOK_TOKEN="$(openssl rand -hex 32)"
 ```
 
-No Windows, use o **Git Bash** — o `base64 -w0` vem com ele. No PowerShell o
-equivalente é:
+No Windows use o **Git Bash** (o `openssl` vem com ele). Sem openssl, serve
+qualquer string longa e aleatória.
 
-```powershell
-$cert = [Convert]::ToBase64String([IO.File]::ReadAllBytes("certificate.pem"))
-supabase secrets set CORA_CERT_B64="$cert"
-```
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `APP_URL` já existem no ambiente
+das functions — não defina.
 
-`SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` já existem no ambiente das
-functions — não precisa defini-los.
+**Nunca** mande `client_secret` por chat, e-mail ou commit. O repositório
+inteiro, incluindo `supabase/`, é publicado no GitHub Pages.
 
 ---
 
-## 3. Publicar e rodar o spike
+## 3. Publicar
 
 ```bash
-supabase functions deploy cora-spike
+supabase functions deploy cora
+supabase functions deploy cora-oauth-start
+supabase functions deploy cora-oauth-callback
+supabase functions deploy cora-webhook
 ```
 
-Entre no ERP **como administrador** (o spike recusa outros perfis: ele expõe
-detalhes de infraestrutura). Abra o console do navegador — F12 → Console — e
-rode:
-
-```js
-(await supabaseClient.functions.invoke('cora-spike')).data
-```
+E as migrations, se ainda não rodou: **022** a **027** no SQL Editor, em ordem.
 
 ---
 
-## 4. Como ler o resultado
+## 4. Conectar
 
-### Funcionou
+1. Entre no ERP **como administrador**.
+2. **Integrações → Cora**.
+3. **Conectar Cora** → você vai para a Cora, autoriza, e volta.
+4. **Registrar webhook** — sem isso a baixa não é automática; só o botão
+   Sincronizar concilia.
+5. **Testar conexão** deve responder ✅.
 
-```json
-{
-  "tem_api": true,
-  "assinatura": "cert/key",
-  "http_status": 200,
-  "tem_token": true,
-  "expires_in": 86400
-}
-```
+O cartão passa a mostrar ambiente, conta, data da conexão e o estado do webhook.
 
-`tem_token: true` é o que importa. Significa que o Supabase consegue fazer mTLS
-e **todo o resto do projeto — Cora e NFS-e — fica dentro do Supabase**, sem
-peça nova na stack. Pode seguir para a Fase 2.
+---
 
-O `access_token` nunca é devolvido: esta resposta chega ao navegador.
+## 5. Roteiro de teste no Stage
 
-### Não funcionou
+Faça na ordem. Cada passo tem um resultado esperado.
 
-| resposta | o que significa | o que fazer |
+| # | faça | espere |
 |---|---|---|
-| `tem_api: false` | `Deno.createHttpClient` não existe neste runtime | Não há mTLS aqui. Vai para o proxy externo |
-| `assinatura: null` | a API existe mas recusou as duas formas de passar o certificado | Idem |
-| `erro: "fetch falhou: ..."` | o handshake TLS não fechou | Confira se o certificado é o de **stage**; se for, é limitação do runtime |
-| `http_status: 401` | o mTLS **funcionou** — o servidor respondeu | Confira o `client_id`. Isto é boa notícia: a conexão fechou |
-| `tem_secrets` com `false` | falta rodar algum `secrets set` do passo 2 | — |
+| 1 | Crie um recebimento de **R$ 1,00** com vencimento hoje e clique em **Gerar** na coluna Cobrança / NF | Modal com cliente, valor e vencimento travados |
+| 2 | **Gerar cobrança** | Linha digitável e Pix copia e cola na tela |
+| 3 | Clique **Gerar** de novo, rápido, duas vezes | A segunda diz "já possui uma cobrança" — a trava é o índice `uniq_charge_viva_por_recebivel`, não a tela |
+| 4 | Gere para um cliente **sem CPF/CNPJ ou sem endereço** | Recusa listando **nominalmente** o que falta |
+| 5 | Pague o boleto no Stage | Em menos de 1 min o recebimento vira **Pago**, com valor e forma preenchidos |
+| 6 | Pague **a menor** | Vira **Parcial**, e o saldo continua no card "A Receber" |
+| 7 | Tente cancelar uma cobrança já paga | "já foi paga — acabei de conciliá-la". Não é erro: é estado |
+| 8 | Edite um cliente que tenha mensalidade com boleto | As parcelas com cobrança são **preservadas** |
+| 9 | Exclua um recebimento com cobrança ativa | Recusa pedindo para cancelar a cobrança antes |
 
-**O plano B já está definido:** um Cloudflare Worker com binding de certificado
-mTLS (`wrangler mtls-certificate upload`), atuando como proxy burro. As tabelas,
-as telas e a lógica não mudam — muda só onde o `fetch` acontece. Avise o
-resultado e eu sigo por esse caminho.
+### Testar o webhook por fora
+
+```bash
+URL="https://owauukcjdasumguvzqch.supabase.co/functions/v1/cora-webhook/$CORA_WEBHOOK_TOKEN"
+H=(-H "webhook-event-id: evt_t1" -H "webhook-event-type: invoice.paid" \
+   -H "webhook-resource-id: inv_XXXX")
+
+curl -X POST "$URL" "${H[@]}" -d ''     # 1a vez: {"ok":true,...}
+curl -X POST "$URL" "${H[@]}" -d ''     # 2a: {"duplicado":true} e NADA muda
+curl -X POST ".../cora-webhook/errado" "${H[@]}" -d ''   # 404
+```
+
+O terceiro caso responde **404, não 403**: confirmar que o endpoint existe já
+seria informação demais.
 
 ---
 
-## 5. Depois do spike
+## 6. Ir para produção
 
-```bash
-supabase functions delete cora-spike
+1. Peça as credenciais de **produção** no painel.
+2. `supabase secrets set CORA_AMBIENTE=producao CORA_CLIENT_ID=... CORA_CLIENT_SECRET=...`
+3. Reconecte em **Integrações → Cora** (a autorização é por ambiente).
+4. Registre o webhook de novo.
+
+---
+
+## Como funciona por dentro
+
+```
+A Receber ──► cora:emitir ──► POST /v2/invoices/ ──► boleto + Pix
+                                                        │
+                              cliente paga ─────────────┘
+                                    │
+                    Cora ──► cora-webhook (corpo VAZIO, sem assinatura)
+                                    │
+                    GET /v2/invoices/{id}  ← a verdade vem DAQUI
+                                    │
+                    RPC cora_liquidar_cobranca (uma transação)
+                                    │
+                      recebimento vira Pago / Parcial
 ```
 
-E remova o bloco `[functions.cora-spike]` do `supabase/config.toml`. A função é
-descartável: existe para responder uma pergunta, não para ficar.
+Três decisões que valem conhecer:
+
+**A notificação nunca é fonte de verdade.** Ela chega com corpo vazio e sem
+HMAC. Não há o que validar, então é tratada como "algo mudou" e a verdade vem do
+`GET` que nós fazemos. Quem forjar uma notificação consegue, no máximo, nos
+fazer consultar a nossa própria API.
+
+**A chave de idempotência é gravada antes da chamada.** Se nascesse no momento
+do `fetch`, um duplo-clique ou um retry após timeout registraria dois boletos no
+banco do cliente.
+
+**Valor e vencimento vêm do banco, não do navegador.** O front manda só o
+`receivable_id`. Um valor vindo do browser seria emissão de boleto com valor
+arbitrário por qualquer pessoa logada.
+
+---
+
+## Quando algo dá errado
+
+| sintoma | causa provável |
+|---|---|
+| "ainda não foi configurada" | faltam os `secrets` do passo 2 |
+| "Conecte a conta da Cora" | ninguém completou o passo 4 |
+| "A conexão expirou" | 60 dias sem uso, ou autorização revogada na Cora. Reconecte |
+| Pagou e não baixou | webhook não registrado, ou **Baixar automaticamente** desligado. Use **Sincronizar** |
+| Cobranças param de gerar | veja o **último erro** no cartão, e `supabase functions logs cora` |
+
+**A sessão expira com 60 dias de inatividade.** A tela avisa a partir de 45 dias.
+
+O histórico de webhooks fica em `provider_webhook_events`, que é deny-all no
+banco — a única leitura é a ação `eventos` da função `cora`.
 
 ---
 
 ## Referências
 
-- Documentação da Cora: <https://developers.cora.com.br/>
-- Instruções iniciais e URLs por ambiente:
-  <https://developers.cora.com.br/docs/instrucoes-iniciais>
-- Client Credentials na Integração Direta:
-  <https://developers.cora.com.br/docs/client-credentials-int-direta>
-- Suporte da API: suporteapi@cora.com.br
+- <https://developers.cora.com.br/>
+- [Fluxos de autorização](https://developers.cora.com.br/docs/fluxos-de-autorizacao-e-autenticacao)
+- [Instruções iniciais](https://developers.cora.com.br/docs/instrucoes-iniciais)
+- suporteapi@cora.com.br
 
-## Ambientes
-
-| | Integração Direta |
+| ambiente | Parceria (OAuth) |
 |---|---|
-| Stage | `https://matls-clients.api.stage.cora.com.br` |
-| Produção | `https://matls-clients.api.cora.com.br` |
+| Stage | `https://api.stage.cora.com.br` |
+| Produção | `https://api.cora.com.br` |
 
-Valores na API da Cora são **inteiros em centavos**: R$ 10,01 é `1001`.
+Valores na API são **inteiros em centavos**: R$ 10,01 é `1001`.

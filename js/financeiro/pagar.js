@@ -111,7 +111,6 @@ function renderFinInadimplencia() {
       <p style="font-size:12px;color:var(--text-muted)">Todos os clientes estão em dia.</p>
     </div>`;
 
-  const waMsg = encodeURIComponent('Olá, tudo bem? Identificamos um pagamento pendente referente ao seu contrato. Poderia verificar, por favor?');
   const totalAtrasado = atrasados.reduce((s,r)=>s+finSaldoAberto(r),0);
 
   const rows = atrasados.map(r => {
@@ -130,7 +129,9 @@ function renderFinInadimplencia() {
       clientName  = cl?.name||'N/A';
       contactName = cl?.resp||'';
     }
-    const waLink = `https://wa.me/55${phone}?text=${waMsg}`;
+    // Mesma mensagem do A Receber — antes era uma string duplicada literalmente
+    // nos dois arquivos, sem nome do cliente nem valor.
+    const waLink = `https://wa.me/55${phone}?text=${encodeURIComponent(_msgCobranca(r))}`;
     const multaEstimada = dias > 5 ? Math.round(saldo * 0.02) : 0;
     const jurosEstimado = dias > 0 ? Math.round(saldo * 0.001 * dias) : 0;
 

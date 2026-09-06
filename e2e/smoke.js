@@ -13,7 +13,16 @@ const SHOTS = path.join(__dirname, 'shots');
 const PAGES = [
   'dashboard', 'agenda', 'tarefas', 'calendario', 'crm', 'cadastro',
   'planejamentos', 'onboarding', 'relatorios', 'relatorios-meta',
-  'dashboard-marketing', 'avisos', 'configuracoes', 'cliente-area',
+  'dashboard-marketing', 'avisos', 'integracoes-cora', 'integracoes-nfse',
+  'configuracoes', 'cliente-area',
+];
+
+// As telas do Financeiro NAO tem data-page: os itens do menu sao abas, com
+// data-fin-tab. Por isso elas nunca entraram no PAGES e o modulo inteiro ficou
+// sem cobertura ate agora.
+const FIN_TABS = [
+  'visao-geral', 'receber', 'pagar', 'inadimplencia',
+  'fluxo-caixa', 'dre', 'plano-contas',
 ];
 
 if (!process.env.E2E_EMAIL || !process.env.E2E_PASS) {
@@ -44,6 +53,13 @@ if (!process.env.E2E_EMAIL || !process.env.E2E_PASS) {
     await page.screenshot({ path: path.join(SHOTS, `${p}.png`), fullPage: false });
   };
 
+  const irFin = async (t) => {
+    tela = `fin-${t}`;
+    await page.click(`[data-fin-tab="${t}"]`, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: path.join(SHOTS, `fin-${t}.png`), fullPage: false });
+  };
+
   // ── LOGIN ──
   await page.goto(URL, { waitUntil: 'networkidle', timeout: 45000 });
   await page.fill('#login-email', EMAIL);
@@ -66,6 +82,13 @@ if (!process.env.E2E_EMAIL || !process.env.E2E_PASS) {
     await ir(p);
     const txt = (await page.locator('#page-content').innerText().catch(() => '')).trim();
     if (txt.length < 40) vazias.push({ tela: p, chars: txt.length });
+  }
+
+  // ── ABAS DO FINANCEIRO (so leitura) ──
+  for (const t of FIN_TABS) {
+    await irFin(t);
+    const txt = (await page.locator('#fin-tab-content').innerText().catch(() => '')).trim();
+    if (txt.length < 40) vazias.push({ tela: `fin-${t}`, chars: txt.length });
   }
 
   // ── ABRIR UM CARD (so leitura) ──

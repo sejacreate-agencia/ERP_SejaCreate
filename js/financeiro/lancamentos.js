@@ -707,6 +707,21 @@ async function saveNewRecebimento() {
 // ── EXCLUIR LANÇAMENTO ───────────────────────────────────────────────────────
 
 async function deleteLanc(type, id) {
+  // payment_charges.receivable_id é ON DELETE RESTRICT: o banco já barraria,
+  // mas o erro chegaria como "violates foreign key constraint". Melhor explicar
+  // o que houve e o que fazer.
+  if (type === 'receivable' && typeof _cobrancaDe === 'function') {
+    const cob = _cobrancaDe(_recPorId(id));
+    if (cob) {
+      Modal.alert(
+        'Este recebimento tem uma cobrança Cora ativa e não pode ser excluído.<br><br>'
+        + 'Cancele a cobrança primeiro — assim o boleto deixa de ser pagável '
+        + 'e o cliente não paga algo que você apagou daqui.',
+        'Cobrança ativa');
+      return;
+    }
+  }
+
   if (!confirm('Excluir este lançamento? Esta ação não pode ser desfeita.')) return;
 
   if (isSupabaseReady()) {
