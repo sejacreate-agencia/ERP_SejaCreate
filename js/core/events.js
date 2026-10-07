@@ -12,6 +12,8 @@ const Actions = {
 
   // ── GLOBAIS ───────────────────────────────
   'navigate':             el => navigate(el.dataset.page),
+  // Mostrar/ocultar clientes inativos nos seletores e listas (js/utils/clientes.js)
+  'toggle-ver-inativos':  ()  => toggleVerInativos(),
   'logout':               ()  => AuthService.logout(),
   'toggle-sidebar':       ()  => toggleSidebar(),
   'close-modal':          ()  => Modal.close(),

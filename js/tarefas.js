@@ -76,7 +76,7 @@ async function renderTarefas() {
   const profiles = await Data.profiles();
 
   // Renderiza filtros
-  const clientOpts = `<option value="">Todos os clientes</option>${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}`;
+  const clientOpts = Clientes.opcoes(clients, { vazio: 'Todos os clientes' });
   const empOpts = `<option value="">Todos</option>${profiles.map(e=>`<option value="${e.id}">${e.full_name.split(' ')[0]}</option>`).join('')}`;
   const filtersBar = document.getElementById('task-filters-bar');
   if (filtersBar) {
@@ -84,6 +84,7 @@ async function renderTarefas() {
       <select class="filter-select" id="tf-client" onchange="applyTaskFilters()">
         ${clientOpts}
       </select>
+      ${Clientes.chip(clients)}
       <select class="filter-select" id="tf-assignee" onchange="applyTaskFilters()">
         ${empOpts}
       </select>
@@ -439,7 +440,7 @@ async function openCardModal(stage = 'Solicitado') {
   const solicitante = (typeof SB !== 'undefined' && SB.profile?.full_name) || SC.currentUser?.name || 'Usuário';
   const CANAIS = ['Instagram', 'Facebook', 'WhatsApp', 'Site / Blog', 'LinkedIn', 'E-mail', 'Impresso', 'Outro'];
 
-  const clientOpts = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const clientOpts = Clientes.opcoes(clients);
   const empOpts = profiles.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
   const _colKeys = (_kanbanCols && _kanbanCols.length) ? _kanbanCols.map(c => c.key) : (SC.kanbanCols || []);
   // Se 'Solicitado' ainda não existir nas colunas, cai na primeira disponível
@@ -626,9 +627,8 @@ async function openTaskModal(id) {
   const podeEditar = SC.hasPermission('editar');
   const _clientes = podeEditar ? await Data.clients() : [];
   const _tClientId = String(t.client_id ?? (t.client && typeof t.client === 'object' ? t.client.id : t.client) ?? '');
-  const clientOpts = `<option value="">— sem cliente —</option>` + _clientes
-    .map(c => `<option value="${c.id}" ${String(c.id) === _tClientId ? 'selected' : ''}>${_escapeHtml(c.name)}</option>`)
-    .join('');
+  const clientOpts = Clientes.opcoes(_clientes,
+    { vazio: '— sem cliente —', selecionado: _tClientId });
 
   const _colKeys2 = (_kanbanCols && _kanbanCols.length) ? _kanbanCols.map(c => c.key) : (SC.kanbanCols || []);
   const stageOpts = _colKeys2.map(s => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${s}</option>`).join('');

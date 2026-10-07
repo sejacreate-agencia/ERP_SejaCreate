@@ -120,8 +120,7 @@ function renderAvisos() {
         <option value="baixa">Baixa</option>
       </select>
       <select class="filter-select" id="aviso-client-filter" onchange="filterAvisos()">
-        <option value="">Todos os clientes</option>
-        ${SC.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+        ${Clientes.opcoes(SC.clients, { vazio: 'Todos os clientes' })}
       </select>
     </div>
 

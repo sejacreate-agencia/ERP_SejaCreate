@@ -213,7 +213,7 @@ async function saveMarkPaid(type, id) {
 
 function openNewLancModal(defaultType = 'receivable') {
   const isPay = defaultType === 'payable';
-  const clientOpts = SC.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const clientOpts = Clientes.opcoes(SC.clients);
   const contaOpts  = SC.planoDeContas.filter(c=>c.ativo)
     .map(c => `<option value="${c.id}">${c.codigo} — ${c.nome}</option>`).join('');
   const hoje = new Date().toISOString().slice(0,10);
@@ -414,7 +414,7 @@ function openEditLancModal(type, id) {
   const contaOpts = SC.planoDeContas.filter(c=>c.ativo)
     .map(c => `<option value="${c.id}" ${String(c.id)===String(item.conta_id)?'selected':''}>${c.codigo} — ${c.nome}</option>`).join('');
   const clientOpts = type === 'receivable'
-    ? SC.clients.map(c=>`<option value="${c.id}" ${String(c.id)===String(item.client_id||item.client)?'selected':''}>${c.name}</option>`).join('')
+    ? Clientes.opcoes(SC.clients, { selecionado: item.client_id || item.client })
     : '';
   const dueDate  = (item.due_date||item.due||'').split('T')[0];
   const paidDate = (item.paid_date||(item.paid_at||'').slice(0,10)||'');
@@ -583,7 +583,7 @@ async function saveEditLanc(type, id) {
 // ── NOVO RECEBIMENTO ─────────────────────────────────────────────────────────
 
 function openNewRecebimentoModal() {
-  const clientOpts = SC.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const clientOpts = Clientes.opcoes(SC.clients);
   const hoje       = new Date().toISOString().slice(0, 10);
 
   openModal(`
