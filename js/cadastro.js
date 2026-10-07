@@ -322,9 +322,40 @@ function switchClientTab(n) {
   });
 }
 
-function toggleClientStatus(id) {
+// Ativar/inativar cliente pelo botão da lista.
+//
+// Esta função só mexia em SC.clients — memória do navegador — e ainda assim
+// mostrava "Status atualizado!". O selo virava "Inativo" na tela, a pessoa
+// acreditava que estava salvo, e o banco continuava com 'ativo'. Foi assim que
+// um cliente marcado como inativo continuou aparecendo nos seletores: o filtro
+// estava certo, o dado é que nunca mudou.
+//
+// Falha silenciosa que confirma sucesso é pior que erro visível.
+async function toggleClientStatus(id) {
   const c = SC.clients.find(x => String(x.id) === String(id));
-  if (c) { c.status = c.status === 'ativo' ? 'inativo' : 'ativo'; renderCadastro('clientes'); showToast('Status atualizado!'); }
+  if (!c) return;
+
+  const anterior = c.status === 'inativo' ? 'inativo' : 'ativo';
+  const novo = anterior === 'ativo' ? 'inativo' : 'ativo';
+
+  // Pinta antes para a lista responder na hora, e desfaz se o banco recusar.
+  c.status = novo;
+  renderCadastro('clientes');
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.clients.update(id, { status: novo });
+    if (error) {
+      c.status = anterior;
+      renderCadastro('clientes');
+      showToast(`Não foi possível alterar o status: ${error.message}`, 'error');
+      return;
+    }
+    if (typeof logActivity === 'function') {
+      logActivity('client.status_changed', 'client', id, { de: anterior, para: novo });
+    }
+  }
+
+  showToast(novo === 'ativo' ? 'Cliente reativado.' : 'Cliente inativado.', 'success');
 }
 
 function openNewCadastroModal() {
