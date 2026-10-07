@@ -491,48 +491,19 @@ async function saveNewClient() {
   }
 }
 
-function openFuncModal(id) {
-  const e = id ? SC.employees.find(x => x.id === id) : null;
-  const roleOpts = Object.entries(SC.roleLabels).map(([k,v]) => `<option value="${k}" ${e && e.role === k ? 'selected' : ''}>${v}</option>`).join('');
-  openModal(`
-    <div class="modal-header">
-      <span class="modal-title"><i class="fas fa-user" style="color:var(--purple-light);margin-right:8px"></i>${e ? 'Editar Funcionário' : 'Novo Funcionário'}</span>
-      <button class="modal-close" data-action="close-modal"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="form-col"><label>Nome *</label><input class="input-field" id="nf-name" value="${e ? e.name : ''}" /></div>
-        <div class="form-col"><label>Cargo *</label><input class="input-field" id="nf-cargo" value="${e ? e.cargo : ''}" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-col"><label>E-mail</label><input class="input-field" id="nf-email" type="email" value="${e ? e.email : ''}" /></div>
-        <div class="form-col"><label>Telefone</label><input class="input-field" id="nf-phone" value="${e ? e.phone : ''}" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-col"><label>Perfil de Acesso</label><select class="select-field" id="nf-role">${roleOpts}</select></div>
-        <div class="form-col"><label>Status</label>
-          <select class="select-field" id="nf-status"><option value="ativo" ${!e||e.status==='ativo'?'selected':''}>Ativo</option><option value="inativo" ${e&&e.status==='inativo'?'selected':''}>Inativo</option></select>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="save-funcionario" data-id="${id||0}"><i class="fas fa-save"></i> Salvar</button>
-    </div>
-  `);
-}
-
-function saveFuncionario(id) {
-  const name = document.getElementById('nf-name').value;
-  if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
-  if (id) {
-    const e = SC.employees.find(x => x.id === id);
-    if (e) { e.name = name; e.cargo = document.getElementById('nf-cargo').value; e.email = document.getElementById('nf-email').value; e.phone = document.getElementById('nf-phone').value; e.role = document.getElementById('nf-role').value; e.status = document.getElementById('nf-status').value; }
-  } else {
-    SC.employees.push({ id: SC.employees.length + 1, name, cargo: document.getElementById('nf-cargo').value, email: document.getElementById('nf-email').value, phone: document.getElementById('nf-phone').value, role: document.getElementById('nf-role').value, status: document.getElementById('nf-status').value });
-  }
-  closeModal(); showToast('Funcionário salvo!'); renderCadastro('funcionarios');
-}
+// ─── FUNCIONÁRIOS ─────────────────────────────────────────────────────────────
+// openFuncModal e saveFuncionario viviam AQUI e eram código morto perigoso.
+//
+// configuracoes.js declara outra openFuncModal e carrega depois (index.html:306
+// vs :328), então a dele sobrescrevia esta — e é a dela que abre, com
+// data-action="save-func-modal", que cria o usuário no Auth de verdade.
+//
+// A versão daqui só mexia em SC.employees e dizia "Funcionário salvo!". Estava
+// inalcançável, mas uma reordenação dos <script> a traria de volta e a criação
+// de usuário passaria a falhar em silêncio. Removida.
+//
+// A aba Funcionários do Cadastro continua funcionando: o botão chama
+// openFuncModal, que resolve para a de configuracoes.js.
 
 function openNewSupplierModal() {
   openModal(`

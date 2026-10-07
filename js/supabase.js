@@ -1050,7 +1050,7 @@ async function hydrateFromSupabase() {
   if (!isSupabaseReady()) return;
 
   try {
-    const [clients, profiles, tasks, leads, receivables, payables, suppliers] = await Promise.all([
+    const [clients, profiles, tasks, leads, receivables, payables, suppliers, teams] = await Promise.all([
       SB.list('clients', { order: { col: 'name', asc: true } }),
       SB.list('profiles', { order: { col: 'full_name', asc: true } }),
       SB.list('tasks', {
@@ -1067,6 +1067,10 @@ async function hydrateFromSupabase() {
       }),
       SB.list('financial_payables', { order: { col: 'due_date', asc: true } }),
       SB.list('suppliers', { order: { col: 'name', asc: true } }),
+      SB.list('teams', {
+        select: '*, team_members(profile_id)',
+        order: { col: 'name', asc: true },
+      }),
     ]);
 
     // Clientes
@@ -1147,6 +1151,14 @@ async function hydrateFromSupabase() {
       id: f.id, name: f.name,
       contact: f.contact_name || '', phone: f.phone || '', email: f.email || '',
       service: f.service_type || '', status: f.status || 'ativo',
+    }));
+
+    // Equipes. A tabela usa `description`; a tela usa `desc`. Os membros vem do
+    // embed de team_members. Sem esta projecao, SC.equipes ficava com o mock de
+    // data.js e qualquer equipe criada sumia no recarregamento.
+    SC.equipes = (teams.data || []).map(t => ({
+      id: t.id, name: t.name, desc: t.description || '', color: t.color || 'purple',
+      members: (t.team_members || []).map(m => m.profile_id),
     }));
 
     // Limpa demo data

@@ -35,6 +35,10 @@ function renderFinPlanoDeContas() {
       </tr>`).join('');
 
     return `
+    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
+      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
+      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
+    </div>
       <tr style="background:rgba(255,255,255,0.03)">
         <td colspan="5" style="padding:8px 12px;font-size:11px;font-weight:700;
           color:var(--text-secondary);letter-spacing:.06em;text-transform:uppercase">

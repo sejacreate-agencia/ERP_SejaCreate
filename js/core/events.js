@@ -97,7 +97,6 @@ const Actions = {
   'open-func-modal':      el  => openFuncModal(el.dataset.id || null),
   'switch-client-tab':    el  => switchClientTab(parseInt(el.dataset.tab)),
   'save-new-client':      ()  => saveNewClient(),
-  'save-funcionario':     el  => saveFuncionario(el.dataset.id ? parseInt(el.dataset.id) : 0),
   'save-new-supplier':    ()  => saveNewSupplier(),
   'open-edit-supplier':   el  => openEditSupplierModal(el.dataset.id),
   'save-edit-supplier':   el  => saveEditSupplier(el.dataset.id),
