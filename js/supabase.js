@@ -862,6 +862,13 @@ const SCAdapter = {
     }));
   },
 
+  suppliers() {
+    return SC.suppliers.map(f => ({
+      id: f.id, name: f.name, contact_name: f.contact || '', phone: f.phone || '',
+      email: f.email || '', service_type: f.service || '', status: f.status || 'ativo',
+    }));
+  },
+
   receivables() {
     return SC.finances.receivable.map(r => ({
       id: r.id,
@@ -1043,7 +1050,7 @@ async function hydrateFromSupabase() {
   if (!isSupabaseReady()) return;
 
   try {
-    const [clients, profiles, tasks, leads, receivables, payables] = await Promise.all([
+    const [clients, profiles, tasks, leads, receivables, payables, suppliers] = await Promise.all([
       SB.list('clients', { order: { col: 'name', asc: true } }),
       SB.list('profiles', { order: { col: 'full_name', asc: true } }),
       SB.list('tasks', {
@@ -1059,6 +1066,7 @@ async function hydrateFromSupabase() {
         order: { col: 'due_date', asc: true }
       }),
       SB.list('financial_payables', { order: { col: 'due_date', asc: true } }),
+      SB.list('suppliers', { order: { col: 'name', asc: true } }),
     ]);
 
     // Clientes
@@ -1130,8 +1138,18 @@ async function hydrateFromSupabase() {
       provisao_total: p.provisao_total || null,
     }));
 
+    // Fornecedores. A tabela usa contact_name/service_type; a tela usa
+    // contact/service — o de/para vive aqui e em _supplierParaBanco().
+    // Antes esta linha era `SC.suppliers = []`, o que deixava a aba Fornecedores
+    // permanentemente vazia em producao: o cadastro so existia em memoria e
+    // sumia no primeiro recarregamento.
+    SC.suppliers = (suppliers.data || []).map(f => ({
+      id: f.id, name: f.name,
+      contact: f.contact_name || '', phone: f.phone || '', email: f.email || '',
+      service: f.service_type || '', status: f.status || 'ativo',
+    }));
+
     // Limpa demo data
-    SC.suppliers = [];
     SC.avisos    = [];
 
     // Recalcula Fluxo de Caixa e DRE a partir dos dados reais

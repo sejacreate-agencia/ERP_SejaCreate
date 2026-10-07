@@ -226,16 +226,28 @@ function openEditSupplierModal(id) {
   `);
 }
 
-function saveEditSupplier(id) {
+async function saveEditSupplier(id) {
   const s = SC.suppliers.find(x => String(x.id) === String(id));
   if (!s) return;
   const name = document.getElementById('es-name').value.trim();
   if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
-  s.name    = name;
-  s.contact = document.getElementById('es-contact').value;
-  s.phone   = document.getElementById('es-phone').value;
-  s.service = document.getElementById('es-service').value;
-  s.status  = document.getElementById('es-status').value;
+
+  const atualizado = {
+    name,
+    contact: document.getElementById('es-contact').value.trim(),
+    phone:   document.getElementById('es-phone').value.trim(),
+    service: document.getElementById('es-service').value.trim(),
+    status:  document.getElementById('es-status').value,
+  };
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.suppliers.update(id, _supplierParaBanco(atualizado));
+    if (error) { showToast(`Não foi possível salvar: ${error.message}`, 'error'); return; }
+    if (typeof logActivity === 'function') logActivity('supplier.updated', 'supplier', id, { name });
+  }
+
+  // Só espelha em memória depois que o banco aceitou.
+  Object.assign(s, atualizado);
   closeModal(); showToast('Fornecedor atualizado!'); renderCadastro('fornecedores');
 }
 
@@ -547,10 +559,45 @@ function openNewSupplierModal() {
   `);
 }
 
-function saveNewSupplier() {
-  const name = document.getElementById('ns-name').value;
+// A tela usa {contact, service}; a tabela usa {contact_name, service_type}.
+// O de/para fica nestas duas funções e na projeção de hydrateFromSupabase.
+function _supplierParaBanco(f) {
+  return {
+    name: f.name,
+    contact_name: f.contact || null,
+    phone: f.phone || null,
+    service_type: f.service || null,
+    status: f.status || 'ativo',
+  };
+}
+
+// Cadastrar fornecedor só empurrava para SC.suppliers e anunciava
+// "Fornecedor cadastrado!". Como hydrateFromSupabase zerava a lista, o
+// fornecedor sumia no primeiro recarregamento — e nada na tela avisava.
+async function saveNewSupplier() {
+  const name = document.getElementById('ns-name').value.trim();
   if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
-  SC.suppliers.push({ id: SC.suppliers.length + 1, name, contact: document.getElementById('ns-contact').value, phone: document.getElementById('ns-phone').value, service: document.getElementById('ns-service').value, status: 'ativo' });
+
+  const novo = {
+    name,
+    contact: document.getElementById('ns-contact').value.trim(),
+    phone:   document.getElementById('ns-phone').value.trim(),
+    service: document.getElementById('ns-service').value.trim(),
+    status:  'ativo',
+  };
+
+  if (isSupabaseReady()) {
+    const { data, error } = await DB.suppliers.create(_supplierParaBanco(novo));
+    if (error) { showToast(`Não foi possível salvar: ${error.message}`, 'error'); return; }
+    // O id vem do banco (UUID), não de SC.suppliers.length + 1 — aquele
+    // contador colidia assim que um fornecedor fosse removido.
+    novo.id = data.id;
+    if (typeof logActivity === 'function') logActivity('supplier.created', 'supplier', data.id, { name });
+  } else {
+    novo.id = SC.suppliers.length + 1;
+  }
+
+  SC.suppliers.push(novo);
   closeModal(); showToast('Fornecedor cadastrado!'); renderCadastro('fornecedores');
 }
 
