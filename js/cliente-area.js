@@ -491,13 +491,27 @@ function openClientContentModal(tid) {
   `, 'modal-lg');
 }
 
-function addClientComment(tid) {
+// Comentario do cliente no card.
+//
+// Antes isto so empurrava para t.comments em memoria e dizia "Comentario
+// enviado!". O cliente escrevia, via a confirmacao, e a agencia nunca recebia:
+// nada chegava a task_comments. De todos os bugs desta familia, era o mais
+// caro — comunicacao com cliente perdida sem deixar rastro.
+async function addClientComment(tid) {
   const inp = document.getElementById(`modal-comment-input-${tid}`);
   const text = inp.value.trim();
   if (!text) return;
-  const t = SC.tasks.find(x => x.id === tid);
+  const t = SC.tasks.find(x => String(x.id) === String(tid));
   const u = SC.currentUser;
   if (t) {
+    if (isSupabaseReady()) {
+      const autor = (typeof SB !== 'undefined' && SB.profile?.id) || null;
+      const { error } = await DB.taskComments.add(tid, autor, text);
+      if (error) {
+        showToast(`Não foi possível enviar: ${error.message}`, 'error');
+        return;   // o texto fica no campo para a pessoa tentar de novo
+      }
+    }
     const today = new Date().toISOString().split('T')[0];
     t.comments.push({ user: u.id, text, date: today });
     inp.value = '';

@@ -526,53 +526,91 @@ function openEquipeModal(id) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="save-equipe" data-id="${id}">
+      <button class="btn btn-primary" id="btn-save-equipe" data-action="save-equipe" data-id="${id}">
         <i class="fas fa-save"></i> ${isNew ? 'Criar Equipe' : 'Salvar'}
       </button>
     </div>
   `);
 }
 
-function saveEquipe(id) {
+// Equipes. As tabelas teams e team_members existem desde o schema original e
+// DB.teams ja tinha CRUD; nada chamava. Criar equipe so empurrava para
+// SC.equipes e anunciava sucesso — sumia no recarregamento.
+//
+// O parseInt nos ids dos membros era um segundo defeito esperando: profiles.id
+// e UUID, entao viraria NaN assim que isto gravasse de verdade.
+async function saveEquipe(id) {
   const name = document.getElementById('eq-name').value.trim();
   if (!name) { showToast('Nome da equipe é obrigatório!', 'error'); return; }
 
   const members = [...document.querySelectorAll('#eq-members-list input[type=checkbox]:checked')]
-    .map(cb => parseInt(cb.value));
+    .map(cb => cb.value);          // UUID — nunca parseInt
 
-  const btn = event.target;
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+  const btn = document.getElementById('btn-save-equipe');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+  const soltar = () => { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar'; } };
 
-  setTimeout(() => {
-    const data = {
-      name,
-      desc:    document.getElementById('eq-desc').value.trim(),
-      color:   document.getElementById('eq-color').value,
-      members,
-    };
+  const dados = {
+    name,
+    desc:  document.getElementById('eq-desc').value.trim(),
+    color: document.getElementById('eq-color').value,
+    members,
+  };
+
+  if (isSupabaseReady()) {
+    const paraBanco = { name: dados.name, description: dados.desc, color: dados.color };
+    let teamId = id;
 
     if (id === null) {
-      SC.equipes.push({ id: Date.now(), ...data });
-      showToast(`✅ Equipe "${name}" criada!`, 'success');
+      const { data, error } = await DB.teams.create(paraBanco);
+      if (error) { showToast(`Não foi possível salvar: ${error.message}`, 'error'); soltar(); return; }
+      teamId = data.id;
     } else {
-      const eq = SC.equipes.find(e => e.id === id);
-      if (eq) Object.assign(eq, data);
-      showToast(`✅ Equipe "${name}" atualizada!`, 'success');
+      const { error } = await DB.teams.update(id, paraBanco);
+      if (error) { showToast(`Não foi possível salvar: ${error.message}`, 'error'); soltar(); return; }
     }
-    closeModal();
-    switchConfigSection('equipes');
-  }, 400);
+
+    // Sincroniza os membros pela diferenca, em vez de apagar e reinserir:
+    // team_members tem UNIQUE(team_id, profile_id), e recriar tudo a cada
+    // gravacao geraria conflito em quem ja estava na equipe.
+    const atuais = (SC.equipes.find(e => String(e.id) === String(teamId))?.members || []).map(String);
+    const novos  = members.map(String);
+    for (const m of novos.filter(m => !atuais.includes(m))) await DB.teams.addMember(teamId, m);
+    for (const m of atuais.filter(m => !novos.includes(m))) await DB.teams.removeMember(teamId, m);
+
+    await logActivity(id === null ? 'team.created' : 'team.updated', 'team', teamId, { name });
+    dados.id = teamId;
+  } else {
+    dados.id = id ?? Date.now();
+  }
+
+  if (id === null) {
+    SC.equipes.push(dados);
+    showToast(`✅ Equipe "${name}" criada!`, 'success');
+  } else {
+    const eq = SC.equipes.find(e => String(e.id) === String(id));
+    if (eq) Object.assign(eq, dados);
+    showToast(`✅ Equipe "${name}" atualizada!`, 'success');
+  }
+  closeModal();
+  switchConfigSection('equipes');
 }
 
-function deleteEquipe(id) {
-  const eq = SC.equipes.find(e => e.id === id);
+async function deleteEquipe(id) {
+  const eq = SC.equipes.find(e => String(e.id) === String(id));
   if (!eq) return;
-  if (confirm(`Excluir a equipe "${eq.name}"?`)) {
-    SC.equipes = SC.equipes.filter(e => e.id !== id);
-    showToast(`Equipe "${eq.name}" excluída.`, 'error');
-    switchConfigSection('equipes');
+  if (!confirm(`Excluir a equipe "${eq.name}"?`)) return;
+
+  if (isSupabaseReady()) {
+    // team_members tem ON DELETE CASCADE para teams: os vinculos vao junto.
+    const { error } = await DB.teams.remove(id);
+    if (error) { showToast(`Não foi possível excluir: ${error.message}`, 'error'); return; }
+    await logActivity('team.deleted', 'team', id, { name: eq.name });
   }
+
+  SC.equipes = SC.equipes.filter(e => String(e.id) !== String(id));
+  showToast(`Equipe "${eq.name}" excluída.`, 'success');
+  switchConfigSection('equipes');
 }
 
 /* ─── PERFIS DE ACESSO ──────────────────── */
@@ -711,7 +749,9 @@ function savePerfilPerms(role) {
   if (SC.currentUser?.role === role) applyPermissions(role);
 
   closeModal();
-  showToast(`✅ Permissões do perfil "${SC.roleLabels[role]}" salvas!`, 'success');
+  // Nao ha onde gravar a matriz por perfil: ela mora em js/data.js e volta ao
+  // default a cada recarregamento. Dizer "salvas!" era falso.
+  showToast(`Permissões de "${SC.roleLabels[role]}" aplicadas nesta sessão — voltam ao padrão ao recarregar.`, 'info');
   switchConfigSection('perfis');
 }
 
@@ -778,7 +818,7 @@ function savePermissoes() {
       SC.permissoes[role][action] = cb.checked ? 1 : 0;
     }
   });
-  showToast('✅ Permissões salvas com sucesso!', 'success');
+  showToast('Permissões aplicadas nesta sessão — voltam ao padrão ao recarregar.', 'info');
   setTimeout(() => switchConfigSection('permissoes'), 600);
 }
 
@@ -786,6 +826,10 @@ function savePermissoes() {
 
 function renderConfigFunil() {
   return `
+    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
+      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
+      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
+    </div>
     <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Etapas do Funil de Produção</h3>
       <button class="btn btn-primary" data-action="open-funil-stage-modal">
@@ -864,6 +908,10 @@ function deleteFunilStage(idx) {
 
 function renderConfigTipos() {
   return `
+    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
+      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
+      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
+    </div>
     <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Tipos de Conteúdo</h3>
       <button class="btn btn-primary" data-action="open-tipo-modal">
@@ -935,6 +983,10 @@ function deleteTipo(idx) {
 
 function renderConfigServicos() {
   return `
+    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
+      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
+      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
+    </div>
     <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Serviços Oferecidos</h3>
       <button class="btn btn-primary" data-action="open-servico-modal">

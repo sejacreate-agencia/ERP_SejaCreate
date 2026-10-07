@@ -326,38 +326,71 @@ function showNewTaskModal() {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="save-new-task"><i class="fas fa-save"></i> Criar Tarefa</button>
+      <button class="btn btn-primary" id="btn-save-new-task" data-action="save-new-task"><i class="fas fa-save"></i> Criar Tarefa</button>
     </div>
   `);
 }
 
-function saveNewTask() {
+// "Nova Tarefa" do dashboard.
+//
+// Esta funcao criava o card SOMENTE em SC.tasks, com id de Date.now(), e
+// anunciava "Tarefa criada com sucesso!". Como SC.tasks e recarregado do banco
+// a cada hidratacao, a tarefa sumia no recarregamento seguinte.
+//
+// Tinha ainda dois defeitos de tipo que so apareceriam depois: parseInt sobre
+// client e assignee, que sao UUID no Supabase e virariam NaN; e status 'Pauta',
+// que nao e uma das colunas configuradas do kanban.
+//
+// Agora grava como a tela de Tarefas grava, pelo mesmo DB.tasks.create.
+async function saveNewTask() {
   const title = document.getElementById('nt-title').value.trim();
   if (!title) { showToast('Informe o título da tarefa', 'error'); return; }
 
-  const btn = event.target;
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+  const btn = document.getElementById('btn-save-new-task');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...'; }
+  const soltar = () => { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Criar Tarefa'; } };
 
-  setTimeout(() => {
-    const newTask = {
-      id: Date.now(),
-      title,
-      client: parseInt(document.getElementById('nt-client').value),
-      assignee: parseInt(document.getElementById('nt-assignee').value),
+  const quando = document.getElementById('nt-date').value || null;
+  // A primeira coluna configurada do kanban, nao um literal: 'Pauta' podia nem
+  // existir no quadro desta agencia.
+  const primeiraEtapa = (typeof _kanbanCols !== 'undefined' && _kanbanCols?.[0]?.key)
+    || SC.kanbanCols?.[0] || 'Solicitado';
+
+  const payload = {
+    title,
+    text:        document.getElementById('nt-text').value || '',
+    client_id:   document.getElementById('nt-client').value || null,
+    assignee_id: document.getElementById('nt-assignee').value || null,
+    post_date:   quando,
+    deadline:    quando,
+    status:      primeiraEtapa,
+    priority:    document.getElementById('nt-priority').value,
+    requester_id: (typeof SB !== 'undefined' && SB.profile?.id) || null,
+    origin: 'solicitacao',
+  };
+
+  if (isSupabaseReady()) {
+    const { data, error } = await DB.tasks.create(payload);
+    if (error) { showToast(`Não foi possível criar a tarefa: ${error.message}`, 'error'); soltar(); return; }
+    await logActivity('task.created', 'task', data.id, { title, origem: 'dashboard' });
+    // Recarrega do banco em vez de empurrar um objeto montado a mao: o shape
+    // de SC.tasks vem da projecao da hidratacao, e divergir dele foi o que
+    // criou este bug.
+    await hydrateFromSupabase();
+  } else {
+    SC.tasks.unshift({
+      id: Date.now(), title, text: payload.text,
+      client: payload.client_id, client_id: payload.client_id,
+      assignee: payload.assignee_id, assignee_id: payload.assignee_id,
       created: new Date().toISOString().split('T')[0],
-      postDate: document.getElementById('nt-date').value || null,
-      status: 'Pauta',
-      priority: document.getElementById('nt-priority').value,
-      text: document.getElementById('nt-text').value || '',
-      checklist: [],
-      comments: [],
-    };
-    SC.tasks.unshift(newTask);
-    closeModal();
-    showToast('✅ Tarefa criada com sucesso!');
-    renderDashboard();
-  }, 400);
+      postDate: quando, status: primeiraEtapa,
+      priority: payload.priority, checklist: [], comments: [],
+    });
+  }
+
+  closeModal();
+  showToast('✅ Tarefa criada com sucesso!');
+  renderDashboard();
 }
 
 Router.register('dashboard', renderDashboard, 'Dashboard');

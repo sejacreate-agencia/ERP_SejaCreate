@@ -236,18 +236,27 @@ function filterAvisos() {
   document.getElementById('avisos-list').innerHTML = renderAvisosList(filtered);
 }
 
+// Tira o aviso da lista ate a proxima renderizacao. Como a lista e recalculada
+// a partir dos dados, ele VOLTA se a pendencia continuar — e isso precisa estar
+// na mensagem, senao parece que o sistema esqueceu o que foi resolvido.
 function resolveAviso(id) {
   const idx = SC.avisos.findIndex(a => a.id === id);
   if (idx > -1) {
     SC.avisos.splice(idx, 1);
     document.getElementById('badge-avisos').textContent = SC.avisos.length;
-    showToast('Aviso marcado como resolvido!', 'success');
+    showToast('Aviso ocultado. Volta a aparecer enquanto a pendência existir.', 'info');
     filterAvisos();
   }
 }
 
+// Os avisos sao DERIVADOS dos dados (generateAvisosFromData), nao armazenados:
+// nao existe tabela de avisos nem campo de adiamento. Esta funcao so dizia
+// "Aviso adiado para amanha" e nao adiava nada — o aviso reaparecia na proxima
+// renderizacao, como se o clique nao tivesse acontecido.
+//
+// Ate existir onde guardar o adiamento, a mensagem diz a verdade.
 function snoozeAviso(id) {
-  showToast('Aviso adiado para amanhã.', 'info');
+  showToast('Adiar ainda não está disponível — o aviso some quando a pendência for resolvida.', 'info');
 }
 
 Router.register('avisos', renderAvisos, 'Avisos Importantes');
