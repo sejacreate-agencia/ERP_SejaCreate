@@ -7,7 +7,7 @@ let calDate = new Date();
 let calFilters = { client: '', assignee: '', status: '' };
 
 function renderCalendario() {
-  const clientOpts = `<option value="">Todos os clientes</option>${SC.clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}`;
+  const clientOpts = Clientes.opcoes(SC.clients, { vazio: 'Todos os clientes' });
   const empOpts = `<option value="">Todos</option>${SC.employees.map(e=>`<option value="${e.id}">${e.name.split(' ')[0]}</option>`).join('')}`;
   const statusOpts = `<option value="">Todos os status</option>${SC.kanbanCols.map(s=>`<option value="${s}">${s}</option>`).join('')}`;
 
@@ -37,6 +37,7 @@ function renderCalendario() {
       <button class="btn btn-ghost btn-sm" data-action="change-month" data-dir="1"><i class="fas fa-chevron-right"></i></button>
       <div style="margin-left:10px;display:flex;gap:8px;flex-wrap:wrap">
         <select class="filter-select" id="cal-client" onchange="applyCalFilters()">${clientOpts}</select>
+        ${Clientes.chip(SC.clients)}
         <select class="filter-select" id="cal-assignee" onchange="applyCalFilters()">${empOpts}</select>
         <select class="filter-select" id="cal-status" onchange="applyCalFilters()">${statusOpts}</select>
       </div>

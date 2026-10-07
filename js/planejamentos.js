@@ -58,12 +58,13 @@ async function renderPlanejamentos() {
 function renderPlFilters() {
   const fb = document.getElementById('pl-filters');
   if (!fb) return;
-  const clientOpts = `<option value="">Todas as empresas</option>${_plClients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+  const clientOpts = Clientes.opcoes(_plClients, { vazio: 'Todas as empresas' });
   fb.innerHTML = `
     <button class="btn btn-ghost btn-sm" data-action="pl-change-month" data-dir="-1"><i class="fas fa-chevron-left"></i></button>
     <span id="pl-month-label" style="font-size:15px;font-weight:700;min-width:160px;text-align:center">${PL_MONTHS[plDate.getMonth()]} ${plDate.getFullYear()}</span>
     <button class="btn btn-ghost btn-sm" data-action="pl-change-month" data-dir="1"><i class="fas fa-chevron-right"></i></button>
     <select class="filter-select" id="pl-f-client" onchange="applyPlFilters()">${clientOpts}</select>
+    ${Clientes.chip(_plClients)}
     <select class="filter-select" id="pl-f-prod" onchange="applyPlFilters()">
       <option value="">Produção: todas</option><option>Planejado</option><option>Em Produção</option><option>Produzido</option>
     </select>
@@ -201,7 +202,9 @@ function changePlMonth(dir) {
 // ─── MODAL NOVO/EDITAR ───────────────────────
 function openPlanningModal(id) {
   const p = id ? _plData.find(x => String(x.id) === String(id)) : null;
-  const clientOpts = _plClients.map(c => `<option value="${c.id}" ${p && String(p.client_id) === String(c.id) ? 'selected' : ''}>${c.name}</option>`).join('');
+  // selecionado: ao editar um planejamento de cliente ja desativado, ele
+  // precisa continuar na lista — senao salvar apagaria o vinculo em silencio.
+  const clientOpts = Clientes.opcoes(_plClients, { selecionado: p?.client_id });
   const empOpts = `<option value="">—</option>` + _plProfiles.map(e => `<option value="${e.id}" ${p && String(p.assignee_id) === String(e.id) ? 'selected' : ''}>${e.full_name}</option>`).join('');
   const fmtOpts = PL_FORMATS.map(f => `<option ${p && p.format === f ? 'selected' : ''}>${f}</option>`).join('');
   const chans = p?.channels || [];

@@ -6,15 +6,11 @@ function renderDashboard() {
   const u = SC.currentUser;
   if (!u) return;
 
-  const hasFinanceiro = SC.hasPermission('financeiro');
   const myTasks = SC.getUserTasks(u.id);
   const overdueTasks = SC.tasks.filter(t => SC.isOverdue(t.postDate) && t.status !== 'Publicado');
   const pendingApproval = SC.tasks.filter(t => t.status === 'Enviado ao Cliente' || t.status === 'Aprovação Interna');
   const scheduled = SC.tasks.filter(t => t.status === 'Programado' || t.status === 'Aprovado');
   const done = SC.tasks.filter(t => t.status === 'Publicado');
-  // finSaldoAberto (js/financeiro/index.js) desconta o que já foi pago: sem
-  // isso um título com baixa parcial entra aqui pelo valor cheio.
-  const pending = SC.finances.receivable.filter(r => finSaldoAberto(r) > 0);
   const activeClients = SC.clients.filter(c => c.status === 'ativo').length;
   const inProgress = SC.tasks.filter(t => t.status !== 'Publicado').length;
 
@@ -71,29 +67,15 @@ function renderDashboard() {
     </div>
   `;
 
-  // KPIs financeiros — só para quem tem permissão
-  const finKPIs = hasFinanceiro ? `
-    <div class="kpi-card" data-action="navigate" data-page="financeiro" style="cursor:pointer">
-      <div class="kpi-icon green"><i class="fas fa-dollar-sign"></i></div>
-      <div class="kpi-value" style="font-size:18px">R$ 27.100</div>
-      <div class="kpi-label">Faturamento do Mês</div>
-      <div class="kpi-change up"><i class="fas fa-arrow-up"></i> +14,8% vs fev</div>
-    </div>
-    <div class="kpi-card" data-action="navigate" data-page="financeiro" style="cursor:pointer">
-      <div class="kpi-icon yellow"><i class="fas fa-file-invoice-dollar"></i></div>
-      <div class="kpi-value" style="font-size:18px">${SC.formatCurrency(pending.reduce((a,r)=>a+finSaldoAberto(r),0))}</div>
-      <div class="kpi-label">Contas a Receber</div>
-      <div class="kpi-change down"><i class="fas fa-clock"></i> ${pending.length} faturas</div>
-    </div>
-  ` : '';
+  // Os cards de Faturamento do Mês e Contas a Receber saíram daqui a pedido:
+  // número financeiro no painel de abertura expõe receita para qualquer um que
+  // olhe a tela de lado, e o lugar dele é o módulo Financeiro.
+  // Os dois traziam, ainda por cima, valores de demonstração: "R$ 27.100" e
+  // "+14,8% vs fev" eram literais no código, não vinham do banco.
 
-  // Insights — filtrado por permissão
-  const finInsights = hasFinanceiro ? `
-    <div class="insight-box" style="border-color:var(--danger-subtle)">
-      <span class="insight-icon" style="color:var(--danger)">💸</span>
-      <div class="insight-text"><strong>1 fatura atrasada</strong> <span>— Café Aroma precisa de cobrança</span></div>
-    </div>
-  ` : '';
+  // O insight financeiro era literal — "1 fatura atrasada — Café Aroma precisa
+  // de cobrança" — e Café Aroma é cliente do conjunto de demonstração, não da
+  // agência. Dado inventado num painel é pior que dado ausente.
 
   document.getElementById('page-content').innerHTML = `
     <!-- HEADER -->
@@ -109,16 +91,9 @@ function renderDashboard() {
       </div>
     </div>
 
-    ${!hasFinanceiro ? `
-    <div style="background:var(--warning-subtle);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--warning);display:flex;align-items:center;gap:8px">
-      <i class="fas fa-info-circle"></i>
-      Seu perfil não tem acesso a informações financeiras. Alguns indicadores estão ocultos.
-    </div>` : ''}
-
     <!-- KPIs -->
     <div class="kpi-grid">
       ${commonKPIs}
-      ${finKPIs}
     </div>
 
     <!-- INSIGHTS + MY TASKS -->
@@ -173,7 +148,6 @@ function renderDashboard() {
             <span class="insight-icon" style="color:var(--purple-light)">📅</span>
             <div class="insight-text"><strong>${scheduled.length} posts</strong> <span>estão programados para esta semana</span></div>
           </div>
-          ${finInsights}
         </div>
 
         <!-- WEEK SUMMARY -->
@@ -203,14 +177,6 @@ function renderDashboard() {
               </div>
               <div class="progress-bar"><div class="progress-fill green" style="width:${Math.min(Math.round(done.length/10*100),100)}%"></div></div>
             </div>
-            ${hasFinanceiro ? `
-            <div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                <span style="font-size:12px;color:var(--text-secondary)">Faturamento Previsto</span>
-                <span style="font-size:12px;font-weight:700;color:var(--success)">R$ 27.100</span>
-              </div>
-              <div class="progress-bar"><div class="progress-fill green" style="width:82%"></div></div>
-            </div>` : ''}
           </div>
         </div>
       </div>
@@ -313,7 +279,7 @@ function renderTaskCard(t) {
 }
 
 function showNewTaskModal() {
-  const clientOpts = SC.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const clientOpts = Clientes.opcoes(SC.clients);
   const empOpts = SC.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
   openModal(`
     <div class="modal-header">

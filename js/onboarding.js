@@ -75,12 +75,15 @@ function renderObList() {
   const el = document.getElementById('ob-list');
   if (!el) return;
   const q = _obSearch.toLowerCase();
-  const clients = _obClients.filter(c => !q || (c.name || '').toLowerCase().includes(q));
+  const clients = Clientes.visiveis(_obClients)
+    .filter(c => !q || (c.name || '').toLowerCase().includes(q));
   if (!clients.length) {
     el.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>Nenhum cliente encontrado.</p></div>`;
     return;
   }
-  el.innerHTML = `<div class="grid-auto">${clients.map(buildObCard).join('')}</div>`;
+  const chip = Clientes.chip(_obClients);
+  el.innerHTML = (chip ? `<div style="margin-bottom:12px">${chip}</div>` : '')
+    + `<div class="grid-auto">${clients.map(buildObCard).join('')}</div>`;
 }
 
 function buildObCard(c) {
@@ -569,7 +572,7 @@ function openBriefingImport() {
     return;
   }
   const clientOpts = `<option value="">— Escolher cliente —</option>` +
-    _obClients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    Clientes.opcoes(_obClients);
 
   openModal(`
     <div class="modal-header">

@@ -159,9 +159,8 @@ function openFuncModal(id) {
   const isNew = !e;
   const roleOpts = Object.entries(SC.roleLabels).map(([k,v]) =>
     `<option value="${k}" ${e?.role===k?'selected':''}>${v}</option>`).join('');
-  const clientOpts = `<option value="">— Selecione o cliente —</option>` +
-    SC.clients.map(c =>
-      `<option value="${c.id}" ${String(c.id)===String(e?.client_id)?'selected':''}>${c.name}</option>`).join('');
+  const clientOpts = Clientes.opcoes(SC.clients,
+    { vazio: '— Selecione o cliente —', selecionado: e?.client_id });
 
   openModal(`
     <div class="modal-header">
