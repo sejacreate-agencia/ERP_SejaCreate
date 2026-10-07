@@ -730,7 +730,7 @@ function openPerfilModal(role) {
   `);
 }
 
-function savePerfilPerms(role) {
+async function savePerfilPerms(role) {
   const permKeys = ['visualizar','criar','editar','comentar','aprovar','programar','publicar','financeiro','relatorios'];
   permKeys.forEach(key => {
     const cb = document.getElementById(`perm-${key}`);
@@ -749,9 +749,7 @@ function savePerfilPerms(role) {
   if (SC.currentUser?.role === role) applyPermissions(role);
 
   closeModal();
-  // Nao ha onde gravar a matriz por perfil: ela mora em js/data.js e volta ao
-  // default a cada recarregamento. Dizer "salvas!" era falso.
-  showToast(`Permissões de "${SC.roleLabels[role]}" aplicadas nesta sessão — voltam ao padrão ao recarregar.`, 'info');
+  await _persistirPermissoes(role);
   switchConfigSection('perfis');
 }
 
@@ -809,7 +807,7 @@ function renderConfigPermissoes() {
     </div>`;
 }
 
-function savePermissoes() {
+async function savePermissoes() {
   const checkboxes = document.querySelectorAll('.perm-checkbox');
   checkboxes.forEach(cb => {
     const role = cb.dataset.role;
@@ -818,18 +816,37 @@ function savePermissoes() {
       SC.permissoes[role][action] = cb.checked ? 1 : 0;
     }
   });
-  showToast('Permissões aplicadas nesta sessão — voltam ao padrão ao recarregar.', 'info');
+  // A grade edita varios perfis de uma vez: grava cada um que apareceu.
+  const papeis = [...new Set([...checkboxes].map(cb => cb.dataset.role))];
+  for (const r of papeis) await _persistirPermissoes(r, true);
+  showToast('✅ Permissões salvas!', 'success');
   setTimeout(() => switchConfigSection('permissoes'), 600);
+}
+
+// Grava a matriz do perfil em role_permissions (migration 028).
+//
+// IMPORTANTE, e o comentario tem que sobreviver a refatoracoes: isto controla
+// o que o FRONT mostra. A barreira real e a RLS, escrita por papel em cada
+// policy do banco. Desmarcar "financeiro" aqui esconde o menu; nao impede
+// ninguem de ler financial_receivables pela API.
+async function _persistirPermissoes(role, silencioso = false) {
+  if (!isSupabaseReady()) {
+    if (!silencioso) showToast('Aplicado nesta sessão — sem Supabase não há onde gravar.', 'info');
+    return;
+  }
+  const { error } = await DB.rolePermissions.salvar(
+    role, SC.permissoes[role] || {}, SC.modulePermissions?.[role] || {},
+    (typeof SB !== 'undefined' && SB.profile?.id) || null,
+  );
+  if (error) { showToast(`Não foi possível salvar: ${error.message}`, 'error'); return; }
+  await logActivity('permissions.updated', 'role', role, { acoes: SC.permissoes[role] });
+  if (!silencioso) showToast(`✅ Permissões de "${SC.roleLabels[role]}" salvas!`, 'success');
 }
 
 /* ─── FUNIL (ETAPAS KANBAN) ──────────────── */
 
 function renderConfigFunil() {
   return `
-    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
-      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
-      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
-    </div>
     <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Etapas do Funil de Produção</h3>
       <button class="btn btn-primary" data-action="open-funil-stage-modal">
@@ -880,38 +897,83 @@ function openFunilStageModal(idx) {
   `);
 }
 
-function saveFunilStage(idx) {
+// kanban_columns e tabela desde a migration 008 e DB.kanbanColumns ja tinha
+// CRUD; so esta tela nunca chamou. SC.kanbanCols e um array de strings (as
+// chaves das colunas), entao a traducao posicao -> linha vai pelo `key`.
+async function _colunaPorChave(chave) {
+  const { data } = await DB.kanbanColumns.list();
+  return (data || []).find(c => c.key === chave) || null;
+}
+
+async function saveFunilStage(idx) {
   const name = document.getElementById('funil-name').value.trim();
   if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
-  if (idx === null) {
-    SC.kanbanCols.push(name);
-    showToast(`✅ Etapa "${name}" adicionada!`, 'success');
-  } else {
+  const anterior = idx === null ? null : SC.kanbanCols[idx];
+
+  if (isSupabaseReady()) {
+    if (idx === null) {
+      const { error } = await DB.kanbanColumns.create({
+        key: name, label: name, position: SC.kanbanCols.length, is_active: true,
+      });
+      if (error) {
+        const dup = /duplicate key|unique/i.test(error.message);
+        showToast(dup ? `Já existe uma etapa "${name}".` : `Não foi possível salvar: ${error.message}`, 'error');
+        return;
+      }
+    } else {
+      const col = await _colunaPorChave(anterior);
+      if (col) {
+        const { error } = await DB.kanbanColumns.update(col.id, { key: name, label: name });
+        if (error) { showToast(`Não foi possível salvar: ${error.message}`, 'error'); return; }
+        // Os cards guardam o NOME da etapa em tasks.status, nao um id. Renomear
+        // a coluna sem mover os cards os deixaria numa etapa inexistente.
+        if (typeof supabaseClient !== 'undefined') {
+          await supabaseClient.from('tasks').update({ status: name }).eq('status', anterior);
+        }
+      }
+    }
+  }
+
+  if (idx === null) { SC.kanbanCols.push(name); showToast(`✅ Etapa "${name}" adicionada!`, 'success'); }
+  else {
     SC.kanbanCols[idx] = name;
+    SC.tasks.forEach(t => { if (t.status === anterior) t.status = name; });
     showToast(`✅ Etapa atualizada para "${name}"!`, 'success');
   }
   closeModal();
   switchConfigSection('funil');
 }
 
-function deleteFunilStage(idx) {
+async function deleteFunilStage(idx) {
   const name = SC.kanbanCols[idx];
-  if (confirm(`Remover a etapa "${name}"? Cards nessa etapa serão movidos para "Pauta".`)) {
-    SC.tasks.forEach(t => { if (t.status === name) t.status = 'Pauta'; });
-    SC.kanbanCols.splice(idx, 1);
-    showToast(`Etapa "${name}" removida.`, 'error');
-    switchConfigSection('funil');
+  // Destino era 'Pauta' fixo, que pode nem existir no quadro desta agencia.
+  const destino = SC.kanbanCols.find((c, i) => i !== idx) || name;
+  if (SC.kanbanCols.length <= 1) { showToast('O quadro precisa de pelo menos uma etapa.', 'error'); return; }
+  if (!confirm(`Remover a etapa "${name}"? Os cards nela vão para "${destino}".`)) return;
+
+  if (isSupabaseReady()) {
+    const col = await _colunaPorChave(name);
+    if (col) {
+      // Move os cards ANTES de apagar a coluna: se a remocao desse certo e o
+      // move falhasse, os cards ficariam numa etapa que nao existe mais.
+      const { error: eMove } = await supabaseClient.from('tasks')
+        .update({ status: destino }).eq('status', name);
+      if (eMove) { showToast(`Não foi possível mover os cards: ${eMove.message}`, 'error'); return; }
+      const { error } = await DB.kanbanColumns.remove(col.id);
+      if (error) { showToast(`Não foi possível remover: ${error.message}`, 'error'); return; }
+    }
   }
+
+  SC.tasks.forEach(t => { if (t.status === name) t.status = destino; });
+  SC.kanbanCols.splice(idx, 1);
+  showToast(`Etapa "${name}" removida.`, 'success');
+  switchConfigSection('funil');
 }
 
 /* ─── TIPOS DE CONTEÚDO ──────────────────── */
 
 function renderConfigTipos() {
   return `
-    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
-      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
-      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
-    </div>
     <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Tipos de Conteúdo</h3>
       <button class="btn btn-primary" data-action="open-tipo-modal">
@@ -956,37 +1018,56 @@ function openTipoModal(idx) {
   `);
 }
 
-function saveTipo(idx) {
+// A tela trabalha com indices de um array de strings; a tabela tem UUID.
+// _idDaLista traduz posicao -> id consultando o banco pelo nome, que e UNIQUE.
+// Alternativa seria a tela guardar os ids, o que mudaria a renderizacao inteira.
+async function _idDaLista(acessor, nome) {
+  const { data } = await acessor.list();
+  return (data || []).find(x => x.nome === nome)?.id || null;
+}
+
+async function saveTipo(idx) {
   const name = document.getElementById('tipo-name').value.trim();
   if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
-  if (idx === null) {
-    SC.tiposConteudo.push(name);
-    showToast(`✅ Tipo "${name}" adicionado!`, 'success');
-  } else {
-    SC.tiposConteudo[idx] = name;
-    showToast(`✅ Tipo atualizado!`, 'success');
+  const anterior = idx === null ? null : SC.tiposConteudo[idx];
+
+  if (isSupabaseReady()) {
+    const r = idx === null
+      ? await DB.contentTypes.create(name, SC.tiposConteudo.length)
+      : await DB.contentTypes.update(await _idDaLista(DB.contentTypes, anterior), { nome: name });
+    if (r.error) {
+      const dup = /duplicate key|unique/i.test(r.error.message);
+      showToast(dup ? `Já existe um tipo chamado "${name}".` : `Não foi possível salvar: ${r.error.message}`, 'error');
+      return;
+    }
   }
+
+  if (idx === null) { SC.tiposConteudo.push(name); showToast(`✅ Tipo "${name}" adicionado!`, 'success'); }
+  else { SC.tiposConteudo[idx] = name; showToast('✅ Tipo atualizado!', 'success'); }
   closeModal();
   switchConfigSection('tipos');
 }
 
-function deleteTipo(idx) {
+async function deleteTipo(idx) {
   const name = SC.tiposConteudo[idx];
-  if (confirm(`Remover o tipo "${name}"?`)) {
-    SC.tiposConteudo.splice(idx, 1);
-    showToast(`Tipo "${name}" removido.`, 'error');
-    switchConfigSection('tipos');
+  if (!confirm(`Remover o tipo "${name}"?`)) return;
+
+  if (isSupabaseReady()) {
+    const id = await _idDaLista(DB.contentTypes, name);
+    if (id) {
+      const { error } = await DB.contentTypes.remove(id);
+      if (error) { showToast(`Não foi possível remover: ${error.message}`, 'error'); return; }
+    }
   }
+  SC.tiposConteudo.splice(idx, 1);
+  showToast(`Tipo "${name}" removido.`, 'success');
+  switchConfigSection('tipos');
 }
 
 /* ─── SERVIÇOS ───────────────────────────── */
 
 function renderConfigServicos() {
   return `
-    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
-      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
-      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
-    </div>
     <div class="config-section-head">
       <h3 style="font-size:16px;font-weight:700">Serviços Oferecidos</h3>
       <button class="btn btn-primary" data-action="open-servico-modal">
@@ -1031,27 +1112,42 @@ function openServicoModal(idx) {
   `);
 }
 
-function saveServico(idx) {
+async function saveServico(idx) {
   const name = document.getElementById('svc-name').value.trim();
   if (!name) { showToast('Nome é obrigatório!', 'error'); return; }
-  if (idx === null) {
-    SC.servicos.push(name);
-    showToast(`✅ Serviço "${name}" adicionado!`, 'success');
-  } else {
-    SC.servicos[idx] = name;
-    showToast(`✅ Serviço atualizado!`, 'success');
+  const anterior = idx === null ? null : SC.servicos[idx];
+
+  if (isSupabaseReady()) {
+    const r = idx === null
+      ? await DB.serviceCatalog.create(name, SC.servicos.length)
+      : await DB.serviceCatalog.update(await _idDaLista(DB.serviceCatalog, anterior), { nome: name });
+    if (r.error) {
+      const dup = /duplicate key|unique/i.test(r.error.message);
+      showToast(dup ? `Já existe um serviço chamado "${name}".` : `Não foi possível salvar: ${r.error.message}`, 'error');
+      return;
+    }
   }
+
+  if (idx === null) { SC.servicos.push(name); showToast(`✅ Serviço "${name}" adicionado!`, 'success'); }
+  else { SC.servicos[idx] = name; showToast('✅ Serviço atualizado!', 'success'); }
   closeModal();
   switchConfigSection('servicos');
 }
 
-function deleteServico(idx) {
+async function deleteServico(idx) {
   const name = SC.servicos[idx];
-  if (confirm(`Remover o serviço "${name}"?`)) {
-    SC.servicos.splice(idx, 1);
-    showToast(`Serviço "${name}" removido.`, 'error');
-    switchConfigSection('servicos');
+  if (!confirm(`Remover o serviço "${name}"?`)) return;
+
+  if (isSupabaseReady()) {
+    const id = await _idDaLista(DB.serviceCatalog, name);
+    if (id) {
+      const { error } = await DB.serviceCatalog.remove(id);
+      if (error) { showToast(`Não foi possível remover: ${error.message}`, 'error'); return; }
+    }
   }
+  SC.servicos.splice(idx, 1);
+  showToast(`Serviço "${name}" removido.`, 'success');
+  switchConfigSection('servicos');
 }
 
 /* ─── APROVAÇÃO ──────────────────────────── */
@@ -1085,13 +1181,25 @@ function renderConfigAprovacao() {
     </div>`;
 }
 
-function toggleModeloAprovacao(id) {
-  const m = SC.modelosAprovacao.find(x => x.id === id);
+async function toggleModeloAprovacao(id) {
+  const m = SC.modelosAprovacao.find(x => String(x.id) === String(id));
   if (!m) return;
-  const isActivating = !m.ativo;
+  const ligando = !m.ativo;
+
+  if (isSupabaseReady()) {
+    // Desliga todos ANTES de ligar: ha indice unico parcial permitindo um so
+    // ativo, e ligar sem desligar violaria a restricao.
+    const { error: e1 } = await DB.approvalModels.desligarTodos();
+    if (e1) { showToast(`Não foi possível salvar: ${e1.message}`, 'error'); return; }
+    if (ligando) {
+      const { error: e2 } = await DB.approvalModels.update(id, { ativo: true });
+      if (e2) { showToast(`Não foi possível salvar: ${e2.message}`, 'error'); return; }
+    }
+  }
+
   SC.modelosAprovacao.forEach(x => { x.ativo = false; });
-  if (isActivating) m.ativo = true;
-  showToast(isActivating ? `✅ Modelo "${m.name}" ativado!` : 'Modelo desativado.', isActivating ? 'success' : 'info');
+  if (ligando) m.ativo = true;
+  showToast(ligando ? `✅ Modelo "${m.name}" ativado!` : 'Modelo desativado.', ligando ? 'success' : 'info');
   switchConfigSection('aprovacao');
 }
 

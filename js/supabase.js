@@ -671,6 +671,48 @@ const DB = {
     async remove(id) { return SB.remove('financial_payables', id); },
   },
 
+  // ── LISTAS DE CONFIGURAÇÃO ──────────────
+  // Recursos que viviam só em SC.<coisa> ate a migration 028.
+  chartOfAccounts: {
+    async list() { return SB.list('chart_of_accounts', { order: { col: 'codigo', asc: true } }); },
+    async create(data) { return SB.insert('chart_of_accounts', data); },
+    async update(id, data) { return SB.update('chart_of_accounts', id, data); },
+    async remove(id) { return SB.remove('chart_of_accounts', id); },
+  },
+
+  contentTypes: {
+    async list() { return SB.list('content_types', { order: { col: 'posicao', asc: true } }); },
+    async create(nome, posicao) { return SB.insert('content_types', { nome, posicao }); },
+    async update(id, data) { return SB.update('content_types', id, data); },
+    async remove(id) { return SB.remove('content_types', id); },
+  },
+
+  serviceCatalog: {
+    async list() { return SB.list('service_catalog', { order: { col: 'posicao', asc: true } }); },
+    async create(nome, posicao) { return SB.insert('service_catalog', { nome, posicao }); },
+    async update(id, data) { return SB.update('service_catalog', id, data); },
+    async remove(id) { return SB.remove('service_catalog', id); },
+  },
+
+  approvalModels: {
+    async list() { return SB.list('approval_models', { order: { col: 'id', asc: true } }); },
+    async update(id, data) { return SB.update('approval_models', id, data); },
+    // O indice unico parcial permite UM ativo: e preciso desligar todos antes
+    // de ligar o escolhido, senao o UPDATE viola a restricao.
+    async desligarTodos() {
+      if (!isSupabaseReady()) return { error: null };
+      return supabaseClient.from('approval_models').update({ ativo: false }).eq('ativo', true);
+    },
+  },
+
+  rolePermissions: {
+    async list() { return SB.list('role_permissions', {}); },
+    async salvar(role, acoes, modulos, userId) {
+      return SB.upsert('role_permissions',
+        { role, acoes, modulos, updated_by: userId || null }, 'role');
+    },
+  },
+
   // ── COBRANÇA E FISCAL (leitura) ─────────
   // SOMENTE LEITURA, de propósito. Emitir, cancelar e liquidar cobrança e nota
   // passam pelas Edge Functions `cora` e `nfse`, que falam com um banco e com a
@@ -1050,7 +1092,8 @@ async function hydrateFromSupabase() {
   if (!isSupabaseReady()) return;
 
   try {
-    const [clients, profiles, tasks, leads, receivables, payables, suppliers, teams] = await Promise.all([
+    const [clients, profiles, tasks, leads, receivables, payables, suppliers, teams,
+           contas, tipos, servicos, modelos, permissoes] = await Promise.all([
       SB.list('clients', { order: { col: 'name', asc: true } }),
       SB.list('profiles', { order: { col: 'full_name', asc: true } }),
       SB.list('tasks', {
@@ -1071,6 +1114,11 @@ async function hydrateFromSupabase() {
         select: '*, team_members(profile_id)',
         order: { col: 'name', asc: true },
       }),
+      SB.list('chart_of_accounts', { order: { col: 'codigo', asc: true } }),
+      SB.list('content_types',     { order: { col: 'posicao', asc: true } }),
+      SB.list('service_catalog',   { order: { col: 'posicao', asc: true } }),
+      SB.list('approval_models',   { order: { col: 'id', asc: true } }),
+      SB.list('role_permissions', {}),
     ]);
 
     // Clientes
@@ -1160,6 +1208,24 @@ async function hydrateFromSupabase() {
       id: t.id, name: t.name, desc: t.description || '', color: t.color || 'purple',
       members: (t.team_members || []).map(m => m.profile_id),
     }));
+
+    // Listas de configuracao (migration 028). Se a migration ainda nao tiver
+    // rodado, cada SB.list devolve erro e data null — o `||` preserva o mock de
+    // js/data.js em vez de esvaziar a tela.
+    if (contas.data)   SC.planoDeContas = contas.data;
+    if (tipos.data)    SC.tiposConteudo = tipos.data.map(t => t.nome);
+    if (servicos.data) SC.servicos      = servicos.data.map(t => t.nome);
+    if (modelos.data)  SC.modelosAprovacao = modelos.data.map(m => ({
+      id: m.id, name: m.nome, desc: m.descricao || '', icon: m.icone || '', ativo: m.ativo,
+    }));
+
+    // Matriz de permissoes. Sobrescreve o default de js/data.js, papel a papel,
+    // para um papel ausente na tabela continuar com o default em vez de ficar
+    // sem permissao nenhuma.
+    for (const linha of (permissoes.data || [])) {
+      if (linha.acoes)   SC.permissoes[linha.role]        = linha.acoes;
+      if (linha.modulos) SC.modulePermissions[linha.role] = linha.modulos;
+    }
 
     // Limpa demo data
     SC.avisos    = [];
