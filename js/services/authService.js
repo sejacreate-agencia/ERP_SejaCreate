@@ -68,14 +68,23 @@ const AuthService = {
 
     SC.currentUser = this._mapProfile(profile);
 
+    // ORDEM IMPORTA: hydrateFromSupabase carrega a matriz por perfil da tabela
+    // role_permissions (migration 028) e SOBRESCREVE SC.permissoes[role] inteiro.
+    // O override individual de profiles.permissions tem que vir DEPOIS, senao a
+    // hidratacao o apagaria e a pessoa perderia a permissao concedida so a ela.
+    await hydrateFromSupabase();
+
     if (profile.permissions) {
       try {
-        const customPerms = JSON.parse(profile.permissions);
-        Object.assign(SC.permissoes[profile.role], customPerms);
+        const customPerms = typeof profile.permissions === 'string'
+          ? JSON.parse(profile.permissions)
+          : profile.permissions;
+        if (customPerms && typeof customPerms === 'object') {
+          Object.assign(SC.permissoes[profile.role], customPerms);
+        }
       } catch { /* ignora JSON inválido */ }
     }
 
-    await hydrateFromSupabase();
     this._postLogin(profile.role);
     return { data: SC.currentUser };
   },

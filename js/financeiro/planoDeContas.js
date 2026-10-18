@@ -35,10 +35,6 @@ function renderFinPlanoDeContas() {
       </tr>`).join('');
 
     return `
-    <div class="tag tag-yellow" style="display:block;padding:9px 13px;margin-bottom:14px;font-size:12px;line-height:1.6">
-      <i class="fas fa-triangle-exclamation"></i> <strong>Ainda não é salvo no banco.</strong>
-      As alterações valem só nesta sessão e voltam ao padrão ao recarregar a página.
-    </div>
       <tr style="background:rgba(255,255,255,0.03)">
         <td colspan="5" style="padding:8px 12px;font-size:11px;font-weight:700;
           color:var(--text-secondary);letter-spacing:.06em;text-transform:uppercase">
@@ -165,7 +161,10 @@ function openContaModal(id) {
   `);
 }
 
-function saveConta(id) {
+// Plano de contas. Virou tabela na migration 028, com PK INTEGER de proposito:
+// financial_payables.conta_id e financial_receivables.conta_id ja apontavam
+// para estes ids, e trocar para UUID orfanaria os lancamentos existentes.
+async function saveConta(id) {
   const codigo = document.getElementById('conta-codigo').value.trim();
   const nome   = document.getElementById('conta-nome').value.trim();
   const grupo  = document.getElementById('conta-grupo').value;
@@ -176,13 +175,32 @@ function saveConta(id) {
     return;
   }
 
+  const dados = { codigo, nome, tipo, dre_grupo: grupo };
+  let novoId = id ? parseInt(id) : null;
+
+  if (isSupabaseReady()) {
+    const r = id
+      ? await DB.chartOfAccounts.update(parseInt(id), dados)
+      // Sem passar id: a sequencia da tabela gera o proximo (comeca em 100,
+      // depois dos 14 semeados). Max(ids)+1 do codigo antigo colidiria assim
+      // que duas pessoas criassem conta ao mesmo tempo.
+      : await DB.chartOfAccounts.create({ ...dados, ativo: true });
+    if (r.error) {
+      const dup = /duplicate key|unique/i.test(r.error.message);
+      showToast(dup ? `Já existe uma conta com o código ${codigo}.` : `Não foi possível salvar: ${r.error.message}`, 'error');
+      return;
+    }
+    if (!id) novoId = r.data.id;
+  } else if (!id) {
+    novoId = Math.max(...SC.planoDeContas.map(c => c.id), 0) + 1;
+  }
+
   if (id) {
     const conta = SC.planoDeContas.find(c => c.id === parseInt(id));
-    if (conta) Object.assign(conta, { codigo, nome, dre_grupo: grupo, tipo });
+    if (conta) Object.assign(conta, dados);
     showToast('✅ Conta atualizada!', 'success');
   } else {
-    const newId = Math.max(...SC.planoDeContas.map(c => c.id), 0) + 1;
-    SC.planoDeContas.push({ id: newId, codigo, nome, tipo, dre_grupo: grupo, ativo: true });
+    SC.planoDeContas.push({ id: novoId, ...dados, ativo: true });
     showToast('✅ Conta criada!', 'success');
   }
 
@@ -190,19 +208,43 @@ function saveConta(id) {
   renderFinanceiro('plano-contas');
 }
 
-function deleteContaConfirm(id) {
-  const idx = SC.planoDeContas.findIndex(c => c.id === parseInt(id));
+async function deleteContaConfirm(id) {
+  const alvo = parseInt(id);
+  const idx = SC.planoDeContas.findIndex(c => c.id === alvo);
   if (idx === -1) return;
+
+  if (isSupabaseReady()) {
+    // Conta usada em lancamento nao pode sumir: conta_id ficaria apontando para
+    // nada e o DRE perderia a classificacao. Desativar e a saida certa.
+    const [pay, rec] = await Promise.all([
+      SB.list('financial_payables',    { select: 'id', filters: [{ op:'eq', col:'conta_id', val: alvo }], limit: 1 }),
+      SB.list('financial_receivables', { select: 'id', filters: [{ op:'eq', col:'conta_id', val: alvo }], limit: 1 }),
+    ]);
+    if ((pay.data?.length || 0) + (rec.data?.length || 0) > 0) {
+      showToast('Esta conta já tem lançamentos e não pode ser excluída. Desative-a.', 'error');
+      return;
+    }
+    const { error } = await DB.chartOfAccounts.remove(alvo);
+    if (error) { showToast(`Não foi possível excluir: ${error.message}`, 'error'); return; }
+  }
+
   SC.planoDeContas.splice(idx, 1);
   closeModal();
   showToast('Conta excluída.', 'success');
   renderFinanceiro('plano-contas');
 }
 
-function toggleContaStatus(id) {
+async function toggleContaStatus(id) {
   const conta = SC.planoDeContas.find(c => c.id === parseInt(id));
   if (!conta) return;
-  conta.ativo = !conta.ativo;
-  showToast(conta.ativo ? '✅ Conta ativada!' : 'Conta desativada.', 'success');
+  const novo = !conta.ativo;
+
+  if (isSupabaseReady()) {
+    const { error } = await DB.chartOfAccounts.update(conta.id, { ativo: novo });
+    if (error) { showToast(`Não foi possível alterar: ${error.message}`, 'error'); return; }
+  }
+
+  conta.ativo = novo;
+  showToast(novo ? '✅ Conta ativada!' : 'Conta desativada.', 'success');
   renderFinanceiro('plano-contas');
 }
